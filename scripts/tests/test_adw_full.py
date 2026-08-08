@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,7 +27,7 @@ def _make_args(**kwargs: object) -> argparse.Namespace:
     return argparse.Namespace(**defaults)
 
 
-def _import_full() -> object:
+def _import_full() -> types.ModuleType:
     sys.path.insert(0, str(ROOT))
     import adws.adw_specback_full as full
 
