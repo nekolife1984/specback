@@ -49,3 +49,7 @@ Thumbs.db
 graphify-out/
 .hermes/
 recon.json
+
+# specback 生成物（コードから再生成可能）
+specs/
+adw-*.json
