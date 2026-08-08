@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import sys
@@ -47,6 +48,118 @@ def build_parser() -> argparse.ArgumentParser:
 
 def load_env(path: str | Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+# --- gitignore 互換パターン（stdlib only） ---
+
+def load_gitignore_patterns(target: Path) -> list[tuple[re.Pattern[str], bool]]:
+    """target 直下の .gitignore / .ignore を読み込み (パターン, 否定フラグ) リストを返す。
+
+    - `.gitignore` を先に読み、`.ignore` のパターンを後ろに追加する（後者が優先される）
+    - `#` コメント行・空行はスキップ
+    - `!` で始まる行は否定（再include）パターン
+    - パターンは fnmatch 互換の正規表現に変換する
+    """
+    patterns: list[tuple[re.Pattern[str], bool]] = []
+    for fname in (".gitignore", ".ignore"):
+        path = target / fname
+        if not path.is_file():
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for raw in lines:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            negate = line.startswith("!")
+            if negate:
+                line = line[1:].strip()
+            if not line:
+                continue
+            # 先頭スラッシュはルート相対を意味するが、fnmatch は相対パス全体に
+            # マッチさせるので、正規表現化で扱う
+            regex = _gitignore_pattern_to_regex(line)
+            patterns.append((re.compile(regex), negate))
+    return patterns
+
+
+def _gitignore_pattern_to_regex(pattern: str) -> str:
+    """gitignore パターンを fnmatch 互換の正規表現文字列に変換する。
+
+    - `**/` → 任意の深さのディレクトリ（`(?:.*/)?`）
+    - `*` → `/` 以外の任意文字列
+    - `?` → `/` 以外の任意1文字
+    - 末尾 `/` → ディレクトリのみ（パスのどの位置にもマッチさせるため `(?:$|/)` 相当にする）
+    - 先頭 `/` → ルート相対（プレフィックスを除去して相対パス全体にマッチ）
+    """
+    p = pattern
+    anchored = p.startswith("/")
+    if anchored:
+        p = p[1:]
+    dir_only = p.endswith("/")
+    if dir_only:
+        p = p[:-1]
+
+    # fnmatch で扱いやすいよう ** を特殊処理
+    parts: list[str] = []
+    i = 0
+    while i < len(p):
+        if p[i : i + 3] == "**/":
+            parts.append("(?:.*/)?")
+            i += 3
+        elif p[i : i + 2] == "**":
+            parts.append(".*")
+            i += 2
+        else:
+            # 1文字ずつ処理
+            ch = p[i]
+            if ch == "*":
+                parts.append("[^/]*")
+            elif ch == "?":
+                parts.append("[^/]")
+            elif ch == ".":
+                parts.append(r"\.")
+            elif ch == "[":
+                # 文字クラスはそのまま（簡易対応）
+                j = i + 1
+                while j < len(p) and p[j] != "]":
+                    j += 1
+                if j < len(p):
+                    parts.append(p[i : j + 1])
+                    i = j
+                else:
+                    parts.append(r"\[")
+            else:
+                parts.append(re.escape(ch))
+            i += 1
+
+    body = "".join(parts)
+    # スラッシュを含まないパターンはファイル名・ディレクトリ名の両方にマッチ
+    # （例: build → build/out.py にもマッチ）。末尾 / のディレクトリ指定も同様。
+    has_slash = "/" in p
+    if dir_only or not has_slash:
+        suffix = "(?:/.*)?$"
+    else:
+        suffix = "$"
+    if anchored:
+        return rf"^{body}{suffix}"
+    # 非アンカーはパスのどの位置のセグメントにもマッチ（git の挙動に近づける）
+    return rf"(?:^|/){body}{suffix}"
+
+
+def is_ignored(rel_path: str, patterns: list[tuple[re.Pattern[str], bool]]) -> bool:
+    """gitignore パターン群に対してパスが無視されるか判定する。
+
+    後から読み込んだパターン（.ignore）が優先される。否定パターン（!）が
+    最後にマッチした場合は無視しない（再include）。
+    """
+    ignored = False
+    for pat, negate in patterns:
+        if pat.search(rel_path):
+            ignored = not negate
+    return ignored
 
 
 def parse_chapters_from_template(template_path: Path) -> list[dict[str, str]]:
@@ -103,6 +216,9 @@ def generate_inventory(target: Path) -> list[dict[str, str]]:
         ".mypy", ".egg-info", "dist", "build", "htmlcov",
     }
 
+    # .gitignore / .ignore パターン（プロジェクト固有の除外設定）
+    ignore_patterns = load_gitignore_patterns(target)
+
     patterns = ["**/*.py", "**/*.js", "**/*.ts", "**/*.java", "**/*.go", "**/*.rs",
                 "**/*.rb", "**/*.php", "**/*.cs", "**/*.swift", "**/*.kt",
                 "**/*.cpp", "**/*.c", "**/*.h", "**/*.sql",
@@ -111,9 +227,12 @@ def generate_inventory(target: Path) -> list[dict[str, str]]:
     for pattern in patterns:
         for f in target.rglob(pattern):
             if f.is_file() and not any(p in excluded_dirs for p in f.parts):
+                rel = str(f.relative_to(target))
+                if is_ignored(rel, ignore_patterns):
+                    continue
                 ext = f.suffix.lower()
                 ft = ext_map.get(ext, "other")
-                inventory.append({"file": str(f.relative_to(target)), "type": ft, "role": roles.get(ft, "other")})
+                inventory.append({"file": rel, "type": ft, "role": roles.get(ft, "other")})
                 if len(inventory) >= 2000:
                     break
         if len(inventory) >= 2000:
