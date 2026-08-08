@@ -56,7 +56,9 @@ def parse_chapters_from_template(template_path: Path) -> list[dict[str, str]]:
         return chapters
 
     content = template_path.read_text(encoding="utf-8")
-    heading_pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
+    # h3 の "### Chapter N: Title" のみが実際のチャプター。
+    # h2（"## Chapter outline" 等のセクション名）は誤検出を避けるため除外する。
+    heading_pattern = re.compile(r"^###\s+Chapter\s+\d+:\s*(.+)$", re.MULTILINE)
     reserved = {"00-metadata.md": "Metadata", "99-unresolved.md": "Unresolved Items", "traceability.md": "Traceability"}
 
     for fname, title in reserved.items():

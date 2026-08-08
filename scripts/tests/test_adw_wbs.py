@@ -42,6 +42,43 @@ def test_parse_chapters() -> None:
     assert any(c["filename"] == "00-metadata.md" for c in chapters)
 
 
+def test_parse_chapters_excludes_h2_section_names() -> None:
+    """h2 のセクション名（Chapter outline / Customisation guidance）をチャプターとして抽出しない。"""
+    from adws.adw_specback_wbs import parse_chapters_from_template
+    tp = ROOT / "templates" / "web-app.md"
+    if not tp.exists():
+        pytest.skip("template not found")
+    chapters = parse_chapters_from_template(tp)
+    filenames = [c["filename"] for c in chapters]
+    assert "chapter-outline.md" not in filenames
+    assert "customisation-guidance.md" not in filenames
+
+
+def test_parse_chapters_extracts_chapter_headings() -> None:
+    """h3 の '### Chapter N: Title' をチャプターとして抽出する。"""
+    from adws.adw_specback_wbs import parse_chapters_from_template
+    tp = ROOT / "templates" / "web-app.md"
+    if not tp.exists():
+        pytest.skip("template not found")
+    chapters = parse_chapters_from_template(tp)
+    standard = [c for c in chapters if c["kind"] == "standard"]
+    assert len(standard) >= 3
+    assert any("Overview" in c["title"] for c in standard)
+    assert any("Architecture" in c["title"] for c in standard)
+
+
+def test_parse_chapters_all_templates() -> None:
+    """全テンプレートで h3 チャプターが抽出され、h2 セクション名が混入しないこと。"""
+    from adws.adw_specback_wbs import parse_chapters_from_template
+    for tp in sorted((ROOT / "templates").glob("*.md")):
+        chapters = parse_chapters_from_template(tp)
+        standard = [c for c in chapters if c["kind"] == "standard"]
+        assert len(standard) >= 3, f"{tp.name}: 標準チャプター不足 ({len(standard)})"
+        filenames = [c["filename"] for c in chapters]
+        assert "chapter-outline.md" not in filenames, f"{tp.name}: h2 セクションが混入"
+        assert "customisation-guidance.md" not in filenames, f"{tp.name}: h2 セクションが混入"
+
+
 def test_generate_inventory(tmp_path: Path) -> None:
     from adws.adw_specback_wbs import generate_inventory
     (tmp_path / "src" / "main.py").parent.mkdir(parents=True)
