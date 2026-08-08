@@ -302,14 +302,29 @@ def classify_file(rel_path: str) -> list[str]:
 
 
 def matches_any(rel_path: str, globs: list[str]) -> bool:
-    return any(fnmatch.fnmatch(rel_path, g) for g in globs)
+    """パスが除外グロブのいずれかにマッチするか判定する。
+
+    `**/NAME/**` 形式は「パス内の任意の階層に NAME セグメントが存在する」と
+    解釈する（fnmatch の `*` は `/` を跨がないため、`**/.venv/**` が
+    `.venv/lib/x.py` にマッチしない問題への対策。Issue #238）。
+    それ以外のグロブは fnmatch で判定する。
+    """
+    for g in globs:
+        stripped = g.strip().strip("/")
+        if stripped.startswith("**/") and stripped.endswith("/**"):
+            name = stripped[3:-3]
+            if name and name in rel_path.split("/"):
+                return True
+        elif fnmatch.fnmatch(rel_path, g):
+            return True
+    return False
 
 
 def iter_target_files(target: Path, exclude_globs: list[str]) -> Iterable[Path]:
     for p in target.rglob("*"):
         if not p.is_file():
             continue
-        rel = p.relative_to(target.parent)
+        rel = p.relative_to(target)
         rel_str = str(rel)
         if matches_any(rel_str, exclude_globs):
             continue
@@ -347,7 +362,7 @@ def build_source_map(
         next_id[0] += 1
         return f"SRC-{next_id[0]:04d}"
 
-    base = target_path.parent
+    base = target_path
 
     for file_path in iter_target_files(target_path, exclude_globs):
         rel_path = str(file_path.relative_to(base))
