@@ -1,8 +1,10 @@
-"""Tests for adws/adw_specback_wbs.py — Phase 2 WBS ADW."""
+"""scripts/wbs_common.py — WBS 共通ロジックのテスト。
+
+ADW 廃止（Issue #236）に伴い、scripts/tests/test_adw_wbs.py から移設した。
+"""
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -10,30 +12,27 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-ADW_WBS = ROOT / "adws" / "adw_specback_wbs.py"
 
 
 def test_imports() -> None:
-    result = subprocess.run([sys.executable, "-c", f"""
-import sys; sys.path.insert(0, '{ROOT}')
-from adws.adw_specback_wbs import run_wbs, build_parser, parse_chapters_from_template, generate_inventory, WBSOutput
-print('  ✅ OK')
-"""], capture_output=True, text=True, timeout=10)
+    """Verify the wbs_common module imports without errors."""
+    result = subprocess.run(
+        [sys.executable, "-c", f"""
+import sys
+sys.path.insert(0, '{ROOT}')
+from scripts.wbs_common import (
+    parse_chapters_from_template, generate_inventory,
+    load_gitignore_patterns, is_ignored,
+)
+print('  ✅ wbs_common imports OK')
+"""],
+        capture_output=True, text=True, timeout=10,
+    )
     assert result.returncode == 0, f"Import failed:\n{result.stderr}"
 
 
-def test_help() -> None:
-    result = subprocess.run([sys.executable, str(ADW_WBS), "--help"], capture_output=True, text=True, timeout=10)
-    assert result.returncode == 0 and "specback ADW" in result.stdout
-
-
-def test_no_target(tmp_path: Path) -> None:
-    result = subprocess.run([sys.executable, str(ADW_WBS), "--target", str(tmp_path / "nonexistent")], capture_output=True, text=True, timeout=10)
-    assert result.returncode == 1 and "target directory not found" in result.stderr
-
-
 def test_parse_chapters() -> None:
-    from adws.adw_specback_wbs import parse_chapters_from_template
+    from scripts.wbs_common import parse_chapters_from_template
     tp = ROOT / "templates" / "web-app.md"
     if not tp.exists():
         pytest.skip("template not found")
@@ -44,7 +43,7 @@ def test_parse_chapters() -> None:
 
 def test_parse_chapters_excludes_h2_section_names() -> None:
     """h2 のセクション名（Chapter outline / Customisation guidance）をチャプターとして抽出しない。"""
-    from adws.adw_specback_wbs import parse_chapters_from_template
+    from scripts.wbs_common import parse_chapters_from_template
     tp = ROOT / "templates" / "web-app.md"
     if not tp.exists():
         pytest.skip("template not found")
@@ -56,7 +55,7 @@ def test_parse_chapters_excludes_h2_section_names() -> None:
 
 def test_parse_chapters_extracts_chapter_headings() -> None:
     """h3 の '### Chapter N: Title' をチャプターとして抽出する。"""
-    from adws.adw_specback_wbs import parse_chapters_from_template
+    from scripts.wbs_common import parse_chapters_from_template
     tp = ROOT / "templates" / "web-app.md"
     if not tp.exists():
         pytest.skip("template not found")
@@ -69,7 +68,7 @@ def test_parse_chapters_extracts_chapter_headings() -> None:
 
 def test_parse_chapters_all_templates() -> None:
     """全テンプレートで h3 チャプターが抽出され、h2 セクション名が混入しないこと。"""
-    from adws.adw_specback_wbs import parse_chapters_from_template
+    from scripts.wbs_common import parse_chapters_from_template
     for tp in sorted((ROOT / "templates").glob("*.md")):
         chapters = parse_chapters_from_template(tp)
         standard = [c for c in chapters if c["kind"] == "standard"]
@@ -80,7 +79,7 @@ def test_parse_chapters_all_templates() -> None:
 
 
 def test_generate_inventory(tmp_path: Path) -> None:
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "src" / "main.py").parent.mkdir(parents=True)
     (tmp_path / "src" / "main.py").write_text("print('x')", encoding="utf-8")
     (tmp_path / "config.json").write_text("{}", encoding="utf-8")
@@ -92,7 +91,7 @@ def test_generate_inventory(tmp_path: Path) -> None:
 
 def test_generate_inventory_excludes_venv(tmp_path: Path) -> None:
     """.venv 配下のライブラリを inventory に含めない。"""
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "src" / "app.py").parent.mkdir(parents=True)
     (tmp_path / "src" / "app.py").write_text("import os\n", encoding="utf-8")
     (tmp_path / ".venv" / "lib" / "python3.14" / "site-packages" / "PIL").mkdir(parents=True)
@@ -107,7 +106,7 @@ def test_generate_inventory_excludes_venv(tmp_path: Path) -> None:
 
 def test_generate_inventory_excludes_git_and_caches(tmp_path: Path) -> None:
     """.git / __pycache__ / .pytest_cache を inventory に含めない。"""
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / ".git" / "objects").mkdir(parents=True)
     (tmp_path / ".git" / "objects" / "ab").write_text("binary", encoding="utf-8")
@@ -125,7 +124,7 @@ def test_generate_inventory_excludes_git_and_caches(tmp_path: Path) -> None:
 
 def test_generate_inventory_respects_gitignore(tmp_path: Path) -> None:
     """.gitignore に書かれたカスタムパターン（data/）が inventory から除外される。"""
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "data" / "raw.csv").parent.mkdir(parents=True)
     (tmp_path / "data" / "raw.csv").write_text("a,b\n", encoding="utf-8")
@@ -138,7 +137,7 @@ def test_generate_inventory_respects_gitignore(tmp_path: Path) -> None:
 
 def test_generate_inventory_gitignore_negation(tmp_path: Path) -> None:
     """.gitignore の否定パターン（!important/）で再includeされる。"""
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "data" / "skip.py").parent.mkdir(parents=True)
     (tmp_path / "data" / "skip.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "data" / "important" / "keep.py").parent.mkdir(parents=True)
@@ -154,7 +153,7 @@ def test_generate_inventory_gitignore_negation(tmp_path: Path) -> None:
 
 def test_ignore_patterns_no_gitignore(tmp_path: Path) -> None:
     """.gitignore が無い場合、全ファイルが inventory に含まれる。"""
-    from adws.adw_specback_wbs import generate_inventory
+    from scripts.wbs_common import generate_inventory
     (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "b.md").write_text("# doc\n", encoding="utf-8")
     inv = generate_inventory(tmp_path)
@@ -164,7 +163,7 @@ def test_ignore_patterns_no_gitignore(tmp_path: Path) -> None:
 
 def test_gitignore_pattern_to_regex() -> None:
     """gitignore パターン→正規表現変換の主要ケース。"""
-    from adws.adw_specback_wbs import _gitignore_pattern_to_regex
+    from scripts.wbs_common import _gitignore_pattern_to_regex
     import re
     cases = [
         # (パターン, マッチするパス, マッチしないパス)
@@ -178,15 +177,3 @@ def test_gitignore_pattern_to_regex() -> None:
         regex = _gitignore_pattern_to_regex(pattern)
         assert re.search(regex, should_match), f"{pattern!r} が {should_match!r} にマッチすべき"
         assert not re.search(regex, should_not), f"{pattern!r} が {should_not!r} にマッチすべきでない"
-
-
-def test_non_interactive(tmp_path: Path) -> None:
-    (tmp_path / "main.py").write_text("print('x')", encoding="utf-8")
-    out = tmp_path / "specs"
-    out.mkdir()
-    result = subprocess.run([sys.executable, str(ADW_WBS), "--target", str(tmp_path), "--output-dir", str(out), "--non-interactive", "--envelope-out", str(tmp_path / "env.json")], capture_output=True, text=True, timeout=30)
-    assert result.returncode == 0, f"WBS failed:\n{result.stderr}"
-    env = json.loads((tmp_path / "env.json").read_text())
-    assert env["inventory_count"] >= 0
-    assert len(env["chapters"]) >= 3
-    assert (out / ".specback" / "wbs.json").exists()

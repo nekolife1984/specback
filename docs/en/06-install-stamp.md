@@ -9,17 +9,9 @@ creates a clean three-layer structure in the target project:
 ```
 target-repo/
 ├── .specback_data/              ← Project-specific (user customizes)
-│   ├── config/
-│   │   └── sssf.config.yaml         → Agent roster configuration
 │   ├── templates/                   → Custom templates (empty by default)
 │   ├── prompt_engineering/          → Custom prompts (empty by default)
 │   └── llockfile                    → Lockfile with install hashes
-│
-├── adws/                        ← Stamped ADW scripts (re-stampable)
-│   ├── adw_specback_setup.py
-│   ├── adw_specback_recon.py
-│   ├── adw_modules/
-│   └── ...
 │
 └── .claude/skills/specback/     ← Core skill (read-only stamp)
     ├── SKILL.md
@@ -55,7 +47,7 @@ python3 scripts/specback_install.py --check /path/to/target-repo
 #      Installed: 2026-08-05T12:00:00Z
 #      Version:   1.2.0
 #   🔴  Modified files (1):
-#        ~ adws/adw_specback_setup.py
+#        ~ .claude/skills/specback/SKILL.md
 #   ✅  Intact files: 262
 ```
 
@@ -91,8 +83,6 @@ The lockfile lives at `.specback_data/llockfile` and is a JSON file:
   "installed_at": "2026-08-05T12:00:00Z",
   "specback_version": "1.2.0",
   "hashes": {
-    "adws/adw_specback_setup.py": "sha256:abc123...",
-    "adws/adw_specback_recon.py": "sha256:def456...",
     ".claude/skills/specback/SKILL.md": "sha256:ghi789..."
   },
   "user_modified": []
@@ -107,11 +97,9 @@ against the current on-disk hashes.
 
 | Layer | Source (specback repo) | Target | Re-stampable? |
 |-------|----------------------|--------|:------------:|
-| ADW scripts | `adws/` | `target/adws/` | Yes |
 | Core skill | `skills/specback/` | `target/.claude/skills/specback/` | Yes |
 | Search skill | `skills/specback-search/` | `target/.claude/skills/specback-search/` | Yes |
 | Shared assets | `scripts/`, `references/`, `schemas/`, `agents/`, `templates/`, `variants/` | `target/.claude/skills/specback/...` | Yes |
-| Config | `adws/adw_sssf_config/sssf.config.yaml` | `target/.specback_data/config/` | No (user data) |
 | Custom templates | (empty) | `target/.specback_data/templates/` | No (user data) |
 | Custom prompts | (empty) | `target/.specback_data/prompt_engineering/` | No (user data) |
 

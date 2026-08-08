@@ -73,7 +73,6 @@ class TestDryRun:
         result = _run("--dry-run", str(tmp_path))
         assert result.returncode == 0
         assert ".specback_data/" in result.stdout
-        assert "adws/" in result.stdout
         assert ".claude/skills/specback/" in result.stdout
         assert "prompt_engineering/" in result.stdout
 
@@ -90,17 +89,9 @@ class TestInstall:
         # Check .specback_data/
         data_dir = tmp_path / ".specback_data"
         assert data_dir.is_dir()
-        assert (data_dir / "config" / "sssf.config.yaml").exists()
         assert (data_dir / "templates").is_dir()
         assert (data_dir / "prompt_engineering").is_dir()
         assert (data_dir / "llockfile").exists()
-
-        # Check adws/ stamped
-        adws_dir = tmp_path / "adws"
-        assert adws_dir.is_dir()
-        assert (adws_dir / "adw_specback_setup.py").exists()
-        assert (adws_dir / "adw_specback_full.py").exists()
-        assert (adws_dir / "adw_modules").is_dir()
 
         # Check core skill
         skill_dir = tmp_path / ".claude" / "skills" / "specback"
@@ -141,10 +132,10 @@ class TestInstall:
         assert isinstance(lock["hashes"], dict)
         assert len(lock["hashes"]) > 0
 
-        # Verify a specific hash
-        setup_py = ROOT / "adws" / "adw_specback_setup.py"
-        expected_hash = _sha256(setup_py)
-        assert lock["hashes"].get("adws/adw_specback_setup.py") == expected_hash
+        # Verify a specific hash（SKILL.md がスタンプされている）
+        skill_md = ROOT / "skills" / "specback" / "SKILL.md"
+        expected_hash = _sha256(skill_md)
+        assert lock["hashes"].get(".claude/skills/specback/SKILL.md") == expected_hash
 
     def test_lockfile_no_pycache(self, tmp_path: Path) -> None:
         """Lockfile should not contain __pycache__ hashes."""
@@ -157,10 +148,9 @@ class TestInstall:
     def test_config_stamped(self, tmp_path: Path) -> None:
         """Config file should be a copy of the source config."""
         _run(str(tmp_path))
+        # ADW廃止により sssf.config.yaml はコピーされない（Issue #236）
         target_config = tmp_path / ".specback_data" / "config" / "sssf.config.yaml"
-        source_config = ROOT / "adws" / "adw_sssf_config" / "sssf.config.yaml"
-        assert target_config.exists()
-        assert _sha256(target_config) == _sha256(source_config)
+        assert not target_config.exists()
 
 
 class TestCheck:
@@ -182,19 +172,19 @@ class TestCheck:
     def test_drift_detected(self, tmp_path: Path) -> None:
         """Modified file should be detected as drift."""
         _run(str(tmp_path))
-        # Modify a stamped file
-        setup_py = tmp_path / "adws" / "adw_specback_setup.py"
-        with open(setup_py, "a") as f:
+        # Modify a stamped file（SKILL.md を変更）
+        skill_md = tmp_path / ".claude" / "skills" / "specback" / "SKILL.md"
+        with open(skill_md, "a") as f:
             f.write("\n# DRIFT\n")
         result = _run("--check", str(tmp_path))
         assert result.returncode == 1
         assert "Modified files" in result.stdout
-        assert "adws/adw_specback_setup.py" in result.stdout
+        assert ".claude/skills/specback/SKILL.md" in result.stdout
 
     def test_deleted_file_drift(self, tmp_path: Path) -> None:
         """Deleted stamped file should be detected."""
         _run(str(tmp_path))
-        (tmp_path / "adws" / "adw_specback_setup.py").unlink()
+        (tmp_path / ".claude" / "skills" / "specback" / "SKILL.md").unlink()
         result = _run("--check", str(tmp_path))
         assert result.returncode == 1
         assert "Removed files" in result.stdout
@@ -214,9 +204,9 @@ class TestEdgeCases:
     def test_force_drift_reset(self, tmp_path: Path) -> None:
         """--force should reset drift state."""
         _run(str(tmp_path))
-        # Create drift
-        setup_py = tmp_path / "adws" / "adw_specback_setup.py"
-        with open(setup_py, "a") as f:
+        # Create drift（SKILL.md を変更）
+        skill_md = tmp_path / ".claude" / "skills" / "specback" / "SKILL.md"
+        with open(skill_md, "a") as f:
             f.write("\n# DRIFT\n")
         # Force re-stamp
         result = _run("--force", str(tmp_path))
