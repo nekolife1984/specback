@@ -9,17 +9,9 @@
 ```
 target-repo/
 ├── .specback_data/              ← プロジェクト固有（キミがカスタマイズ）
-│   ├── config/
-│   │   └── sssf.config.yaml         → エージェントロスター設定
 │   ├── templates/                   → カスタムテンプレート（初期は空）
 │   ├── prompt_engineering/          → カスタムプロンプト（初期は空）
 │   └── llockfile                    → インストールハッシュのロックファイル
-│
-├── adws/                        ← スタンプされたADWスクリプト（再スタンプ可）
-│   ├── adw_specback_setup.py
-│   ├── adw_specback_recon.py
-│   ├── adw_modules/
-│   └── ...
 │
 └── .claude/skills/specback/     ← コアスキル（読み取り専用スタンプ）
     ├── SKILL.md
@@ -55,7 +47,7 @@ python3 scripts/specback_install.py --check /path/to/target-repo
 #      Installed: 2026-08-05T12:00:00Z
 #      Version:   1.2.0
 #   🔴  Modified files (1):
-#        ~ adws/adw_specback_setup.py
+#        ~ .claude/skills/specback/SKILL.md
 #   ✅  Intact files: 262
 ```
 
@@ -91,8 +83,6 @@ python3 scripts/specback_install.py --help
   "installed_at": "2026-08-05T12:00:00Z",
   "specback_version": "1.2.0",
   "hashes": {
-    "adws/adw_specback_setup.py": "sha256:abc123...",
-    "adws/adw_specback_recon.py": "sha256:def456...",
     ".claude/skills/specback/SKILL.md": "sha256:ghi789..."
   },
   "user_modified": []
@@ -107,11 +97,9 @@ python3 scripts/specback_install.py --help
 
 | レイヤー | ソース（specbackリポジトリ） | ターゲット | 再スタンプ可能？ |
 |---------|---------------------------|----------|:------------:|
-| ADWスクリプト | `adws/` | `target/adws/` | はい |
 | コアスキル | `skills/specback/` | `target/.claude/skills/specback/` | はい |
 | 検索スキル | `skills/specback-search/` | `target/.claude/skills/specback-search/` | はい |
 | 共有アセット | `scripts/`, `references/`, `schemas/`, `agents/`, `templates/`, `variants/` | `target/.claude/skills/specback/...` | はい |
-| 設定 | `adws/adw_sssf_config/sssf.config.yaml` | `target/.specback_data/config/` | いいえ（ユーザーデータ） |
 | カスタムテンプレート | （空） | `target/.specback_data/templates/` | いいえ（ユーザーデータ） |
 | カスタムプロンプト | （空） | `target/.specback_data/prompt_engineering/` | いいえ（ユーザーデータ） |
 

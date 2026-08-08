@@ -4,7 +4,7 @@
 Stamps specback into a target project directory with lockfile-based drift
 detection. Creates a clean separation between:
 
-  - **Stamped** files (adws/, skill symlinks) — re-stampable on upgrade
+  - **Stamped** files (skill symlinks) — re-stampable on upgrade
   - **Project data** (.specback_data/) — user-customizable
 
 Usage:
@@ -42,7 +42,8 @@ PROMPT_ENG_DIR = "prompt_engineering"
 LOCKFILE_NAME = "llockfile"
 
 # Dirs to stamp as-is into target root
-STAMP_DIRS = ["adws"]
+# (ADWスクリプトは廃止済みのため空。Issue #236)
+STAMP_DIRS: list[str] = []
 
 # Dirs to copy as shared assets under the core skill path
 SHARED_DIRS = ["scripts", "references", "schemas", "agents", "templates", "variants"]
@@ -117,12 +118,12 @@ def _current_target_hashes(target: Path, stamp_dirs: list[str]) -> dict[str, str
     """Compute current SHA-256 hashes of stamped files *in the target*.
 
     Returns ``{relative_path: sha256_hex}`` for all files that were
-    originally stamped into the target (adws/, .claude/skills/specback/,
+    originally stamped into the target (.claude/skills/specback/,
     .claude/skills/specback-search/).
     """
     all_hashes: dict[str, str] = {}
 
-    # 1. Stamped dirs (adws/)
+    # 1. Stamped dirs
     for d in stamp_dirs:
         dir_path = target / d
         if dir_path.is_dir():
@@ -232,7 +233,7 @@ def _source_stamp_hashes(project_root: Path) -> dict[str, str]:
     """
     all_hashes: dict[str, str] = {}
 
-    # 1. Stamped dirs (adws/)
+    # 1. Stamped dirs
     for d in STAMP_DIRS:
         src = project_root / d
         if src.is_dir():
@@ -296,12 +297,7 @@ def _ensure_specback_data(target: Path, project_root: Path, dry_run: bool) -> No
     (data_dir / TEMPLATES_DIR).mkdir(exist_ok=True)
     (data_dir / PROMPT_ENG_DIR).mkdir(exist_ok=True)
 
-    # Copy default config
-    config_src = project_root / "adws" / "adw_sssf_config" / "sssf.config.yaml"
-    config_dst = data_dir / CONFIG_DIR / "sssf.config.yaml"
-    if config_src.exists() and not config_dst.exists():
-        shutil.copy2(str(config_src), str(config_dst))
-        print(f"  ✅ {config_dst}")
+    # Copy default config（ADW廃止のため sssf.config.yaml はコピーしない。Issue #236）
 
     print(f"  ✅ {data_dir}/")
 
@@ -350,15 +346,6 @@ def _stamp_dir(
     print(f"  ✅ {dst}/")
 
 
-def _stamp_adws(
-    project_root: Path, target: Path, force: bool, dry_run: bool,
-) -> None:
-    """Stamp adws/ directory."""
-    src = project_root / "adws"
-    dst = target / "adws"
-    _stamp_dir(src, dst, force, dry_run, label="ADWs")
-
-
 def _stamp_core_skill(
     project_root: Path, target: Path, force: bool, dry_run: bool,
 ) -> None:
@@ -397,10 +384,7 @@ def _perform_stamp(
     # 1. Create .specback_data/
     _ensure_specback_data(target, project_root, dry_run)
 
-    # 2. Stamp adws/
-    _stamp_adws(project_root, target, force, dry_run)
-
-    # 3. Stamp core skill + shared assets
+    # 2. Stamp core skill + shared assets
     _stamp_core_skill(project_root, target, force, dry_run)
 
     # 4. Compute hashes for lockfile
@@ -435,7 +419,6 @@ def cmd_install(target: Path, force: bool, dry_run: bool, version: str) -> int:
         print(f"  🔒  Lockfile written: {lockfile_path}")
         print(f"\n  ✅  specback v{version} stamped into {target}")
         print(f"     📁 {target / SPECBACK_DATA_DIR}/  → customize here")
-        print(f"     📁 {target / 'adws'}/              → stamped ADW scripts")
         print(f"     📁 {target / '.claude' / 'skills' / 'specback'}/  → core skill")
     else:
         print(f"  🏁  Dry-run complete. No changes were made.\n")
@@ -458,7 +441,7 @@ def cmd_check(target: Path) -> int:
     print(f"     Version:   {existing_lock.get('specback_version', '?')}\n")
 
     drift = _detect_drift(
-        target, ["adws"], existing_lock,
+        target, STAMP_DIRS, existing_lock,
     )
 
     has_issues = False

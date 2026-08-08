@@ -1,29 +1,18 @@
 ---
 name: specback
-description: Reverse-engineer comprehensive specification documents from existing codebases. Uses ADW (AI Developer Workflow) scripts.
+description: Reverse-engineer comprehensive specification documents from existing codebases. Uses the Agent-driven workflow (phase prompts executed by a coding agent).
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task, AskUserQuestion, WebFetch, WebSearch
 metadata:
   short-description: >-
     Reverse-spec generator for legacy codebases.
     This skill is the REFERENCE IMPLEMENTATION.
-    The active workflow runs via ADW scripts (adws/adw_specback_*.py).
+    The active workflow is Agent-driven (phases/ prompts executed by a coding agent).
 ---
 # specback — Agent-Driven Workflow
 
-> **Two workflows are available.** Choose the one that fits your environment:
->
-> | | Agent-driven (this skill) | ADW scripts |
-> |---|---|---|
-> | **Run method** | Load skill in your coding agent | `uv run adws/adw_specback_full.py` |
-> | **CLI required?** | ❌ No — pure agent interaction | ✅ Yes — Python + uv |
-> | **Best for** | Copilot, Cursor, chat-first users | CI/CD, headless, deterministic runs |
-> | **Phase control** | Interactive (agent asks you) | `--resume`, `--non-interactive` flags |
->
-> Both produce equivalent results. Pick whichever works for your setup.
-
 ## Quick start
 
-### Agent-driven (this skill — no CLI needed)
+### Agent-driven (this skill)
 
 1. Install the skill to your agent:
    ```bash
@@ -32,18 +21,6 @@ metadata:
 2. Navigate to your target codebase
 3. Invoke the skill (`/specback` or equivalent)
 4. Follow the agent's prompts through each phase
-
-### ADW scripts (Python CLI)
-
-```bash
-# Full pipeline
-uv run adws/adw_specback_full.py --target /path/to/codebase
-
-# Or per-phase
-uv run adws/adw_specback_setup.py --target /path/to/codebase
-uv run adws/adw_specback_recon.py --target /path/to/codebase
-# ...
-```
 
 ## Phase reference
 
@@ -67,7 +44,7 @@ Each phase is a standalone prompt sequence you can run with your coding agent.
 
 ## Supporting files (shared)
 
-These files are used by both the ADW scripts and this reference skill.
+These files are used by this reference skill.
 All paths are relative to the repo root.
 
 | Path | Contents |

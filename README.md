@@ -42,13 +42,12 @@ In the LLM era, asking an AI to "make a spec from this code" produces visually p
 
 ## Installation
 
-specback offers **two workflows** — pick the one that fits your setup:
+specback uses the **Agent-driven workflow** — load the skill into your coding agent and follow the phase prompts:
 
-| | Agent-driven (skill) | ADW scripts (CLI) |
-|---|---|---|
-| **Run** | Load skill in your coding agent | `uv run adws/adw_specback_full.py` |
-| **CLI needed?** | ❌ No | ✅ Yes (Python + uv) |
-| **Best for** | Copilot/Cursor/chat-first | CI/CD/headless/deterministic |
+1. `./install.sh --agent claude --level project` (or your preferred agent)
+2. Navigate to your target codebase
+3. Invoke the skill (`/specback` or equivalent)
+4. Follow the agent's prompts through each phase
 
 ### Skill Stamp Install (CLI — new)
 
@@ -167,76 +166,6 @@ Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Ste
 
 ---
 
-## ADW (AI Developer Workflow)
-
-specback provides **ADW scripts** (Python) as the active workflow. They replace the legacy agent-driven skill workflow.
-
-### Full pipeline
-
-```bash
-# Run all phases in sequence
-uv run adws/adw_specback_full.py --target /path/to/codebase
-
-# Non-interactive mode (skip setup/refine dialogues)
-uv run adws/adw_specback_full.py --target /path --non-interactive
-
-# Resume from specific phase
-uv run adws/adw_specback_full.py --target /path --from-phase verify
-
-# Skip specific phases
-uv run adws/adw_specback_full.py --target /path --skip-phases drift changespec
-
-# With custom output dir
-uv run adws/adw_specback_full.py --target /path --output-dir docs/specs
-```
-
-### Per-phase execution
-
-```bash
-uv run adws/adw_specback_setup.py --target /path              # Phase 0
-uv run adws/adw_specback_recon.py --target /path              # Phase 1
-uv run adws/adw_specback_wbs.py --target /path                # Phase 2
-uv run adws/adw_specback_investigate.py --target /path        # Phase 3
-uv run adws/adw_specback_verify.py --target /path             # Phase 4
-uv run adws/adw_specback_refine.py --target /path             # Phase 5
-uv run adws/adw_specback_deliver.py --target /path            # Phase 6
-uv run adws/adw_specback_drift.py --target /path              # Phase 7
-uv run adws/adw_specback_changespec.py --target /path         # Phase 7c
-```
-
-### CLI backend selection
-
-```bash
-# Default: opencode
-uv run adws/adw_specback_recon.py --target /path
-
-# Switch to Copilot
-export ADW_CLI=copilot
-uv run adws/adw_specback_recon.py --target /path
-
-# Switch to Claude Code
-export ADW_CLI=claude-code
-uv run adws/adw_specback_recon.py --target /path
-
-# Per-agent config in adws/adw_sssf_config/sssf.config.yaml
-```
-
-### Resume support
-
-```bash
-# First run: creates a run ID
-uv run adws/adw_specback_full.py --target /path
-# → ADW ID: adw-abc123
-
-# Resume: skips completed phases
-uv run adws/adw_specback_full.py --target /path --adw-id adw-abc123
-
-# Or per-phase resume
-uv run adws/adw_specback_recon.py --target /path --adw-id adw-abc123
-```
-
----
-
 ## 6+1 Phase State Machine
 
 | Phase | Name | Main Action |
@@ -250,7 +179,7 @@ uv run adws/adw_specback_recon.py --target /path --adw-id adw-abc123
 | 6 | Deliver | Output final deliverables to `.specback/final/` |
 | **6.5** | **Interactive Deep-Dive** | (interactive mode only) On-demand deep-dive chapter generation guided by user |
 
-See [`skills/specback/SKILL.md`](skills/specback/SKILL.md) and [`adws/`](adws/) for details.
+See [`skills/specback/SKILL.md`](skills/specback/SKILL.md) for details.
 
 ---
 
@@ -520,13 +449,13 @@ LLM時代になり、AIに「このコードから仕様書を作って」と頼
 
 ## インストール
 
-specbackには2つの使い方があるよ：
+specbackは**エージェント駆動（スキル版）**のワークフローを使うよ：
 
-| | エージェント駆動（スキル版） | ADWスクリプト（CLI版） |
-|---|---|---|
-| **実行方法** | エージェントにスキルを読み込む | `uv run adws/adw_specback_full.py` |
-| **CLI必要？** | ❌ 不要 | ✅ 必要（Python + uv） |
-| **おすすめ** | Copilot/Cursor/対話重視 | CI/CD/再現性重視 |
+| | エージェント駆動（スキル版） |
+|---|---|
+| **実行方法** | エージェントにスキルを読み込む |
+| **CLI必要？** | ❌ 不要 |
+| **おすすめ** | Copilot/Cursor/対話重視 |
 
 日本語版はこちら: [スキルスタンプインストール](docs/ja/06-install-stamp.md)
 
@@ -642,7 +571,7 @@ Drafts（中間ドラフト）は出力先に関わらず常に `.specback/draft
 | 6 | Deliver | 最終成果物を `.specback/final/` に出力 |
 | **6.5** | **Interactive Deep-Dive** | (interactive モード時のみ) 利用者の指示で深掘り章を on-demand 生成 |
 
-詳細は [`skills/specback/SKILL.md`](skills/specback/SKILL.md) および [`adws/`](adws/) を参照してください。
+詳細は [`skills/specback/SKILL.md`](skills/specback/SKILL.md) を参照してください。
 
 ---
 
