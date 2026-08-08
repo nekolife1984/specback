@@ -28,25 +28,26 @@ from adws.adw_modules.utils import (  # noqa: E402
 )
 
 
-PHASES: list[dict[str, str | bool]] = [
+PHASES: list[dict[str, str | bool | list[str]]] = [
     {"name": "setup", "script": "adw_specback_setup.py", "kind": "engineer",
-     "desc": "Goal definition", "interactive": True},
+     "desc": "Goal definition", "interactive": True,
+     "args": ["--language", "--non-interactive"]},
     {"name": "recon", "script": "adw_specback_recon.py", "kind": "agent",
-     "desc": "Codebase reconnaissance", "interactive": False},
+     "desc": "Codebase reconnaissance", "interactive": False, "args": ["--non-interactive"]},
     {"name": "wbs", "script": "adw_specback_wbs.py", "kind": "agent",
-     "desc": "Work breakdown structure", "interactive": False},
+     "desc": "Work breakdown structure", "interactive": False, "args": ["--non-interactive"]},
     {"name": "investigate", "script": "adw_specback_investigate.py", "kind": "agent",
-     "desc": "Chapter investigation", "interactive": False},
+     "desc": "Chapter investigation", "interactive": False, "args": ["--depth-mode"]},
     {"name": "verify", "script": "adw_specback_verify.py", "kind": "code",
-     "desc": "Verification gates", "interactive": False},
+     "desc": "Verification gates", "interactive": False, "args": []},
     {"name": "refine", "script": "adw_specback_refine.py", "kind": "engineer",
-     "desc": "Dialogue refinement", "interactive": True},
+     "desc": "Dialogue refinement", "interactive": True, "args": ["--non-interactive"]},
     {"name": "deliver", "script": "adw_specback_deliver.py", "kind": "code",
-     "desc": "Final deliverable", "interactive": False},
+     "desc": "Final deliverable", "interactive": False, "args": []},
     {"name": "drift", "script": "adw_specback_drift.py", "kind": "code",
-     "desc": "Drift detection", "interactive": False},
+     "desc": "Drift detection", "interactive": False, "args": []},
     {"name": "changespec", "script": "adw_specback_changespec.py", "kind": "code",
-     "desc": "Change specification", "interactive": True},
+     "desc": "Change specification", "interactive": True, "args": ["--non-interactive"]},
 ]
 
 # Phases where failure is non-fatal (self-reporting)
@@ -94,6 +95,34 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_phase_args(
+    phase: dict[str, str | bool | list[str]],
+    base_args: list[str],
+    args: argparse.Namespace,
+) -> list[str]:
+    """フェーズが受け付ける引数だけを渡す。
+
+    全フェーズ共通: --target / --non-interactive / --adw-id / --specback-dir
+    フェーズ個別: PHASES の "args" に列挙されたオプション引数（値は args から解決）
+    recon のみ --output-dir を受け付けない（recon は output_dir をカレントディレクトリにハードコードしている）。
+    """
+    phase_args = list(base_args)
+    if phase["name"] != "recon":
+        output_dir = args.output_dir or "specs"
+        phase_args.extend(["--output-dir", str(Path(output_dir).resolve())])
+    for opt in phase.get("args", []):  # type: ignore[union-attr]
+        attr = opt.replace("--", "").replace("-", "_")
+        value = getattr(args, attr, None)
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            if value:
+                phase_args.append(opt)
+        else:
+            phase_args.extend([opt, str(value)])
+    return phase_args
+
+
 def _run_adw(script_name: str, base_args: list[str]) -> int:
     """Run a single ADW script as a subprocess."""
     script_path = _PROJECT_ROOT / "adws" / script_name
@@ -129,18 +158,10 @@ def main() -> int:
 
     base_args = [
         "--target", str(target),
-        "--output-dir", str(output_dir),
+        "--specback-dir", str(specback_dir),
     ]
     if args.adw_id:
         base_args.extend(["--adw-id", args.adw_id])
-    if args.specback_dir:
-        base_args.extend(["--specback-dir", args.specback_dir])
-    if args.non_interactive:
-        base_args.append("--non-interactive")
-    if args.depth_mode:
-        base_args.extend(["--depth-mode", args.depth_mode])
-    if args.language:
-        base_args.extend(["--language", args.language])
 
     skip_phases = set(args.skip_phases or [])
     if args.from_phase:
@@ -173,7 +194,7 @@ def main() -> int:
             print(f"  ⏭️  Phase '{pname}' skipped (interactive, --non-interactive)")
             continue
 
-        rc = _run_adw(script, base_args)
+        rc = _run_adw(script, _build_phase_args(phase, base_args, args))
 
         if rc != 0:
             print(f"\n  ❌ Phase '{pname}' failed with exit code {rc}", file=sys.stderr)
