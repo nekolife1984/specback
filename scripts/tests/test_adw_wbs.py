@@ -123,6 +123,63 @@ def test_generate_inventory_excludes_git_and_caches(tmp_path: Path) -> None:
     assert not any(".pytest_cache" in f for f in files)
 
 
+def test_generate_inventory_respects_gitignore(tmp_path: Path) -> None:
+    """.gitignore に書かれたカスタムパターン（data/）が inventory から除外される。"""
+    from adws.adw_specback_wbs import generate_inventory
+    (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "data" / "raw.csv").parent.mkdir(parents=True)
+    (tmp_path / "data" / "raw.csv").write_text("a,b\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("data/\n", encoding="utf-8")
+    inv = generate_inventory(tmp_path)
+    files = [i["file"] for i in inv]
+    assert "app.py" in files
+    assert not any("data" in f for f in files), f"data/ が除外されていない: {files}"
+
+
+def test_generate_inventory_gitignore_negation(tmp_path: Path) -> None:
+    """.gitignore の否定パターン（!important/）で再includeされる。"""
+    from adws.adw_specback_wbs import generate_inventory
+    (tmp_path / "data" / "skip.py").parent.mkdir(parents=True)
+    (tmp_path / "data" / "skip.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "data" / "important" / "keep.py").parent.mkdir(parents=True)
+    (tmp_path / "data" / "important" / "keep.py").write_text("y = 2\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text(
+        "data/\n!data/important/\n", encoding="utf-8"
+    )
+    inv = generate_inventory(tmp_path)
+    files = [i["file"] for i in inv]
+    assert not any("skip.py" in f for f in files)
+    assert any("important/keep.py" in f for f in files), f"否定パターンが機能していない: {files}"
+
+
+def test_ignore_patterns_no_gitignore(tmp_path: Path) -> None:
+    """.gitignore が無い場合、全ファイルが inventory に含まれる。"""
+    from adws.adw_specback_wbs import generate_inventory
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text("# doc\n", encoding="utf-8")
+    inv = generate_inventory(tmp_path)
+    files = [i["file"] for i in inv]
+    assert "a.py" in files and "b.md" in files
+
+
+def test_gitignore_pattern_to_regex() -> None:
+    """gitignore パターン→正規表現変換の主要ケース。"""
+    from adws.adw_specback_wbs import _gitignore_pattern_to_regex
+    import re
+    cases = [
+        # (パターン, マッチするパス, マッチしないパス)
+        ("data/", "data/raw.csv", "src/data_util.py"),
+        ("*.log", "error.log", "src/error_logger.py"),
+        ("**/temp/*.py", "a/temp/x.py", "temp.py"),
+        ("/root_only.py", "root_only.py", "src/root_only.py"),
+        ("build", "build/out.py", "rebuild.py"),
+    ]
+    for pattern, should_match, should_not in cases:
+        regex = _gitignore_pattern_to_regex(pattern)
+        assert re.search(regex, should_match), f"{pattern!r} が {should_match!r} にマッチすべき"
+        assert not re.search(regex, should_not), f"{pattern!r} が {should_not!r} にマッチすべきでない"
+
+
 def test_non_interactive(tmp_path: Path) -> None:
     (tmp_path / "main.py").write_text("print('x')", encoding="utf-8")
     out = tmp_path / "specs"
