@@ -90,6 +90,39 @@ def test_generate_inventory(tmp_path: Path) -> None:
     assert "source" in types and "config" in types
 
 
+def test_generate_inventory_excludes_venv(tmp_path: Path) -> None:
+    """.venv 配下のライブラリを inventory に含めない。"""
+    from adws.adw_specback_wbs import generate_inventory
+    (tmp_path / "src" / "app.py").parent.mkdir(parents=True)
+    (tmp_path / "src" / "app.py").write_text("import os\n", encoding="utf-8")
+    (tmp_path / ".venv" / "lib" / "python3.14" / "site-packages" / "PIL").mkdir(parents=True)
+    (tmp_path / ".venv" / "lib" / "python3.14" / "site-packages" / "PIL" / "Image.py").write_text(
+        "class Image: pass\n", encoding="utf-8"
+    )
+    inv = generate_inventory(tmp_path)
+    files = [i["file"] for i in inv]
+    assert any(f.endswith("src/app.py") for f in files)
+    assert not any(".venv" in f for f in files), f".venv が含まれてしまった: {files}"
+
+
+def test_generate_inventory_excludes_git_and_caches(tmp_path: Path) -> None:
+    """.git / __pycache__ / .pytest_cache を inventory に含めない。"""
+    from adws.adw_specback_wbs import generate_inventory
+    (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / ".git" / "objects").mkdir(parents=True)
+    (tmp_path / ".git" / "objects" / "ab").write_text("binary", encoding="utf-8")
+    (tmp_path / "__pycache__" / "app.cpython-314.pyc").parent.mkdir(parents=True)
+    (tmp_path / "__pycache__" / "app.cpython-314.pyc").write_bytes(b"\x00")
+    (tmp_path / ".pytest_cache" / "v" / "cache").mkdir(parents=True)
+    (tmp_path / ".pytest_cache" / "v" / "cache" / "lastfailed").write_text("{}", encoding="utf-8")
+    inv = generate_inventory(tmp_path)
+    files = [i["file"] for i in inv]
+    assert "app.py" in files
+    assert not any(".git" in f for f in files)
+    assert not any("__pycache__" in f for f in files)
+    assert not any(".pytest_cache" in f for f in files)
+
+
 def test_non_interactive(tmp_path: Path) -> None:
     (tmp_path / "main.py").write_text("print('x')", encoding="utf-8")
     out = tmp_path / "specs"

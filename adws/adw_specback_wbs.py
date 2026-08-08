@@ -96,6 +96,13 @@ def generate_inventory(target: Path) -> list[dict[str, str]]:
              "data": "data", "doc": "documentation", "style": "presentation",
              "template": "presentation", "script": "build"}
 
+    # スキャン除外ディレクトリ（仮想環境・VCS・キャッシュ・生成物）
+    excluded_dirs = {
+        ".specback", "node_modules", ".venv", "venv", ".git",
+        "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+        ".mypy", ".egg-info", "dist", "build", "htmlcov",
+    }
+
     patterns = ["**/*.py", "**/*.js", "**/*.ts", "**/*.java", "**/*.go", "**/*.rs",
                 "**/*.rb", "**/*.php", "**/*.cs", "**/*.swift", "**/*.kt",
                 "**/*.cpp", "**/*.c", "**/*.h", "**/*.sql",
@@ -103,7 +110,7 @@ def generate_inventory(target: Path) -> list[dict[str, str]]:
                 "**/*.md", "**/*.css", "**/*.html", "**/*.sh"]
     for pattern in patterns:
         for f in target.rglob(pattern):
-            if f.is_file() and ".specback" not in f.parts and "node_modules" not in f.parts:
+            if f.is_file() and not any(p in excluded_dirs for p in f.parts):
                 ext = f.suffix.lower()
                 ft = ext_map.get(ext, "other")
                 inventory.append({"file": str(f.relative_to(target)), "type": ft, "role": roles.get(ft, "other")})
