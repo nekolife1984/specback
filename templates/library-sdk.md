@@ -204,15 +204,15 @@ For each feature listed above, describe the processing flow structured as below.
 - Conditions that must hold before execution
 
 **Main flow**
-1. Step 1 [REF: src/path:line]
-2. Step 2 [REF: src/path:line]
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
 3. ...
 
 **Alternative flows**
-- Alt-1: When [condition] → [behaviour] [REF: src/path:line]
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
 
 **Error handling**
-- Error type → system behaviour [REF: src/path:line]
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
 
 **Post-conditions**
 - State of the system after successful execution
@@ -239,7 +239,7 @@ Top-level modules / packages and their responsibilities, extracted from the dire
 
 | Module / package | Responsibility | Key files | Confidence |
 |------------------|----------------|-----------|-----------|
-| (module) | (responsibility) | [REF: ...] | 🟢/🟡/🔴 |
+| (module) | (responsibility) | <!-- REF: SRC-NNNN --> | 🟢/🟡/🔴 |
 | ... | ... | ... | ... |
 
 - Package entry point (`main` / `module` field of the manifest), if any
@@ -264,8 +264,8 @@ Language / runtime / major dependency packages, extracted from the package manif
 
 | Item | Value | Source | Confidence |
 |------|-------|--------|-----------|
-| Language / runtime | (value) | [REF: ...] | 🟢 |
-| Major dependencies | (value) | [REF: ...] | 🟢 |
+| Language / runtime | (value) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Major dependencies | (value) | <!-- REF: SRC-NNNN --> | 🟢 |
 
 - Build tooling (bundler / compiler / transpiler) and distribution targets (npm / pip / composer / gem / NuGet)
 - → Detailed dependency policy → Chapter ? (Design decisions)
@@ -471,7 +471,7 @@ client.connect({ host: 'localhost' });
 
 | Class | Kind | Module | Responsibility | Depends on | Source |
 |:------|:----|:-------|:-------------|:----------|:-------|
-| ... | ... | ... | ... | ... | [REF: ...] |
+| ... | ... | ... | ... | ... | <!-- REF: SRC-NNNN --> |
 
 - Class diagram (Mermaid `classDiagram`) for key subsystems. Split per module if >15 classes (see SKILL.md Split rule).
 - Module dependency diagram (`graph TD`) for top-level module relationships.
@@ -493,7 +493,7 @@ Code-derived record of design decisions. Confidence is typically low since ratio
 
 | ID | Topic | Decision (as observed in code) | Rationale (inferred) | Alternatives (inferred) | Confidence | Supporting REF |
 |----|-------|------------------------------|---------------------|----------------------|-----------|---------------|
-| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | [REF: ...] |
+| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... |
 
 Extraction strategy:

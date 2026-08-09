@@ -64,7 +64,7 @@ Examples:
 - Line numbers are integers. Use a single line (`:42`) when a single line is being cited; use a range (`:42-56`) when an extent matters. Do NOT use `L42`, `line 42`, ` lines 42-56`, parentheses, or any other decoration.
 - Forbidden alternative forms include but are not limited to:
   - ❌ `Gemfile (lines 1-138)` — parenthesised line annotation
-  - ❌ `[REF: Gemfile:1-138]` — **deprecated** legacy format (will be parsed but should not be written in new specs)
+  - ❌ `[REF: Gemfile:1-138]` — **deprecated** legacy format (NOT parsed by the scripts; do not write it in specs)
   - ❌ `// app.js lines 1-5` — JS-style comment marker
   - ❌ `[REF: Gemfile L1-L138]` — leading `L`
   - ❌ `[REF: Gemfile, lines 1-138]` — comma + word "lines"
@@ -137,7 +137,7 @@ Corresponding real sources (Read these with the Read tool):
 Draft output path: {output_dir}/.specback/drafts/05-data-model.md
 
 Quality bar:
-- <!-- REF: path:start-end --> >= 10
+- <!-- REF: SRC-NNNN --> (or <!-- REF: path:start-end -->) >= 10
 - fenced code blocks >= 3
 - Mermaid diagrams >= 1 (ER diagram)
 - >= 5 files under ## Sources Read

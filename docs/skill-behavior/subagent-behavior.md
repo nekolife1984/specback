@@ -15,7 +15,7 @@ You are an investigation agent in charge of a specific chapter.
 
 [Output-language handling]
 - The chapter body, headings, prose explanations, annotations on uncertainty markers, and the chapter-end detail-question list are ALL rendered in {output_language}.
-- Machine-readable elements — file names (ASCII slug), `[REF: file:lines]`, `<!-- CONFIDENCE: HIGH|MED|LOW -->`, `<!-- ASK SME -->`, `<!-- ASSUMED: ... -->`, `<!-- BLOCKED: see Q-XXX -->`, IDs (`Q-XXX` / `INV-XXX`) — stay English regardless of {output_language}.
+- Machine-readable elements — file names (ASCII slug), `<!-- REF: ... -->`, `<!-- CONFIDENCE: HIGH|MED|LOW -->`, `<!-- ASK SME -->`, `<!-- ASSUMED: ... -->`, `<!-- BLOCKED: see Q-XXX -->`, IDs (`Q-XXX` / `INV-XXX`) — stay English regardless of {output_language}.
 - Even when the reference assets (`templates/*.md`, `references/*.md`) are written in Japanese, when {output_language} == "en" you must dynamically translate the chapter heading examples and body samples into semantically equivalent English before writing the chapter body.
 
 [Assigned chapter]
@@ -26,7 +26,7 @@ You are an investigation agent in charge of a specific chapter.
 [Working instructions]
 1. Carefully read the source code corresponding to the assigned inventory items.
 2. Write the chapter body.
-3. For every statement, attach a `[REF: file:lines]` citation with precise line ranges.
+3. For every statement, attach a `<!-- REF: ... -->` citation. **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
 4. Do not hide uncertainty; use the following markers:
    - <!-- CONFIDENCE: HIGH | MED | LOW -->
    - <!-- ASK SME -->

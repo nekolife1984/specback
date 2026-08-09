@@ -205,15 +205,15 @@ For each feature listed above, describe the processing flow structured as below.
 - Conditions that must hold before execution (network connectivity, auth state, permissions granted)
 
 **Main flow**
-1. Step 1 [REF: src/path:line]
-2. Step 2 [REF: src/path:line]
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
 3. ...
 
 **Alternative flows**
-- Alt-1: When [condition] → [behaviour] [REF: src/path:line]
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
 
 **Error handling**
-- Error type → system behaviour [REF: src/path:line]
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
 
 **Post-conditions**
 - State of the app after successful execution (local DB state, UI state, server state)
@@ -264,14 +264,14 @@ graph TD
 
 | Item | Value | Source | Confidence |
 |------|-------|--------|-----------|
-| Language / runtime | (e.g. Kotlin 2.0, Swift 5.9) | [REF: ...] | 🟢 |
-| UI framework | (e.g. Jetpack Compose, SwiftUI) | [REF: ...] | 🟢 |
-| DI framework | (e.g. Hilt, Dagger, Koin, Swinject) | [REF: ...] | 🟢 |
-| Networking | (e.g. Retrofit + OkHttp, URLSession, Apollo GraphQL) | [REF: ...] | 🟢 |
-| Local DB | (e.g. Room, CoreData, SQLDelight, Realm) | [REF: ...] | 🟢 |
-| Navigation | (e.g. Jetpack Navigation, SwiftUI NavigationStack, React Navigation) | [REF: ...] | 🟢 |
-| State management | (e.g. Riverpod, Redux, BLoC, ViewModel + StateFlow) | [REF: ...] | 🟢 |
-| Image loading | (e.g. Coil, Glide, SDWebImage, Kingfisher) | [REF: ...] | 🟢 |
+| Language / runtime | (e.g. Kotlin 2.0, Swift 5.9) | <!-- REF: SRC-NNNN --> | 🟢 |
+| UI framework | (e.g. Jetpack Compose, SwiftUI) | <!-- REF: SRC-NNNN --> | 🟢 |
+| DI framework | (e.g. Hilt, Dagger, Koin, Swinject) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Networking | (e.g. Retrofit + OkHttp, URLSession, Apollo GraphQL) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Local DB | (e.g. Room, CoreData, SQLDelight, Realm) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Navigation | (e.g. Jetpack Navigation, SwiftUI NavigationStack, React Navigation) | <!-- REF: SRC-NNNN --> | 🟢 |
+| State management | (e.g. Riverpod, Redux, BLoC, ViewModel + StateFlow) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Image loading | (e.g. Coil, Glide, SDWebImage, Kingfisher) | <!-- REF: SRC-NNNN --> | 🟢 |
 
 ---
 
@@ -338,9 +338,9 @@ Describe the chosen state management pattern and how it is implemented in the co
 
 | Component | Responsibility | Source |
 |:----------|:--------------|:-------|
-| (Store / ViewModel) | (e.g. Holds screen state, exposes state streams) | [REF: ...] |
-| (Action / Event) | (e.g. Represents user intent or system event) | [REF: ...] |
-| (Reducer / Updater) | (e.g. Pure function updating state from actions) | [REF: ...] |
+| (Store / ViewModel) | (e.g. Holds screen state, exposes state streams) | <!-- REF: SRC-NNNN --> |
+| (Action / Event) | (e.g. Represents user intent or system event) | <!-- REF: SRC-NNNN --> |
+| (Reducer / Updater) | (e.g. Pure function updating state from actions) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... |
 
 #### 5.2 Global state
@@ -349,9 +349,9 @@ State that is shared across multiple screens:
 
 | State slice | Scope | Persistence | Provider / Store | Source |
 |:-----------|:------|:-----------|:----------------|:-------|
-| Auth token | App-wide | Keychain / EncryptedSharedPreferences | AuthProvider | [REF: ...] |
-| User profile | App-wide | Local DB cache | UserProvider | [REF: ...] |
-| Theme preference | App-wide | SharedPreferences / UserDefaults | ThemeProvider | [REF: ...] |
+| Auth token | App-wide | Keychain / EncryptedSharedPreferences | AuthProvider | <!-- REF: SRC-NNNN --> |
+| User profile | App-wide | Local DB cache | UserProvider | <!-- REF: SRC-NNNN --> |
+| Theme preference | App-wide | SharedPreferences / UserDefaults | ThemeProvider | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 #### 5.3 Screen-local state
@@ -360,8 +360,8 @@ State that is scoped to a single screen or composable:
 
 | Screen | Local state | Type | Lifecycle | Source |
 |:-------|:-----------|:----|:---------|:-------|
-| Login | form data, validation errors, loading state | ephemeral | dismissed on screen exit | [REF: ...] |
-| Search | query text, results list, pagination cursor | ephemeral | cleared on search reset | [REF: ...] |
+| Login | form data, validation errors, loading state | ephemeral | dismissed on screen exit | <!-- REF: SRC-NNNN --> |
+| Search | query text, results list, pagination cursor | ephemeral | cleared on search reset | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 #### 5.4 State flow diagram (Mermaid)
@@ -385,7 +385,7 @@ graph LR
 
 | Database | Type | ORM / wrapper | Purpose | Source |
 |:---------|:-----|:-------------|:--------|:-------|
-| (e.g. Room, CoreData, SQLDelight) | SQL / NoSQL | (ORM) | Primary local persistence | [REF: ...] |
+| (e.g. Room, CoreData, SQLDelight) | SQL / NoSQL | (ORM) | Primary local persistence | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 Entity definitions per local table (same format as data-model entity list in `templates/web-app.md`).
@@ -402,9 +402,9 @@ Entity definitions per local table (same format as data-model entity list in `te
 
 | Entity | Sync direction | Conflict resolution | Strategy | Source |
 |:-------|:--------------|:------------------|:---------|:-------|
-| User profile | Bidirectional | Last-write-wins | Sync on network available | [REF: ...] |
-| Favorites | Client → Server | Server wins | Queue mutations, flush online | [REF: ...] |
-| Draft data | Client → Server | Merge (field-level) | Auto-sync on save + periodic | [REF: ...] |
+| User profile | Bidirectional | Last-write-wins | Sync on network available | <!-- REF: SRC-NNNN --> |
+| Favorites | Client → Server | Server wins | Queue mutations, flush online | <!-- REF: SRC-NNNN --> |
+| Draft data | Client → Server | Merge (field-level) | Auto-sync on save + periodic | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 Sync strategies:
@@ -417,9 +417,9 @@ Sync strategies:
 
 | Conflict type | Strategy | Implementation | Source |
 |:-------------|:--------|:--------------|:-------|
-| Concurrent edits | Last-write-wins | Timestamp-based comparison | [REF: ...] |
-| Deleted vs edited | Server wins / Client wins | Version vector | [REF: ...] |
-| Schema migration | Sequential version upgrades | Migration scripts (Room migration / CoreData mapping model) | [REF: ...] |
+| Concurrent edits | Last-write-wins | Timestamp-based comparison | <!-- REF: SRC-NNNN --> |
+| Deleted vs edited | Server wins / Client wins | Version vector | <!-- REF: SRC-NNNN --> |
+| Schema migration | Sequential version upgrades | Migration scripts (Room migration / CoreData mapping model) | <!-- REF: SRC-NNNN --> |
 
 ---
 
@@ -431,16 +431,16 @@ Sync strategies:
 
 | API / Feature | Platform | Framework / API | Permission required | Usage | Source |
 |:-------------|:---------|:--------------|:------------------|:------|:-------|
-| Camera | iOS | AVCaptureSession / PHPicker | NSCameraUsageDescription | Photo capture, QR scan | [REF: ...] |
-| Camera | Android | CameraX / Camera2 | CAMERA | Photo capture, QR scan | [REF: ...] |
-| GPS / Location | iOS | CoreLocation | NSLocationWhenInUseUsageDescription | Map display, nearby search | [REF: ...] |
-| GPS / Location | Android | FusedLocationProviderClient | ACCESS_FINE_LOCATION | Map display, nearby search | [REF: ...] |
-| Biometrics | iOS | LocalAuthentication (Face ID / Touch ID) | - (system-managed) | App lock, payment auth | [REF: ...] |
-| Biometrics | Android | BiometricPrompt | USE_BIOMETRIC | App lock, payment auth | [REF: ...] |
-| Push notifications | iOS | UserNotifications | (system prompt) | New-content alerts | [REF: ...] |
-| Push notifications | Android | Firebase Cloud Messaging | POST_NOTIFICATIONS (API 33+) | New-content alerts | [REF: ...] |
-| File access | iOS | FileManager / UIDocumentPicker | (entitlements / sandbox) | Document upload | [REF: ...] |
-| File access | Android | Storage Access Framework | READ_EXTERNAL_STORAGE (legacy) | Document upload | [REF: ...] |
+| Camera | iOS | AVCaptureSession / PHPicker | NSCameraUsageDescription | Photo capture, QR scan | <!-- REF: SRC-NNNN --> |
+| Camera | Android | CameraX / Camera2 | CAMERA | Photo capture, QR scan | <!-- REF: SRC-NNNN --> |
+| GPS / Location | iOS | CoreLocation | NSLocationWhenInUseUsageDescription | Map display, nearby search | <!-- REF: SRC-NNNN --> |
+| GPS / Location | Android | FusedLocationProviderClient | ACCESS_FINE_LOCATION | Map display, nearby search | <!-- REF: SRC-NNNN --> |
+| Biometrics | iOS | LocalAuthentication (Face ID / Touch ID) | - (system-managed) | App lock, payment auth | <!-- REF: SRC-NNNN --> |
+| Biometrics | Android | BiometricPrompt | USE_BIOMETRIC | App lock, payment auth | <!-- REF: SRC-NNNN --> |
+| Push notifications | iOS | UserNotifications | (system prompt) | New-content alerts | <!-- REF: SRC-NNNN --> |
+| Push notifications | Android | Firebase Cloud Messaging | POST_NOTIFICATIONS (API 33+) | New-content alerts | <!-- REF: SRC-NNNN --> |
+| File access | iOS | FileManager / UIDocumentPicker | (entitlements / sandbox) | Document upload | <!-- REF: SRC-NNNN --> |
+| File access | Android | Storage Access Framework | READ_EXTERNAL_STORAGE (legacy) | Document upload | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 #### 7.2 Permission model
@@ -462,7 +462,7 @@ For each significant platform API (see inventory above), describe:
 
 **Implementation**
 - API / class used
-- Call site [REF: ...]
+- Call site <!-- REF: SRC-NNNN -->
 - Delegate / callback flow
 
 **Error handling**
@@ -480,8 +480,8 @@ For each significant platform API (see inventory above), describe:
 
 | Platform | Service | Key / certificate | Delivery priority | Source config |
 |:---------|:-------|:-----------------|:----------------|:-------------|
-| iOS | APNs (Apple Push Notification service) | APNs key (.p8) / certificate (.p12) | 5 (immediate) / 10 (power-efficient) | [REF: ...] |
-| Android | FCM (Firebase Cloud Messaging) | Server key / Sender ID | normal / high | [REF: ...] |
+| iOS | APNs (Apple Push Notification service) | APNs key (.p8) / certificate (.p12) | 5 (immediate) / 10 (power-efficient) | <!-- REF: SRC-NNNN --> |
+| Android | FCM (Firebase Cloud Messaging) | Server key / Sender ID | normal / high | <!-- REF: SRC-NNNN --> |
 
 - APNs environment (sandbox / production)
 - FCM sender ID and server key location
@@ -585,42 +585,42 @@ For each significant platform API (see inventory above), describe:
 
 | Component | Technology | Responsibility | Source |
 |:----------|:----------|:--------------|:-------|
-| HTTP client | (e.g. OkHttp, URLSession, Alamofire, Ktor) | Connection management, interceptors | [REF: ...] |
-| Serialization | (e.g. Kotlinx Serialization, Codable, Moshi) | JSON / Protobuf serialization | [REF: ...] |
-| API layer | (e.g. Retrofit interfaces, API protocol/contract) | Endpoint definitions | [REF: ...] |
-| Auth interceptor | (custom interceptor) | Attach tokens, refresh on 401 | [REF: ...] |
-| Network monitor | (e.g. ConnectivityManager, NWPathMonitor) | Network availability tracking | [REF: ...] |
+| HTTP client | (e.g. OkHttp, URLSession, Alamofire, Ktor) | Connection management, interceptors | <!-- REF: SRC-NNNN --> |
+| Serialization | (e.g. Kotlinx Serialization, Codable, Moshi) | JSON / Protobuf serialization | <!-- REF: SRC-NNNN --> |
+| API layer | (e.g. Retrofit interfaces, API protocol/contract) | Endpoint definitions | <!-- REF: SRC-NNNN --> |
+| Auth interceptor | (custom interceptor) | Attach tokens, refresh on 401 | <!-- REF: SRC-NNNN --> |
+| Network monitor | (e.g. ConnectivityManager, NWPathMonitor) | Network availability tracking | <!-- REF: SRC-NNNN --> |
 
 #### 9.2 API endpoint catalogue
 
 | Endpoint | Method | Path | Auth | Offline fallback | Source |
 |:---------|:------|:-----|:----|:----------------|:-------|
-| Login | POST | /api/v1/auth/login | none | N/A | [REF: ...] |
-| Get items | GET | /api/v1/items | Bearer token | Return cached items | [REF: ...] |
-| Create item | POST | /api/v1/items | Bearer token | Queue and sync later | [REF: ...] |
+| Login | POST | /api/v1/auth/login | none | N/A | <!-- REF: SRC-NNNN --> |
+| Get items | GET | /api/v1/items | Bearer token | Return cached items | <!-- REF: SRC-NNNN --> |
+| Create item | POST | /api/v1/items | Bearer token | Queue and sync later | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 #### 9.3 Cache interceptors
 
 | Layer | Cache policy | Stale-while-revalidate | Max age | Source |
 |:------|:-----------|:----------------------|:--------|:-------|
-| HTTP cache (OkHttp / URLCache) | Disk-based, LRU | 5 min | 30 min | [REF: ...] |
-| Repository cache (local DB) | Read-through, write-through | N/A (DB source of truth) | N/A | [REF: ...] |
-| In-memory cache | LRU | - | Session lifetime | [REF: ...] |
+| HTTP cache (OkHttp / URLCache) | Disk-based, LRU | 5 min | 30 min | <!-- REF: SRC-NNNN --> |
+| Repository cache (local DB) | Read-through, write-through | N/A (DB source of truth) | N/A | <!-- REF: SRC-NNNN --> |
+| In-memory cache | LRU | - | Session lifetime | <!-- REF: SRC-NNNN --> |
 
 #### 9.4 Background sync
 
 | Sync task | Trigger | Operation | Constraints | Source |
 |:----------|:-------|:---------|:-----------|:-------|
-| Mutation queue flush | Network becomes available | POST queued mutations | Batch size: 20 | [REF: ...] |
-| Data refresh | Periodic (WorkManager / BGTaskScheduler) | GET latest data | Interval: 15 min | [REF: ...] |
-| Push notification sync | Push received | FETCH data for notification | - | [REF: ...] |
+| Mutation queue flush | Network becomes available | POST queued mutations | Batch size: 20 | <!-- REF: SRC-NNNN --> |
+| Data refresh | Periodic (WorkManager / BGTaskScheduler) | GET latest data | Interval: 15 min | <!-- REF: SRC-NNNN --> |
+| Push notification sync | Push received | FETCH data for notification | - | <!-- REF: SRC-NNNN --> |
 
 #### 9.5 WebSocket / real-time communication
 
 | Connection | Protocol | Purpose | Reconnect strategy | Source |
 |:-----------|:---------|:-------|:-----------------|:-------|
-| (e.g. Chat socket) | WebSocket / SSE | Real-time messaging | Exponential backoff, max 5 retries | [REF: ...] |
+| (e.g. Chat socket) | WebSocket / SSE | Real-time messaging | Exponential backoff, max 5 retries | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 ---
@@ -633,8 +633,8 @@ For each significant platform API (see inventory above), describe:
 
 | Platform | Build system | Target SDK / Deployment target | Min SDK / iOS version | Source |
 |:---------|:------------|:------------------------------|:---------------------|:-------|
-| iOS | Xcode / xcodebuild | iOS 17.0 deployment target | iOS 16.0 | [REF: ...] |
-| Android | Gradle / AGP | compileSdk 35 | minSdk 26 | [REF: ...] |
+| iOS | Xcode / xcodebuild | iOS 17.0 deployment target | iOS 16.0 | <!-- REF: SRC-NNNN --> |
+| Android | Gradle / AGP | compileSdk 35 | minSdk 26 | <!-- REF: SRC-NNNN --> |
 
 - Build flavours / build types (debug, release, staging)
 - Product flavours (free / paid, dev / prod)
@@ -644,8 +644,8 @@ For each significant platform API (see inventory above), describe:
 
 | Platform | Signing identity | Provisioning profile | Distribution method | Source |
 |:---------|:---------------|:-------------------|:------------------|:-------|
-| iOS | Apple Distribution certificate | App Store profile / Ad Hoc | App Store / TestFlight / Enterprise | [REF: ...] |
-| Android | Upload keystore / signing key | Google Play App Signing | Google Play / Internal testing / sideload | [REF: ...] |
+| iOS | Apple Distribution certificate | App Store profile / Ad Hoc | App Store / TestFlight / Enterprise | <!-- REF: SRC-NNNN --> |
+| Android | Upload keystore / signing key | Google Play App Signing | Google Play / Internal testing / sideload | <!-- REF: SRC-NNNN --> |
 
 #### 10.3 Store publishing steps
 
@@ -666,10 +666,10 @@ For each significant platform API (see inventory above), describe:
 
 | Stage | Tool / service | Steps | Source config |
 |:------|:--------------|:------|:-------------|
-| Lint | (e.g. Detekt / SwiftLint / ESLint) | Run static analysis | [REF: ...] |
-| Test | (e.g. Gradlew test / xcodebuild test) | Unit tests + UI tests | [REF: ...] |
-| Build | (e.g. Gradlew assembleRelease / xcodebuild archive) | Build signed artifact | [REF: ...] |
-| Deploy | (e.g. Fastlane, GitHub Actions, Bitrise) | Distribute to test track | [REF: ...] |
+| Lint | (e.g. Detekt / SwiftLint / ESLint) | Run static analysis | <!-- REF: SRC-NNNN --> |
+| Test | (e.g. Gradlew test / xcodebuild test) | Unit tests + UI tests | <!-- REF: SRC-NNNN --> |
+| Build | (e.g. Gradlew assembleRelease / xcodebuild archive) | Build signed artifact | <!-- REF: SRC-NNNN --> |
+| Deploy | (e.g. Fastlane, GitHub Actions, Bitrise) | Distribute to test track | <!-- REF: SRC-NNNN --> |
 
 #### 10.5 Pre-release distribution
 
@@ -692,7 +692,7 @@ Code-derived record of design decisions. Confidence is typically low since ratio
 
 | ID | Topic | Decision (as observed in code) | Rationale (inferred) | Alternatives (inferred) | Confidence | Supporting REF |
 |----|-------|------------------------------|---------------------|----------------------|-----------|---------------|
-| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | [REF: ...] |
+| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... |
 
 Extraction strategy:
@@ -748,14 +748,14 @@ Code-wide patterns that span multiple modules.
 
 | Pattern | Detection method | Example REF | Confidence |
 |---------|----------------|-------------|-----------|
-| Error handling | Search for `try`/`catch`/`Result`/`sealed class`/`enum Result` patterns | [REF: ...] | 🟢 |
-| Logging | Search for `Log`/`logger`/`Timber`/`os_log`/`NSLog`/`console.log` calls | [REF: ...] | 🟢 |
-| Validation | Search for validator classes, annotation-based validation | [REF: ...] | 🟢 |
-| Dependency injection | Search for `@Inject`/`@HiltViewModel`/`@Provide`/`@Module`/`container.register` | [REF: ...] | 🟢 |
-| Coroutines / async | Search for `suspend`/`async`/`await`/`Combine`/`RxSwift`/`RxJava` | [REF: ...] | 🟢 |
-| Retry / resilience | Search for `retry`/`backoff`/`timeout`/`circuit_breaker` | [REF: ...] | 🟡 |
-| Image loading | Search for `Coil`/`Glide`/`Kingfisher`/`SDWebImage`/`ImageLoader` | [REF: ...] | 🟢 |
-| Serialization | Search for `@Serializable`/`Codable`/`Moshi`/`Gson`/`JSONDecoder` | [REF: ...] | 🟢 |
+| Error handling | Search for `try`/`catch`/`Result`/`sealed class`/`enum Result` patterns | <!-- REF: SRC-NNNN --> | 🟢 |
+| Logging | Search for `Log`/`logger`/`Timber`/`os_log`/`NSLog`/`console.log` calls | <!-- REF: SRC-NNNN --> | 🟢 |
+| Validation | Search for validator classes, annotation-based validation | <!-- REF: SRC-NNNN --> | 🟢 |
+| Dependency injection | Search for `@Inject`/`@HiltViewModel`/`@Provide`/`@Module`/`container.register` | <!-- REF: SRC-NNNN --> | 🟢 |
+| Coroutines / async | Search for `suspend`/`async`/`await`/`Combine`/`RxSwift`/`RxJava` | <!-- REF: SRC-NNNN --> | 🟢 |
+| Retry / resilience | Search for `retry`/`backoff`/`timeout`/`circuit_breaker` | <!-- REF: SRC-NNNN --> | 🟡 |
+| Image loading | Search for `Coil`/`Glide`/`Kingfisher`/`SDWebImage`/`ImageLoader` | <!-- REF: SRC-NNNN --> | 🟢 |
+| Serialization | Search for `@Serializable`/`Codable`/`Moshi`/`Gson`/`JSONDecoder` | <!-- REF: SRC-NNNN --> | 🟢 |
 
 For each pattern found, note:
 - **Consistency**: Does the whole project use one pattern, or are multiple approaches mixed?

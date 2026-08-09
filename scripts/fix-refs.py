@@ -154,7 +154,7 @@ def apply_line_shift(
     old_end_line: int | None,
     line_map: dict[int, int | None],
 ) -> tuple[int | None, int | None]:
-    """Apply line map to a [REF: path:line] or [REF: path:start-end] marker.
+    """Apply line map to a <!-- REF: path:line --> or <!-- REF: path:start-end --> marker.
 
     Parameters
     ----------
@@ -415,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
         all_refs.extend(refs)
 
     print(
-        f"fix-refs.py: found {len(all_refs)} [REF:] markers in "
+        f"fix-refs.py: found {len(all_refs)} <!-- REF: ... --> markers in "
         f"{len(spec_files)} spec files.",
         file=sys.stderr,
     )
@@ -474,7 +474,7 @@ def main(argv: list[str] | None = None) -> int:
         f"| Metric | Count |",
         f"|--------|------:|",
         f"| Files with hunks | {len(hunks_by_file)} |",
-        f"| [REF:] markers scanned | {len(all_refs)} |",
+        f"| <!-- REF: ... --> markers scanned | {len(all_refs)} |",
         f"| — Path:line format | {len(corrections) + len(orphaned) + len(unchanged)} |",
         f"| — SRC-ID format (auto-stable) | {len(src_id_refs)} |",
         f"| **Line corrections needed** | **{len(corrections)}** |",
@@ -504,7 +504,7 @@ def main(argv: list[str] | None = None) -> int:
         lines.append("## Orphaned REFs (Deleted Source Lines)")
         lines.append("")
         lines.append(
-            "These [REF:] markers reference source lines that no longer "
+            "These <!-- REF: ... --> markers reference source lines that no longer "
             "exist. Consider marking them with `[DEPRECATED]`."
         )
         lines.append("")
@@ -519,7 +519,7 @@ def main(argv: list[str] | None = None) -> int:
         lines.append("")
 
     if not total_issues:
-        lines.append("No corrections needed. All [REF:] markers are up to date.")
+        lines.append("No corrections needed. All <!-- REF: ... --> markers are up to date.")
         lines.append("")
 
     report_text = "\n".join(lines)

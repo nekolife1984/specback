@@ -87,8 +87,8 @@ Example:
 1. Use the Read tool to carefully read the source files corresponding to the assigned inventory items.
 2. As needed, use Grep / Glob to explore related code.
 3. Generate the chapter body in Markdown.
-4. For every statement, attach a `[REF: file:lines]` citation with precise line ranges.
-   - Example: "Users are physically deleted 30 days after withdrawal [REF: src/jobs/UserDeactivationJob.php:34-42]"
+4. For every statement, attach a `<!-- REF: ... -->` citation. **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
+   - Example: "Users are physically deleted 30 days after withdrawal <!-- REF: SRC-0142 -->"
 5. Do not hide uncertainty; use these markers:
    - <!-- CONFIDENCE: HIGH -->   reliably derivable from the code
    - <!-- CONFIDENCE: MED -->    multiple interpretations are possible; written with the most likely one

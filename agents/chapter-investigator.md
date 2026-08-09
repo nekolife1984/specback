@@ -24,7 +24,7 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 > **Language handling**: render the chapter body, headings, prose, and
 > detail-question text in `goal.output_language` (`"en"` by default,
 > `"ja"` only when explicitly chosen in Phase 0). Code blocks, file
-> paths, JSON keys, `[REF: ...]` markers, `<!-- CONFIDENCE: ... -->` labels,
+> paths, JSON keys, `<!-- REF: ... -->` markers, `<!-- CONFIDENCE: ... -->` labels,
 > and the literal heading `## Sources Read` stay English regardless.
 
 ---
@@ -34,7 +34,7 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 | Item | Minimum |
 |------|---------|
 | Body lines (excluding code blocks and comments) | **≥ 200 lines** |
-| `[REF: path:Lstart-Lend]` citations | **≥ 10**, with precise line ranges |
+| `<!-- REF: SRC-NNNN -->` citations | **≥ 10** (SRC-ID refs are stable across refactors) |
 | fenced code blocks | **≥ 3** |
 | Mermaid diagrams (` ```mermaid `) | **≥ 1** |
 | `## Sources Read` section at the end of the chapter | **≥ 5** viewed source files listed |
@@ -47,7 +47,7 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 ### STEP A: Sources Read (mandatory)
 
-For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `[REF: ...]` citation for a file that you did not read is forbidden.
+For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
 List the read files at the **end of the chapter** (after the chapter body):
 
@@ -71,26 +71,34 @@ List the read files at the **end of the chapter** (after the chapter body):
 
 ### STEP B: Citation extraction (mandatory)
 
-Extract at least **10 concrete citations** from the read code, all in **exactly one format**:
+Extract at least **10 concrete citations** from the read code. **Use the SRC-ID format as the default** — it stays valid across refactors (regenerate `source-map.json` and all refs keep working):
 
 ```
-[REF: <workspace-relative path>:<Lstart>]
-[REF: <workspace-relative path>:<Lstart>-<Lend>]
+<!-- REF: SRC-NNNN -->
+```
+
+To find the SRC-ID for a file you read, open `{output_dir}/.specback/source-map.json` and match the file's `path` against the `units[].path` entries; use its `units[].id` (e.g. `SRC-0142`). If a file has no source-map entry, fall back to the HTML-comment path:line format:
+
+```
+<!-- REF: <workspace-relative path>:<Lstart> -->
+<!-- REF: <workspace-relative path>:<Lstart>-<Lend> -->
 ```
 
 Examples:
 
 ```
-[REF: app/models/issue.rb:42-56]
-[REF: app/models/issue.rb:120-145]
-[REF: config/routes.rb:7]
+<!-- REF: SRC-0142 -->
+<!-- REF: SRC-0143 -->
+<!-- REF: app/models/issue.rb:42-56 -->
+<!-- REF: config/routes.rb:7 -->
 ```
 
 **Strict format requirements** (the spec viewer parses these citations to make each one click-through to the source file; any variant format renders as plain text and breaks the reviewer experience):
 
-- Use **`[REF: path:line]` or `[REF: path:start-end]` only**. The brackets, the `REF:` prefix, and the colon between path and line numbers are mandatory.
+- Use **`<!-- REF: SRC-NNNN -->`** (preferred) or **`<!-- REF: path:line -->` / `<!-- REF: path:start-end -->`** only. The HTML comment markers and the `REF:` prefix are mandatory.
 - The path is workspace-relative (`app/...` etc.). Absolute paths are forbidden.
 - Line numbers are plain integers. Single line = `:42`; range = `:42-56`. Do NOT use `L42`, `line 42`, ` lines 42-56`, parentheses, or any other decoration.
+- The legacy bracket form `[REF: path:line]` is **deprecated — do not write it in new specs** (NOT parsed by the scripts; it renders as plain text).
 - Forbidden variants include: `Gemfile (lines 1-138)`, `<!-- Gemfile lines 1-138 -->`, `// app.js lines 1-5`, `[REF: Gemfile L1-L138]`, `[REF: Gemfile, lines 1-138]`, `[REF: Gemfile]` (no lines at all).
 
 Cover class definitions, key methods, validations, callbacks, exception handling, etc. **Line ranges must be precise** (coarse ranges like `:1-500` are not acceptable).
@@ -99,7 +107,7 @@ Cover class definitions, key methods, validations, callbacks, exception handling
 
 Integrate the citations into the prose:
 
-- Around each `[REF: ...]` write a paragraph explaining "what is happening".
+- Around each `<!-- REF: ... -->` write a paragraph explaining "what is happening".
 - Filling the chapter with only framework (Rails / Django, etc.) "typical behaviour" is forbidden.
 - Write **what the actual code does**, based on what you read.
 
@@ -178,7 +186,7 @@ Consult `references/outline-tables.md` → **Feature grouping patterns** section
 One row per candidate feature. Columns: `Feature ID`, `Feature name`, `Category`, `Related items`, `Auth required`, `Summary`, `Confidence`.
 
 #### STEP J: Write per-feature processing definitions (top-5)
-For the most critical or complex features, write structured processing definitions (trigger, pre-conditions, main flow, alternative flows, error handling, post-conditions, related chapters). Include `[REF: ...]` citations to real code for each step.
+For the most critical or complex features, write structured processing definitions (trigger, pre-conditions, main flow, alternative flows, error handling, post-conditions, related chapters). Include `<!-- REF: ... -->` citations to real code for each step.
 
 #### STEP K: Populate `spec_missing` questions
 For features whose boundaries or existence are uncertain, add a `spec_missing` category question to `questions.json` (at least 1 per 3 features). The main agent reads the returned DETAIL_QUESTIONS and appends them.

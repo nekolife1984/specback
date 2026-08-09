@@ -27,7 +27,7 @@ Draft output path: .specback/drafts/05-data-model.md
 
 Quality bar:
 - Body ≥ 200 lines
-- [REF: path:Lstart-Lend] ≥ 10
+- <!-- REF: SRC-NNNN --> ≥ 10
 - fenced code blocks ≥ 3
 - Mermaid diagrams ≥ 1 (ER diagram)
 - ≥ 5 files under ## Sources Read
@@ -39,7 +39,7 @@ drafts/05-data-model.md, and list only the top 5 in the return value.
 
 NOTE: If goal.output_language == "ja", render the chapter body, headings,
 prose, and detail-question text in Japanese. Keep code blocks, file
-paths, JSON keys, [REF: ...] markers, and the literal heading
+paths, JSON keys, <!-- REF: ... --> markers, and the literal heading
 "## Sources Read" in English.
 """,
   subagent_type="chapter-investigator"

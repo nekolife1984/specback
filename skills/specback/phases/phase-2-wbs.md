@@ -76,14 +76,14 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    **Forbidden in Phase 2 skeletons** (writing any of these is a contract violation and rolls back the file):
 
    - ❌ Entity / module / route / endpoint tables (those are Phase 3 STEP A-C outputs based on real `glob`/`grep`/`view` reads of the codebase).
-   - ❌ `[REF: path:line]` citations (Phase 3 STEP B).
+   - ❌ `<!-- REF: ... -->` citations (Phase 3 STEP B).
    - ❌ Mermaid diagrams (Phase 3 outline-mode OUT-B for `06-diagrams.md`).
    - ❌ Confidence labels (🟢/🟡/🔴) — these belong to populated tables, not skeletons.
    - ❌ Prose explaining "what this module / class does" — that's Phase 3's job after `view`-ing the file.
    - ❌ Cross-references like "see Chapter 5" before Phase 3 has actually decided Chapter 5's content.
    - ❌ Any sentence written from training-data knowledge of the framework / library / project. Phase 2 has NOT read the code yet; anything written here would be guessed, not grounded.
 
-   **Why this restriction exists**: previous runs had Phase 2 writing 300+ line "skeletons" filled with entity tables (Confidence 🟡 = "grep hit unread"), generated from the model's prior knowledge of Rails / Django / etc., not from the actual repository. Phase 3 then either rubber-stamps that unverified content into `final/`, or re-does the work redundantly. The fix is to make the skeleton structurally too small to hold body content — if you find yourself wanting to write a table or a [REF:], you are no longer building a skeleton, you are doing Phase 3 work, **STOP**.
+   **Why this restriction exists**: previous runs had Phase 2 writing 300+ line "skeletons" filled with entity tables (Confidence 🟡 = "grep hit unread"), generated from the model's prior knowledge of Rails / Django / etc., not from the actual repository. Phase 3 then either rubber-stamps that unverified content into `final/`, or re-does the work redundantly. The fix is to make the skeleton structurally too small to hold body content — if you find yourself wanting to write a table or a `<!-- REF: ... -->` citation, you are no longer building a skeleton, you are doing Phase 3 work, **STOP**.
 
    **Example of a correct skeleton** (standard chapter; the title heading and placeholder text are rendered in `output_language` — EN shown here, JA variant shown after):
 

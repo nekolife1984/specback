@@ -223,7 +223,7 @@ sequenceDiagram
 
 | Module / package | Responsibility | Contains producers | Contains consumers | Key files | Confidence |
 |------------------|---------------|-------------------|-------------------|-----------|-----------|
-| (module) | (responsibility) | yes/no | yes/no | [REF: ...] | 🟢/🟡/🔴 |
+| (module) | (responsibility) | yes/no | yes/no | <!-- REF: SRC-NNNN --> | 🟢/🟡/🔴 |
 | ... | ... | ... | ... | ... | ... |
 
 #### 3.2 Producer/consumer dependency overview
@@ -241,11 +241,11 @@ graph TD
 
 | Item | Value | Source | Confidence |
 |------|-------|--------|-----------|
-| Broker technology | (Kafka / Pulsar / SQS / RabbitMQ) | [REF: ...] | 🟢 |
-| Client libraries | (kafka-clients, boto3, amqp, ...) | [REF: ...] | 🟢 |
-| Schema registry | (Confluent SR / AWS Glue / Apicurio) | [REF: ...] | 🟡 |
-| Serialization format | (Avro / Protobuf / JSON / msgpack) | [REF: ...] | 🟢 |
-| Deployment | (Kubernetes / EC2 / Lambda / ECS) | [REF: ...] | 🟢 |
+| Broker technology | (Kafka / Pulsar / SQS / RabbitMQ) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Client libraries | (kafka-clients, boto3, amqp, ...) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Schema registry | (Confluent SR / AWS Glue / Apicurio) | <!-- REF: SRC-NNNN --> | 🟡 |
+| Serialization format | (Avro / Protobuf / JSON / msgpack) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Deployment | (Kubernetes / EC2 / Lambda / ECS) | <!-- REF: SRC-NNNN --> | 🟢 |
 
 ---
 
@@ -257,8 +257,8 @@ graph TD
 
 | Event ID | Event name | Schema format | Version | Producer(s) | Consumer(s) | Delivery mode | Persistence | Schema ref | Confidence |
 |----------|-----------|--------------|---------|------------|------------|--------------|------------|-----------|-----------|
-| EV-001 | UserRegistered | Avro | 1 | user-service | email-svc, analytics-svc | at-least-once | compacted topic | [REF: ...] | 🟢 |
-| EV-002 | OrderPlaced | JSON | 2 | order-svc | fulfillment-svc, billing-svc | exactly-once | infinite | [REF: ...] | 🟢 |
+| EV-001 | UserRegistered | Avro | 1 | user-service | email-svc, analytics-svc | at-least-once | compacted topic | <!-- REF: SRC-NNNN --> | 🟢 |
+| EV-002 | OrderPlaced | JSON | 2 | order-svc | fulfillment-svc, billing-svc | exactly-once | infinite | <!-- REF: SRC-NNNN --> | 🟢 |
 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 #### 4.2 Schema definitions
@@ -295,7 +295,7 @@ Per event type or per schema registry:
 
 #### 5.2 Producer detail (per producer)
 
-- **Implementation**: class / function name, [REF: ...]
+- **Implementation**: class / function name, <!-- REF: SRC-NNNN -->
 - **Trigger condition**: what causes the event to be emitted
 - **Payload construction**: how the message body is built
 - **Partitioning key**: what field is used and why
@@ -319,7 +319,7 @@ Per event type or per schema registry:
 
 #### 6.2 Consumer detail (per consumer)
 
-- **Implementation**: class / function name, [REF: ...]
+- **Implementation**: class / function name, <!-- REF: SRC-NNNN -->
 - **Subscription**: topic/queue, consumer group ID
 - **Processing logic**: what the consumer does with each event
 - **Concurrency**: number of threads/instances, partition assignment strategy
@@ -351,10 +351,10 @@ graph TD
 
 | Aspect | Setting | Source | Confidence |
 |--------|---------|--------|-----------|
-| Format | Avro / Protobuf / JSON / msgpack | [REF: ...] | 🟢 |
-| Schema registry URL | (URL) | [REF: ...] | 🟢 |
-| Subject naming strategy | TopicName / TopicRecordName / RecordName | [REF: ...] | 🟡 |
-| Default compatibility | BACKWARD / FORWARD / FULL / NONE | [REF: ...] | 🟢 |
+| Format | Avro / Protobuf / JSON / msgpack | <!-- REF: SRC-NNNN --> | 🟢 |
+| Schema registry URL | (URL) | <!-- REF: SRC-NNNN --> | 🟢 |
+| Subject naming strategy | TopicName / TopicRecordName / RecordName | <!-- REF: SRC-NNNN --> | 🟡 |
+| Default compatibility | BACKWARD / FORWARD / FULL / NONE | <!-- REF: SRC-NNNN --> | 🟢 |
 
 #### 7.2 Schema evolution rules
 
