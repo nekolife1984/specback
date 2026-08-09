@@ -288,6 +288,76 @@ def load_state(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
+    """Load source-map.json and index units by file path.
+
+    Returns a dict mapping file path → list of units sorted by line_range start.
+    Units without a path are skipped. Returns {} if the file is missing or unreadable.
+    """
+    sm_path = specback_path / "source-map.json"
+    if not sm_path.exists():
+        return {}
+    try:
+        data = json.loads(sm_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    units = data.get("units", []) if isinstance(data, dict) else data
+    by_path: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for u in units or []:
+        if isinstance(u, dict) and u.get("path") is not None:
+            by_path[u["path"]].append(u)
+    for p in by_path:
+        by_path[p].sort(key=lambda u: (u.get("line_range") or [0, 0])[0])
+    return by_path
+
+
+def classify_migration(
+    ref: dict[str, Any],
+    units_by_path: dict[str, list[dict[str, Any]]],
+) -> str:
+    """Classify a REF marker for SRC-ID migration (--migrate-srcid).
+
+    Returns one of:
+    - ``"src_id"``: already SRC-ID form, no migration needed
+    - ``"exact"``: path:line range exactly matches a unit's line_range → migratable
+    - ``"no_source_map"``: file not present in source-map.json → not migratable
+    - ``"partial"``: start line falls inside a unit but range differs → converting
+      would be inaccurate (would shift the click position) → not migratable
+    - ``"range_mismatch"``: file exists but the range matches no unit → not migratable
+    """
+    if ref.get("is_src_id"):
+        return "src_id"
+    units = units_by_path.get(ref["ref_path"])
+    if not units:
+        return "no_source_map"
+    start, end = ref["ref_start"], ref["ref_end"]
+    for u in units:
+        lr = u.get("line_range") or [0, 0]
+        if lr[0] == start and lr[1] == end:
+            return "exact"
+    for u in units:
+        lr = u.get("line_range") or [0, 0]
+        if lr[0] <= start <= lr[1]:
+            return "partial"
+    return "range_mismatch"
+
+
+def find_unit_for_ref(
+    ref: dict[str, Any],
+    units_by_path: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any] | None:
+    """Return the unit whose line_range exactly matches a REF, else None."""
+    units = units_by_path.get(ref["ref_path"])
+    if not units:
+        return None
+    start, end = ref["ref_start"], ref["ref_end"]
+    for u in units:
+        lr = u.get("line_range") or [0, 0]
+        if lr[0] == start and lr[1] == end:
+            return u
+    return None
+
+
 def resolve_base(args_base: str | None, specback_path: Path) -> str:
     """Determine the git ref to diff against (same logic as detect-drift.py)."""
     if args_base is not None:
@@ -315,6 +385,181 @@ def format_ref(ref: dict[str, Any]) -> str:
     return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']}-{ref['ref_end']} -->"
 
 
+def run_migrate_srcid(
+    args: argparse.Namespace,
+    specback_path: Path,
+    output_dir: Path,
+    spec_dir: Path,
+) -> int:
+    """--migrate-srcid: convert path:line REFs to SRC-ID form.
+
+    Only REFs whose path + line range exactly match a source-map unit are
+    migrated (safe conversion). REFs that cannot be resolved safely
+    (file not in source-map, range outside any unit, or partial overlap)
+    are reported and left untouched, since converting them would make the
+    click-to-source position inaccurate.
+
+    Dry-run by default; pass --apply to rewrite spec files.
+    """
+    units_by_path = load_source_map(specback_path)
+    if not units_by_path:
+        print(
+            "fix-refs.py: ERROR: source-map.json has no units (or is missing). "
+            "Cannot migrate REFs without a source map.",
+            file=sys.stderr,
+        )
+        return 2
+
+    spec_files = sorted(spec_dir.glob("*.md"))
+    all_refs: list[dict[str, Any]] = []
+    for spec_file in spec_files:
+        refs = find_refs_in_file(spec_file)
+        for ref in refs:
+            ref["spec_file"] = spec_file.name
+        all_refs.extend(refs)
+
+    path_line_refs = [r for r in all_refs if not r.get("is_src_id")]
+    src_id_refs = [r for r in all_refs if r.get("is_src_id")]
+
+    migratable: list[dict[str, Any]] = []
+    not_migratable: list[dict[str, Any]] = []
+    for ref in path_line_refs:
+        cls = classify_migration(ref, units_by_path)
+        if cls == "exact":
+            unit = find_unit_for_ref(ref, units_by_path)
+            if unit is None:
+                # Should not happen for "exact" classification, but be safe.
+                not_migratable.append({**ref, "reason": "range_mismatch"})
+                continue
+            migratable.append({
+                **ref,
+                "src_id": unit["id"],
+                "new_ref": format_ref({"ref_path": unit["id"]}),
+            })
+        else:
+            not_migratable.append({**ref, "reason": cls})
+
+    # Categorize why REFs were not migrated
+    reasons: dict[str, int] = {}
+    for ref in not_migratable:
+        r = ref["reason"]
+        reasons[r] = reasons.get(r, 0) + 1
+
+    # -- Report --
+    mode = "DRY-RUN" if not args.apply else "APPLY"
+    lines: list[str] = [
+        f"# [REF] SRC-ID Migration Report ({mode})",
+        "",
+        f"<!-- auto-generated by fix-refs.py | {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')} -->",
+        "",
+        "## Summary",
+        "",
+        "| Metric | Count |",
+        "|--------|------:|",
+        f"| Spec files scanned | {len(spec_files)} |",
+        f"| <!-- REF: ... --> markers | {len(all_refs)} |",
+        f"| — Already SRC-ID (untouched) | {len(src_id_refs)} |",
+        f"| — Path:line candidates | {len(path_line_refs)} |",
+        f"| **Migratable (exact unit match)** | **{len(migratable)}** |",
+        f"| Not migratable — file not in source-map | {reasons.get('no_source_map', 0)} |",
+        f"| Not migratable — partial overlap | {reasons.get('partial', 0)} |",
+        f"| Not migratable — range mismatch | {reasons.get('range_mismatch', 0)} |",
+        "",
+    ]
+
+    if migratable:
+        lines.append("## Migratable REFs (would convert)")
+        lines.append("")
+        for m in migratable:
+            lines.append(
+                f"- `{m['spec_file']}` (line {m['line_no'] + 1}): "
+                f"`{m['full_match']}` → `{m['new_ref']}`"
+            )
+        lines.append("")
+
+    if not_migratable:
+        lines.append("## Not Migratable (kept as path:line)")
+        lines.append("")
+        lines.append(
+            "These REFs cannot be safely converted to SRC-ID because their "
+            "path/range does not exactly match a source-map unit. Converting "
+            "them would make the click-to-source position inaccurate."
+        )
+        lines.append("")
+        for n in not_migratable:
+            reason_label = {
+                "no_source_map": "file not in source-map",
+                "partial": "partial unit overlap",
+                "range_mismatch": "no unit at this range",
+            }.get(n["reason"], n["reason"])
+            lines.append(
+                f"- `{n['spec_file']}` (line {n['line_no'] + 1}): "
+                f"`{n['full_match']}` — {reason_label}"
+            )
+        lines.append("")
+
+    report_text = "\n".join(lines)
+
+    # -- Apply conversions --
+    if args.apply and migratable:
+        backup_dir = Path(args.backup_dir) if args.backup_dir else (
+            output_dir / "backups"
+        )
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        # Group by spec file
+        by_spec_file: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for m in migratable:
+            by_spec_file[m["spec_file"]].append(m)
+
+        for spec_name, file_migrations in by_spec_file.items():
+            spec_path = spec_dir / spec_name
+            if not spec_path.exists():
+                continue
+
+            content = spec_path.read_text(encoding="utf-8")
+            backup_path = backup_dir / f"{spec_name}.bak"
+            backup_path.write_text(content, encoding="utf-8")
+
+            # Apply bottom-up to avoid offset issues
+            sorted_migrations = sorted(
+                file_migrations, key=lambda x: -x["line_no"]
+            )
+            for m in sorted_migrations:
+                content = content.replace(m["full_match"], m["new_ref"], 1)
+
+            spec_path.write_text(content, encoding="utf-8")
+            print(
+                f"fix-refs.py: migrated {len(file_migrations)} REFs "
+                f"to SRC-ID in {spec_name} (backup: {backup_path})",
+                file=sys.stderr,
+            )
+
+    # -- Output --
+    if args.json:
+        json_report = {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "mode": f"migrate-srcid-{mode.lower()}",
+            "summary": {
+                "spec_files_scanned": len(spec_files),
+                "refs_scanned": len(all_refs),
+                "refs_already_src_id": len(src_id_refs),
+                "refs_path_line": len(path_line_refs),
+                "migratable": len(migratable),
+                "not_migratable": len(not_migratable),
+                "reasons": reasons,
+            },
+            "migratable": migratable,
+            "not_migratable": not_migratable,
+        }
+        print(json.dumps(json_report, ensure_ascii=False, indent=2))
+    else:
+        print(report_text)
+
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -340,6 +585,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="Apply corrections (default: dry-run)")
     p.add_argument("--check", action="store_true",
                     help="Exit 1 if any orphaned REFs remain (for CI gates)")
+    p.add_argument("--migrate-srcid", action="store_true",
+                    help="Migrate path:line REFs that exactly match a source-map "
+                         "unit to SRC-ID form (dry-run by default, use --apply)")
     p.add_argument("--backup-dir", default=None,
                     help="Backup directory for originals before apply "
                          "(default: <output-dir>/backups/)")
@@ -374,6 +622,10 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 2
+
+    # -- SRC-ID migration mode (does not need a git diff) --
+    if args.migrate_srcid:
+        return run_migrate_srcid(args, specback_path, output_dir, spec_dir)
 
     # -- Get diff --
     if args.diff is not None:

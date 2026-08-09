@@ -49,6 +49,17 @@ Extract at least **10 concrete citations** from the viewed code, in one of these
 
 The SRC-ID format references the source-map.json unit IDs (e.g. `SRC-0142`) and is automatically resolved by `build-trace.py`. Unlike path:line refs, SRC-ID refs survive code refactoring — simply regenerate the source-map after code changes and all refs remain valid. `fix-refs.py` skips SRC-ID refs (they have no line numbers to correct).
 
+**Which format to use** (SRC-ID is recommended when the cited range maps to a source-map unit; `fix-refs.py --migrate-srcid` automates this decision):
+
+| Condition | Use | Why |
+|-----------|-----|-----|
+| Cited path + range **exactly matches** a unit's `line_range` in source-map.json | `<!-- REF: SRC-NNNN -->` | Stable across refactors, auto-resolved |
+| File not in source-map.json (README, configs, scripts, tests, docs…) | `<!-- REF: path:line -->` | No unit ID exists to reference |
+| Range covers imports / docstrings / spans multiple units | `<!-- REF: path:line -->` | Converting would mis-locate the click target |
+| Range only partially overlaps a unit | `<!-- REF: path:line -->` | Converting would be inaccurate |
+
+`fix-refs.py --migrate-srcid` converts only the first case (exact match) and reports the rest with reasons, so remaining `path:line` refs are a deliberate, reviewable decision rather than an omission.
+
 Examples:
 
 ```

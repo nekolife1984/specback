@@ -6,6 +6,35 @@ Auto-correct `<!-- REF: path:line -->` markers in spec files that have become st
 
 **SRC-ID refs** (`<!-- REF: SRC-NNNN -->`) are **auto-skipped** by fix-refs.py — they reference source-map.json unit IDs rather than line numbers, so they remain stable across code changes. Simply regenerate the source-map after refactoring and all SRC-ID refs stay valid.
 
+### SRC-ID migration (`--migrate-srcid`)
+
+Convert existing `<!-- REF: path:line -->` markers to the stable SRC-ID form. Only **safe conversions** are performed: a REF is migrated only when its path + line range **exactly match** a unit's `line_range` in `source-map.json`. Anything else is reported and left as `path:line` (converting it would make the click-to-source position inaccurate).
+
+```bash
+# Dry-run: show what would be migrated and what cannot be
+python "$(cat {output_dir}/.specback/.skill-path)/scripts/fix-refs.py" \
+  --specback-dir {output_dir}/.specback \
+  --output-dir {output_dir} \
+  --migrate-srcid
+
+# Apply: rewrite exact-match REFs to <!-- REF: SRC-NNNN -->
+python "$(cat {output_dir}/.specback/.skill-path)/scripts/fix-refs.py" \
+  --specback-dir {output_dir}/.specback \
+  --output-dir {output_dir} \
+  --migrate-srcid --apply
+```
+
+**REF form selection rule** (decide per REF):
+
+| Condition | Form | Why |
+|-----------|------|-----|
+| Path exists in `source-map.json` AND range == a unit's `line_range` | `<!-- REF: SRC-NNNN -->` | Stable across refactors |
+| File not in `source-map.json` (README, configs, scripts, tests, docs…) | `<!-- REF: path:line -->` | No unit to reference |
+| Range covers imports/docstrings/multiple units | `<!-- REF: path:line -->` | Converting would shift click position |
+| Partial overlap with a unit | `<!-- REF: path:line -->` | Inaccurate if converted |
+
+The migration report lists every not-migratable REF with its reason (`file not in source-map`, `partial unit overlap`, `range mismatch`), so remaining `path:line` refs are a deliberate, reviewable decision — not an omission.
+
 ### 🆕 Multi-scope execution
 
 When `goal.multi_scope == true`, iterate over each scope and run the procedure for each:
