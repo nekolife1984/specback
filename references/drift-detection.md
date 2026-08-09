@@ -152,7 +152,7 @@ This uses the same matching heuristic as `build-trace.py`'s `resolve_refs_to_uni
 
 1. Run `git diff -U0 <base>` to obtain hunk-level diffs
 2. Parse each hunk header (`@@ -old,count +new,count @@`) to build per-file line-number mappings
-3. Scan spec files in `{output_dir}/.specback/drafts/` or `{output_dir}/` (default: `{output_dir}/`) for `[REF: path:line]` markers
+3. Scan spec files in `{output_dir}/.specback/drafts/` or `{output_dir}/` (default: `{output_dir}/`) for `<!-- REF: ... -->` markers
 4. For each marker referencing a changed file:
    - **Line preserved**: update line number to new position
    - **Line deleted**: flag as orphaned (manual review required)

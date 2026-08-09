@@ -224,15 +224,15 @@ For each feature listed above, describe the processing flow structured as below.
 - Conditions that must hold before execution (e.g. document open, network available)
 
 **Main flow**
-1. Step 1 [REF: src/path:line]
-2. Step 2 [REF: src/path:line]
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
 3. ...
 
 **Alternative flows**
-- Alt-1: When [condition] → [behaviour] [REF: src/path:line]
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
 
 **Error handling**
-- Error type → system behaviour [REF: src/path:line]
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
 
 **Post-conditions**
 - State of the application after successful execution
@@ -255,9 +255,9 @@ For each feature listed above, describe the processing flow structured as below.
 
 | Process type | Role | Number of instances | Lifetime | Source |
 |:-------------|:-----|:------------------:|:---------|:-------|
-| Main process | (window management, platform APIs, menu bar) | 1 | Application lifetime | [REF: ...] |
-| Renderer process | (UI rendering per window) | 1 per window | Per window lifetime | [REF: ...] |
-| Worker process | (background / compute-heavy tasks) | configurable | Task lifetime | [REF: ...] |
+| Main process | (window management, platform APIs, menu bar) | 1 | Application lifetime | <!-- REF: SRC-NNNN --> |
+| Renderer process | (UI rendering per window) | 1 per window | Per window lifetime | <!-- REF: SRC-NNNN --> |
+| Worker process | (background / compute-heavy tasks) | configurable | Task lifetime | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 - Process startup order
@@ -268,8 +268,8 @@ For each feature listed above, describe the processing flow structured as below.
 
 | Channel / event | Direction | Payload format | Purpose | Source |
 |:----------------|:---------|:--------------|:--------|:-------|
-| (channel) | main→renderer | (format) | (purpose) | [REF: ...] |
-| (channel) | renderer→main | (format) | (purpose) | [REF: ...] |
+| (channel) | main→renderer | (format) | (purpose) | <!-- REF: SRC-NNNN --> |
+| (channel) | renderer→main | (format) | (purpose) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 - IPC serialisation format (JSON / MessagePack / FlatBuffers / custom)
@@ -280,7 +280,7 @@ For each feature listed above, describe the processing flow structured as below.
 
 | Module / package | Responsibility | Key files | Process | Confidence |
 |:-----------------|:--------------|:----------|:--------|:-----------|
-| (module) | (responsibility) | [REF: ...] | main / renderer / worker | 🟢/🟡/🔴 |
+| (module) | (responsibility) | <!-- REF: SRC-NNNN --> | main / renderer / worker | 🟢/🟡/🔴 |
 | ... | ... | ... | ... | ... |
 
 - Entry point (main process `main.js`, renderer `index.html`)
@@ -297,9 +297,9 @@ For each feature listed above, describe the processing flow structured as below.
 
 | Window ID | Window name | Type | Process | Size (default) | Resizable | Multiple instances | Source |
 |:----------|:------------|:-----|:--------|:--------------|:--------:|:-----------------:|:-------|
-| W-001 | Main window | primary | renderer | 1200×800 | ✅ | ❌ | [REF: ...] |
-| W-002 | Preferences | modal | renderer | 600×500 | ❌ | ❌ | [REF: ...] |
-| W-003 | About | dialog | renderer | 400×300 | ❌ | ❌ | [REF: ...] |
+| W-001 | Main window | primary | renderer | 1200×800 | ✅ | ❌ | <!-- REF: SRC-NNNN --> |
+| W-002 | Preferences | modal | renderer | 600×500 | ❌ | ❌ | <!-- REF: SRC-NNNN --> |
+| W-003 | About | dialog | renderer | 400×300 | ❌ | ❌ | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... | ... |
 
 - Window creation parameters (frameless / traffic-light controls / title bar style)
@@ -327,21 +327,21 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Context | Trigger | Menu items | Source |
 |:--------|:--------|:-----------|:-------|
-| (e.g. text selection) | right-click / Ctrl+click | Cut, Copy, Paste, Select All | [REF: ...] |
-| (e.g. file list item) | right-click / Ctrl+click | Open, Rename, Delete, Reveal in Finder/Explorer | [REF: ...] |
-| (e.g. tray icon) | left-click / right-click | Show Window, Quit, Settings | [REF: ...] |
+| (e.g. text selection) | right-click / Ctrl+click | Cut, Copy, Paste, Select All | <!-- REF: SRC-NNNN --> |
+| (e.g. file list item) | right-click / Ctrl+click | Open, Rename, Delete, Reveal in Finder/Explorer | <!-- REF: SRC-NNNN --> |
+| (e.g. tray icon) | left-click / right-click | Show Window, Quit, Settings | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... |
 
 #### 4.4 Dock / taskbar / tray integration
 
 | OS | Feature | Behaviour | Source |
 |:---|:--------|:---------|:-------|
-| macOS | Dock icon | Badge count; bounce on notification; application menu | [REF: ...] |
-| macOS | Menu bar extras | Tray icon with dropdown menu | [REF: ...] |
-| Windows | Taskbar | Jump list; thumbnail toolbar; progress indicator | [REF: ...] |
-| Windows | System tray | Notification area icon with context menu | [REF: ...] |
-| Linux | Dock / panel | Unity Launcher quicklist; GNOME dash integration | [REF: ...] |
-| Linux | Tray / indicator | AppIndicator / StatusNotifierItem | [REF: ...] |
+| macOS | Dock icon | Badge count; bounce on notification; application menu | <!-- REF: SRC-NNNN --> |
+| macOS | Menu bar extras | Tray icon with dropdown menu | <!-- REF: SRC-NNNN --> |
+| Windows | Taskbar | Jump list; thumbnail toolbar; progress indicator | <!-- REF: SRC-NNNN --> |
+| Windows | System tray | Notification area icon with context menu | <!-- REF: SRC-NNNN --> |
+| Linux | Dock / panel | Unity Launcher quicklist; GNOME dash integration | <!-- REF: SRC-NNNN --> |
+| Linux | Tray / indicator | AppIndicator / StatusNotifierItem | <!-- REF: SRC-NNNN --> |
 
 ---
 
@@ -353,15 +353,15 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Component ID | Component name | Type | Parent window | Custom / native | Source |
 |:-------------|:---------------|:-----|:-------------|:---------------:|:-------|
-| C-001 | (component) | (button / list / tree / tab / editor / ...) | (window ID) | custom / native | [REF: ...] |
-| C-002 | (component) | (component type) | (window ID) | custom / native | [REF: ...] |
+| C-001 | (component) | (button / list / tree / tab / editor / ...) | (window ID) | custom / native | <!-- REF: SRC-NNNN --> |
+| C-002 | (component) | (component type) | (window ID) | custom / native | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 #### 5.2 Custom controls
 
 | Control | Purpose | States | Properties | Source |
 |:--------|:--------|:-------|:-----------|:-------|
-| (custom control name) | (use) | (normal, hover, active, disabled, error) | (key properties) | [REF: ...] |
+| (custom control name) | (use) | (normal, hover, active, disabled, error) | (key properties) | <!-- REF: SRC-NNNN --> |
 
 - Custom drawing / canvas-based controls
 - Keyboard navigation within custom controls
@@ -371,10 +371,10 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Theme aspect | Mechanism | Source |
 |:-------------|:----------|:-------|
-| Light theme | (CSS variables / JSON tokens / platform theme) | [REF: ...] |
-| Dark theme | (as above) | [REF: ...] |
-| High-contrast mode | (system preference override) | [REF: ...] |
-| Custom accent colour | (user configurable / OS colour) | [REF: ...] |
+| Light theme | (CSS variables / JSON tokens / platform theme) | <!-- REF: SRC-NNNN --> |
+| Dark theme | (as above) | <!-- REF: SRC-NNNN --> |
+| High-contrast mode | (system preference override) | <!-- REF: SRC-NNNN --> |
+| Custom accent colour | (user configurable / OS colour) | <!-- REF: SRC-NNNN --> |
 
 - Theme token catalogue (colours, typography, spacing, radii, shadows)
 - Theme switching mechanism (runtime / restart required)
@@ -384,10 +384,10 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Role | Font family | Size | Weight | Source |
 |:-----|:-----------|:----:|:------:|:-------|
-| Heading 1 | (family) | (pt/px) | bold | [REF: ...] |
-| Body | (family) | (pt/px) | regular | [REF: ...] |
-| Code / monospace | (family) | (pt/px) | regular | [REF: ...] |
-| UI labels | (family) | (pt/px) | medium | [REF: ...] |
+| Heading 1 | (family) | (pt/px) | bold | <!-- REF: SRC-NNNN --> |
+| Body | (family) | (pt/px) | regular | <!-- REF: SRC-NNNN --> |
+| Code / monospace | (family) | (pt/px) | regular | <!-- REF: SRC-NNNN --> |
+| UI labels | (family) | (pt/px) | medium | <!-- REF: SRC-NNNN --> |
 
 - System font stack vs bundled fonts
 - CJK / RTL / emoji support
@@ -403,11 +403,11 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Operation | Method | Sandbox restrictions | Source |
 |:----------|:-------|:-------------------|:-------|
-| Read file | (fs.readFile / File API / NSData) | (sandbox path restrictions) | [REF: ...] |
-| Write file | (fs.writeFile / File API / NSData) | (sandbox path restrictions) | [REF: ...] |
-| Watch directory | (fs.watch / FSEvents / ReadDirectoryChanges) | - | [REF: ...] |
-| File picker (open) | (dialog.showOpenDialog / NSOpenPanel) | - | [REF: ...] |
-| File picker (save) | (dialog.showSaveDialog / NSSavePanel) | - | [REF: ...] |
+| Read file | (fs.readFile / File API / NSData) | (sandbox path restrictions) | <!-- REF: SRC-NNNN --> |
+| Write file | (fs.writeFile / File API / NSData) | (sandbox path restrictions) | <!-- REF: SRC-NNNN --> |
+| Watch directory | (fs.watch / FSEvents / ReadDirectoryChanges) | - | <!-- REF: SRC-NNNN --> |
+| File picker (open) | (dialog.showOpenDialog / NSOpenPanel) | - | <!-- REF: SRC-NNNN --> |
+| File picker (save) | (dialog.showSaveDialog / NSSavePanel) | - | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... |
 
 - Application storage directories (documents, app data, temp, cache)
@@ -417,22 +417,22 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Dialog type | OS-native / custom | Purpose | Source |
 |:------------|:------------------:|:--------|:-------|
-| Message box | OS-native | Alerts, confirmations | [REF: ...] |
-| File open | OS-native | File selection | [REF: ...] |
-| File save | OS-native | Save location | [REF: ...] |
-| Colour picker | OS-native | Colour selection | [REF: ...] |
-| Font picker | OS-native / custom | Font selection | [REF: ...] |
-| Print dialog | OS-native | Print configuration | [REF: ...] |
+| Message box | OS-native | Alerts, confirmations | <!-- REF: SRC-NNNN --> |
+| File open | OS-native | File selection | <!-- REF: SRC-NNNN --> |
+| File save | OS-native | Save location | <!-- REF: SRC-NNNN --> |
+| Colour picker | OS-native | Colour selection | <!-- REF: SRC-NNNN --> |
+| Font picker | OS-native / custom | Font selection | <!-- REF: SRC-NNNN --> |
+| Print dialog | OS-native | Print configuration | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... |
 
 #### 6.3 Clipboard
 
 | Clipboard format | Read | Write | Source |
 |:-----------------|:---:|:----:|:-------|
-| Plain text | ✅ | ✅ | [REF: ...] |
-| Rich text (HTML/RTF) | ✅ / ❌ | ✅ / ❌ | [REF: ...] |
-| Image (PNG, BMP) | ✅ / ❌ | ✅ / ❌ | [REF: ...] |
-| File list | ✅ / ❌ | ✅ / ❌ | [REF: ...] |
+| Plain text | ✅ | ✅ | <!-- REF: SRC-NNNN --> |
+| Rich text (HTML/RTF) | ✅ / ❌ | ✅ / ❌ | <!-- REF: SRC-NNNN --> |
+| Image (PNG, BMP) | ✅ / ❌ | ✅ / ❌ | <!-- REF: SRC-NNNN --> |
+| File list | ✅ / ❌ | ✅ / ❌ | <!-- REF: SRC-NNNN --> |
 | Custom format | ... | ... | ... |
 
 - Clipboard write policies (automatic sync, explicit user action only)
@@ -441,9 +441,9 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Source → Target | Formats | Source |
 |:----------------|:--------|:-------|
-| OS file manager → application | file paths | [REF: ...] |
-| Within application | custom data types | [REF: ...] |
-| Application → OS file manager | file paths | [REF: ...] |
+| OS file manager → application | file paths | <!-- REF: SRC-NNNN --> |
+| Within application | custom data types | <!-- REF: SRC-NNNN --> |
+| Application → OS file manager | file paths | <!-- REF: SRC-NNNN --> |
 
 - Drag-drop visual feedback
 - Accepted drag types and validation
@@ -452,30 +452,30 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | OS | Feature | Implementation | Source |
 |:---|:--------|:--------------|:-------|
-| macOS | Dock badge (unread count) | app.dock.setBadge / NSApp.dockTile.badgeLabel | [REF: ...] |
-| macOS | Dock bounce (attention request) | app.dock.bounce / NSApplication.requestUserAttention | [REF: ...] |
-| macOS | Dock menu (right-click items) | app.dock.setMenu / NSDockMenu | [REF: ...] |
-| macOS | Recent documents on Dock | app.dock.setRecentFileList | [REF: ...] |
-| Windows | Taskbar progress | thumbnailToolBar / ITaskbarList3.SetProgressValue | [REF: ...] |
-| Windows | Taskbar jump list | JumpList / ICustomDestinationList | [REF: ...] |
-| Windows | Thumbnail toolbar buttons | ThumbnailToolbar / IExplorerCommand | [REF: ...] |
-| Windows | Flash window for attention | FlashWindowEx | [REF: ...] |
-| Linux | Unity launcher quicklist | unity:// launcher entries | [REF: ...] |
-| Linux | Progress on dock icon | unity:// launcher progress / StatusNotifier | [REF: ...] |
-| Linux | GNOME dash notification | GNotification / StatusNotifierItem | [REF: ...] |
+| macOS | Dock badge (unread count) | app.dock.setBadge / NSApp.dockTile.badgeLabel | <!-- REF: SRC-NNNN --> |
+| macOS | Dock bounce (attention request) | app.dock.bounce / NSApplication.requestUserAttention | <!-- REF: SRC-NNNN --> |
+| macOS | Dock menu (right-click items) | app.dock.setMenu / NSDockMenu | <!-- REF: SRC-NNNN --> |
+| macOS | Recent documents on Dock | app.dock.setRecentFileList | <!-- REF: SRC-NNNN --> |
+| Windows | Taskbar progress | thumbnailToolBar / ITaskbarList3.SetProgressValue | <!-- REF: SRC-NNNN --> |
+| Windows | Taskbar jump list | JumpList / ICustomDestinationList | <!-- REF: SRC-NNNN --> |
+| Windows | Thumbnail toolbar buttons | ThumbnailToolbar / IExplorerCommand | <!-- REF: SRC-NNNN --> |
+| Windows | Flash window for attention | FlashWindowEx | <!-- REF: SRC-NNNN --> |
+| Linux | Unity launcher quicklist | unity:// launcher entries | <!-- REF: SRC-NNNN --> |
+| Linux | Progress on dock icon | unity:// launcher progress / StatusNotifier | <!-- REF: SRC-NNNN --> |
+| Linux | GNOME dash notification | GNotification / StatusNotifierItem | <!-- REF: SRC-NNNN --> |
 
 #### 6.6 System integration features
 
 | Feature | macOS | Windows | Linux | Source |
 |:--------|:------|:--------|:------|:-------|
-| Open with / file association | ✅ (Info.plist UTIs) | ✅ (registry ProgIDs) | ✅ (`.desktop` MIME types) | [REF: ...] |
-| URL scheme handler | ✅ (CFBundleURLTypes) | ✅ (registry) | ✅ (`.desktop` URL handler) | [REF: ...] |
-| Single-instance lock | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | [REF: ...] |
-| Deep link handling | ✅ | ✅ | ✅ | [REF: ...] |
-| Login / auto-start | ✅ (LSSharedFileList) | ✅ (registry Run key) | ✅ (`.desktop` X-GNOME-Autostart) | [REF: ...] |
-| Spotlight / search index | ✅ (Core Spotlight importers) | ❌ | ❌ | [REF: ...] |
-| File thumbnail / preview | ✅ (Quick Look generator) | ✅ (thumbnail handler) | ✅ (GNOME thumbnailer) | [REF: ...] |
-| Notification centre | ✅ (UserNotifications) | ✅ (Toast / Action Center) | ✅ (D-Bus / GNotification) | [REF: ...] |
+| Open with / file association | ✅ (Info.plist UTIs) | ✅ (registry ProgIDs) | ✅ (`.desktop` MIME types) | <!-- REF: SRC-NNNN --> |
+| URL scheme handler | ✅ (CFBundleURLTypes) | ✅ (registry) | ✅ (`.desktop` URL handler) | <!-- REF: SRC-NNNN --> |
+| Single-instance lock | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | <!-- REF: SRC-NNNN --> |
+| Deep link handling | ✅ | ✅ | ✅ | <!-- REF: SRC-NNNN --> |
+| Login / auto-start | ✅ (LSSharedFileList) | ✅ (registry Run key) | ✅ (`.desktop` X-GNOME-Autostart) | <!-- REF: SRC-NNNN --> |
+| Spotlight / search index | ✅ (Core Spotlight importers) | ❌ | ❌ | <!-- REF: SRC-NNNN --> |
+| File thumbnail / preview | ✅ (Quick Look generator) | ✅ (thumbnail handler) | ✅ (GNOME thumbnailer) | <!-- REF: SRC-NNNN --> |
+| Notification centre | ✅ (UserNotifications) | ✅ (Toast / Action Center) | ✅ (D-Bus / GNotification) | <!-- REF: SRC-NNNN --> |
 
 ---
 
@@ -487,9 +487,9 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Storage mechanism | Scope | Format | OS location | Source |
 |:------------------|:------|:-------|:------------|:-------|
-| (e.g. electron-store) | user | JSON | %APPDATA%/app/ (Windows) / ~/Library/Application Support/app/ (macOS) | [REF: ...] |
-| (e.g. NSUserDefaults) | user | plist | ~/Library/Preferences/com.example.plist (macOS) | [REF: ...] |
-| (e.g. Registry) | user / machine | registry | HKCU\Software\Company\App (Windows) | [REF: ...] |
+| (e.g. electron-store) | user | JSON | %APPDATA%/app/ (Windows) / ~/Library/Application Support/app/ (macOS) | <!-- REF: SRC-NNNN --> |
+| (e.g. NSUserDefaults) | user | plist | ~/Library/Preferences/com.example.plist (macOS) | <!-- REF: SRC-NNNN --> |
+| (e.g. Registry) | user / machine | registry | HKCU\Software\Company\App (Windows) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 - Default settings catalogue
@@ -507,19 +507,19 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | Aspect | Mechanism | Source |
 |:-------|:----------|:-------|
-| Window state restoration | (position, size, maximised) | [REF: ...] |
-| Unsaved document detection | (isDirty flag per document) | [REF: ...] |
-| Crash recovery | (auto-save copy, session snapshot) | [REF: ...] |
-| Graceful shutdown | (beforeunload handler, force-quit guard) | [REF: ...] |
-| Tab / workspace persistence | (open tabs, scroll positions) | [REF: ...] |
+| Window state restoration | (position, size, maximised) | <!-- REF: SRC-NNNN --> |
+| Unsaved document detection | (isDirty flag per document) | <!-- REF: SRC-NNNN --> |
+| Crash recovery | (auto-save copy, session snapshot) | <!-- REF: SRC-NNNN --> |
+| Graceful shutdown | (beforeunload handler, force-quit guard) | <!-- REF: SRC-NNNN --> |
+| Tab / workspace persistence | (open tabs, scroll positions) | <!-- REF: SRC-NNNN --> |
 
 #### 7.3 Cache
 
 | Cache type | Location | Max size | Eviction policy | Source |
 |:-----------|:---------|:--------:|:---------------|:-------|
-| (e.g. HTTP response cache) | (path) | (MB) | (LRU / TTL) | [REF: ...] |
-| (e.g. thumbnail cache) | (path) | (MB) | (LRU) | [REF: ...] |
-| (e.g. render cache) | (path) | (MB) | (size-based) | [REF: ...] |
+| (e.g. HTTP response cache) | (path) | (MB) | (LRU / TTL) | <!-- REF: SRC-NNNN --> |
+| (e.g. thumbnail cache) | (path) | (MB) | (LRU) | <!-- REF: SRC-NNNN --> |
+| (e.g. render cache) | (path) | (MB) | (size-based) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 - Cache invalidation triggers
@@ -544,9 +544,9 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | OS | Format | Tooling | Source |
 |:---|:-------|:--------|:-------|
-| Windows | MSI / EXE / MSIX / Portable | (WiX / NSIS / Inno Setup / Squirrel) | [REF: ...] |
-| macOS | DMG / PKG / App Bundle / .app | (create-dmg / pkgbuild / productbuild) | [REF: ...] |
-| Linux | AppImage / Snap / Flatpak / DEB / RPM | (electron-builder / linuxdeploy) | [REF: ...] |
+| Windows | MSI / EXE / MSIX / Portable | (WiX / NSIS / Inno Setup / Squirrel) | <!-- REF: SRC-NNNN --> |
+| macOS | DMG / PKG / App Bundle / .app | (create-dmg / pkgbuild / productbuild) | <!-- REF: SRC-NNNN --> |
+| Linux | AppImage / Snap / Flatpak / DEB / RPM | (electron-builder / linuxdeploy) | <!-- REF: SRC-NNNN --> |
 
 - Installation directory conventions
 - Per-user vs system-wide installation
@@ -556,9 +556,9 @@ Describe the structure per OS (macOS menu bar uses the application menu conventi
 
 | OS | Framework | Update channel | Frequency | Rollout | Source |
 |:---|:----------|:--------------:|:---------:|:-------:|:-------|
-| Windows | (Squirrel.Windows / Sparkle.NET / custom) | stable / beta / nightly | (daily / weekly) | percentage rollout | [REF: ...] |
-| macOS | (Sparkle / Squirrel.Mac / Inno Setup) | stable / beta / nightly | (daily / weekly) | percentage rollout | [REF: ...] |
-| Linux | (package manager / Snap channels / Flatpak remote) | stable / beta / edge | per package | per-remote | [REF: ...] |
+| Windows | (Squirrel.Windows / Sparkle.NET / custom) | stable / beta / nightly | (daily / weekly) | percentage rollout | <!-- REF: SRC-NNNN --> |
+| macOS | (Sparkle / Squirrel.Mac / Inno Setup) | stable / beta / nightly | (daily / weekly) | percentage rollout | <!-- REF: SRC-NNNN --> |
+| Linux | (package manager / Snap channels / Flatpak remote) | stable / beta / edge | per package | per-remote | <!-- REF: SRC-NNNN --> |
 
 - Update-check interval
 - Delta updates (binary diff / full replace)
@@ -591,9 +591,9 @@ Application start → Background update check
 
 | OS | Certificate type | Signing tool | Notarisation | Source |
 |:---|:----------------|:-------------|:-------------|:-------|
-| Windows | Authenticode / EV | signtool | ❌ | [REF: ...] |
-| macOS | Developer ID Application | codesign + notarytool | ✅ (notarisation required) | [REF: ...] |
-| Linux | GPG (for DEB/RPM) | gpg / debsign | ❌ (not applicable) | [REF: ...] |
+| Windows | Authenticode / EV | signtool | ❌ | <!-- REF: SRC-NNNN --> |
+| macOS | Developer ID Application | codesign + notarytool | ✅ (notarisation required) | <!-- REF: SRC-NNNN --> |
+| Linux | GPG (for DEB/RPM) | gpg / debsign | ❌ (not applicable) | <!-- REF: SRC-NNNN --> |
 
 - Signing automation in CI
 - Key / certificate storage (HSM / keychain / CI secrets)
@@ -608,7 +608,7 @@ Application start → Background update check
 
 | API | Protocol | Base URL | Auth method | Purpose | Source |
 |:----|:---------|:---------|:-----------|:--------|:-------|
-| (name) | HTTP(S) / REST | https://api.example.com | Bearer token | (purpose) | [REF: ...] |
+| (name) | HTTP(S) / REST | https://api.example.com | Bearer token | (purpose) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 - HTTP client configuration (timeout, retry, user-agent)
@@ -620,7 +620,7 @@ Application start → Background update check
 
 | Connection | URL | Protocol | Purpose | Reconnect strategy | Source |
 |:-----------|:----|:---------|:--------|:------------------|:-------|
-| (name) | wss://example.com/ws | (JSON / MessagePack) | (purpose) | (exponential backoff, max retries) | [REF: ...] |
+| (name) | wss://example.com/ws | (JSON / MessagePack) | (purpose) | (exponential backoff, max retries) | <!-- REF: SRC-NNNN --> |
 
 - Connection lifecycle management
 - Heartbeat / ping-pong interval
@@ -629,8 +629,8 @@ Application start → Background update check
 
 | Server | Port | Bind address | Protocol | Purpose | Auth | Source |
 |:-------|:----:|:------------|:---------|:--------|:----:|:-------|
-| (e.g. local HTTP) | 8080 | 127.0.0.1 | HTTP | (local IPC with web view) | token / none | [REF: ...] |
-| (e.g. gRPC) | 50051 | Unix socket | gRPC | (inter-process RPC) | mTLS / none | [REF: ...] |
+| (e.g. local HTTP) | 8080 | 127.0.0.1 | HTTP | (local IPC with web view) | token / none | <!-- REF: SRC-NNNN --> |
+| (e.g. gRPC) | 50051 | Unix socket | gRPC | (inter-process RPC) | mTLS / none | <!-- REF: SRC-NNNN --> |
 
 - Port collision handling
 - Auto-bind to random port fallback
@@ -640,10 +640,10 @@ Application start → Background update check
 
 | Protocol | Discovery method | Port | Use case | Source |
 |:---------|:-----------------|:----:|:---------|:-------|
-| mDNS / Bonjour | (dns-sd / Avahi) | (port) | (local device discovery) | [REF: ...] |
-| SSDP | (UPnP) | (port) | (media sharing) | [REF: ...] |
-| TCP broadcast | (subnet broadcast) | (port) | (LAN sync) | [REF: ...] |
-| WebRTC | STUN/TURN | dynamic | (P2P data transfer) | [REF: ...] |
+| mDNS / Bonjour | (dns-sd / Avahi) | (port) | (local device discovery) | <!-- REF: SRC-NNNN --> |
+| SSDP | (UPnP) | (port) | (media sharing) | <!-- REF: SRC-NNNN --> |
+| TCP broadcast | (subnet broadcast) | (port) | (LAN sync) | <!-- REF: SRC-NNNN --> |
+| WebRTC | STUN/TURN | dynamic | (P2P data transfer) | <!-- REF: SRC-NNNN --> |
 
 - Network interface selection
 - Firewall / port-forwarding requirements
@@ -665,7 +665,7 @@ Application start → Background update check
 
 | Shortcut | Scope | Action | OS constraints | Source |
 |:---------|:------|:-------|:--------------|:-------|
-| Ctrl+Shift+X | global (app running) | (action) | (e.g. reserved by macOS) | [REF: ...] |
+| Ctrl+Shift+X | global (app running) | (action) | (e.g. reserved by macOS) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... |
 
 - Global shortcut registration / unregistration on focus change
@@ -675,15 +675,15 @@ Application start → Background update check
 
 | Shortcut | Context | Action | Source |
 |:---------|:--------|:-------|:-------|
-| Ctrl+N / Cmd+N | global | New document | [REF: ...] |
-| Ctrl+O / Cmd+O | global | Open file | [REF: ...] |
-| Ctrl+S / Cmd+S | global | Save | [REF: ...] |
-| Ctrl+Z / Cmd+Z | editable | Undo | [REF: ...] |
-| Shift+Ctrl+Z / Shift+Cmd+Z | editable | Redo | [REF: ...] |
-| Ctrl+F / Cmd+F | searchable | Find | [REF: ...] |
-| F11 / Cmd+Ctrl+F | global | Full screen | [REF: ...] |
-| Ctrl+W / Cmd+W | window | Close window | [REF: ...] |
-| Ctrl+Q / Cmd+Q | global | Quit (macOS reserved) | [REF: ...] |
+| Ctrl+N / Cmd+N | global | New document | <!-- REF: SRC-NNNN --> |
+| Ctrl+O / Cmd+O | global | Open file | <!-- REF: SRC-NNNN --> |
+| Ctrl+S / Cmd+S | global | Save | <!-- REF: SRC-NNNN --> |
+| Ctrl+Z / Cmd+Z | editable | Undo | <!-- REF: SRC-NNNN --> |
+| Shift+Ctrl+Z / Shift+Cmd+Z | editable | Redo | <!-- REF: SRC-NNNN --> |
+| Ctrl+F / Cmd+F | searchable | Find | <!-- REF: SRC-NNNN --> |
+| F11 / Cmd+Ctrl+F | global | Full screen | <!-- REF: SRC-NNNN --> |
+| Ctrl+W / Cmd+W | window | Close window | <!-- REF: SRC-NNNN --> |
+| Ctrl+Q / Cmd+Q | global | Quit (macOS reserved) | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... |
 
 - Shortcut customisability (re-binding, user preferences)
@@ -706,12 +706,12 @@ Application start → Background update check
 
 | Behaviour | Mechanism | Source |
 |:----------|:----------|:-------|
-| Initial focus on window open | (first input / active element) | [REF: ...] |
-| Tab order | (logical document order) | [REF: ...] |
-| Focus on modal open | (trap focus within modal) | [REF: ...] |
-| Focus restoration on dialog close | (return to triggering element) | [REF: ...] |
-| Auto-focus on search / filter | (focus search field) | [REF: ...] |
-| Navigation with arrow keys | (tree view, list, tables) | [REF: ...] |
+| Initial focus on window open | (first input / active element) | <!-- REF: SRC-NNNN --> |
+| Tab order | (logical document order) | <!-- REF: SRC-NNNN --> |
+| Focus on modal open | (trap focus within modal) | <!-- REF: SRC-NNNN --> |
+| Focus restoration on dialog close | (return to triggering element) | <!-- REF: SRC-NNNN --> |
+| Auto-focus on search / filter | (focus search field) | <!-- REF: SRC-NNNN --> |
+| Navigation with arrow keys | (tree view, list, tables) | <!-- REF: SRC-NNNN --> |
 
 ---
 
@@ -723,9 +723,9 @@ Application start → Background update check
 
 | OS | Package format | Build tooling | Output path | Source |
 |:---|:---------------|:--------------|:------------|:-------|
-| Windows | MSI / EXE / Portable | (electron-builder / WiX / NSIS) | dist/win/ | [REF: ...] |
-| macOS | DMG / ZIP / .app | (electron-builder / create-dmg) | dist/mac/ | [REF: ...] |
-| Linux | AppImage / Snap / DEB / RPM | (electron-builder / linuxdeploy) | dist/linux/ | [REF: ...] |
+| Windows | MSI / EXE / Portable | (electron-builder / WiX / NSIS) | dist/win/ | <!-- REF: SRC-NNNN --> |
+| macOS | DMG / ZIP / .app | (electron-builder / create-dmg) | dist/mac/ | <!-- REF: SRC-NNNN --> |
+| Linux | AppImage / Snap / DEB / RPM | (electron-builder / linuxdeploy) | dist/linux/ | <!-- REF: SRC-NNNN --> |
 
 - Build configuration (build.json / electron-builder.yml)
 - Build variants (x64, ARM64, armv7l)
@@ -735,9 +735,9 @@ Application start → Background update check
 
 | OS | Signing step | Tool | Certificate source | Source |
 |:---|:-------------|:-----|:------------------|:-------|
-| Windows | .exe / .msi signing | signtool | EV code signing cert | [REF: ...] |
-| macOS | .app signature + notarisation | codesign + notarytool | Developer ID Application cert | [REF: ...] |
-| Linux | GPG signature for .deb / .rpm | gpg / debsign | GPG key | [REF: ...] |
+| Windows | .exe / .msi signing | signtool | EV code signing cert | <!-- REF: SRC-NNNN --> |
+| macOS | .app signature + notarisation | codesign + notarytool | Developer ID Application cert | <!-- REF: SRC-NNNN --> |
+| Linux | GPG signature for .deb / .rpm | gpg / debsign | GPG key | <!-- REF: SRC-NNNN --> |
 
 - Sign order (build → sign → package → sign)
 - Notarisation (macOS only): stapling ticket to the app bundle
@@ -746,11 +746,11 @@ Application start → Background update check
 
 | Stage | Tool / platform | Actions | Source |
 |:------|:----------------|:--------|:-------|
-| Lint / test | (GitHub Actions / Jenkins) | (lint, unit test, integration test) | [REF: ...] |
-| Build | (as above) | (package per platform) | [REF: ...] |
-| Sign | (as above) | (code sign + notarise) | [REF: ...] |
-| Artifact storage | (S3 / GitHub Releases / artifact store) | (store installers) | [REF: ...] |
-| Deploy / publish | (update server / store) | (upload to distribution channel) | [REF: ...] |
+| Lint / test | (GitHub Actions / Jenkins) | (lint, unit test, integration test) | <!-- REF: SRC-NNNN --> |
+| Build | (as above) | (package per platform) | <!-- REF: SRC-NNNN --> |
+| Sign | (as above) | (code sign + notarise) | <!-- REF: SRC-NNNN --> |
+| Artifact storage | (S3 / GitHub Releases / artifact store) | (store installers) | <!-- REF: SRC-NNNN --> |
+| Deploy / publish | (update server / store) | (upload to distribution channel) | <!-- REF: SRC-NNNN --> |
 
 - Matrix build across OS and architecture
 - Signing certificate security (secrets manager, HSM, CI secrets)
@@ -759,13 +759,13 @@ Application start → Background update check
 
 | Channel | Method | Audience | Update enabled | Source |
 |:--------|:-------|:---------|:--------------:|:-------|
-| Direct download | (website / CDN) | all users | ✅ / ❌ | [REF: ...] |
-| Auto-update server | (S3 + manifest / Sentry / self-hosted) | all users | ✅ | [REF: ...] |
-| Microsoft Store | (MSIX / APPX package) | Windows users | ✅ (Store managed) | [REF: ...] |
-| Mac App Store | (MAS package) | macOS users | ✅ (Store managed) | [REF: ...] |
-| Homebrew Cask | (GitHub tap) | macOS users (brew) | ❌ | [REF: ...] |
-| Snap Store | (snap package) | Linux users | ✅ (Snap managed) | [REF: ...] |
-| Flathub | (Flatpak) | Linux users | ✅ (Flathub managed) | [REF: ...] |
+| Direct download | (website / CDN) | all users | ✅ / ❌ | <!-- REF: SRC-NNNN --> |
+| Auto-update server | (S3 + manifest / Sentry / self-hosted) | all users | ✅ | <!-- REF: SRC-NNNN --> |
+| Microsoft Store | (MSIX / APPX package) | Windows users | ✅ (Store managed) | <!-- REF: SRC-NNNN --> |
+| Mac App Store | (MAS package) | macOS users | ✅ (Store managed) | <!-- REF: SRC-NNNN --> |
+| Homebrew Cask | (GitHub tap) | macOS users (brew) | ❌ | <!-- REF: SRC-NNNN --> |
+| Snap Store | (snap package) | Linux users | ✅ (Snap managed) | <!-- REF: SRC-NNNN --> |
+| Flathub | (Flatpak) | Linux users | ✅ (Flathub managed) | <!-- REF: SRC-NNNN --> |
 
 - Release channels (stable / beta / nightly)
 - Release notes / changelog publishing
@@ -783,7 +783,7 @@ Code-derived record of design decisions. Confidence is typically low since ratio
 
 | ID | Topic | Decision (as observed in code) | Rationale (inferred) | Alternatives (inferred) | Confidence | Supporting REF |
 |----|-------|------------------------------|---------------------|----------------------|-----------|---------------|
-| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | [REF: ...] |
+| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... |
 
 Extraction strategy:
@@ -840,13 +840,13 @@ Code-wide patterns that span multiple modules.
 |---------|----------------|-------------|-----------|
 | Error handling strategy | Search for `try`/`catch`/`except`/`raise`/`throw` patterns, custom exception classes | <!-- REF: SRC-0001 --> | 🟢 |
 | Logging approach | Search for `logger`/`logging`/`console.log`/`print`/`warn` calls | <!-- REF: SRC-0002 --> | 🟢 |
-| IPC pattern | Search for `ipcMain`/`ipcRenderer`/`postMessage`/`send` patterns | [REF: src/main/ipc-handlers.ts] | 🟢 |
-| Event bus / pub-sub | Search for `EventEmitter`/`EventBus`/`on`/`emit`/`publish`/`subscribe` | [REF: src/shared/event-bus.ts] | 🟢 |
-| State management | Search for `store`/`reducer`/`useState`/`mobX`/`signal`/`bloc` | [REF: src/renderer/store/] | 🟢 |
+| IPC pattern | Search for `ipcMain`/`ipcRenderer`/`postMessage`/`send` patterns | <!-- REF: SRC-NNNN --> | 🟢 |
+| Event bus / pub-sub | Search for `EventEmitter`/`EventBus`/`on`/`emit`/`publish`/`subscribe` | <!-- REF: SRC-NNNN --> | 🟢 |
+| State management | Search for `store`/`reducer`/`useState`/`mobX`/`signal`/`bloc` | <!-- REF: SRC-NNNN --> | 🟢 |
 | Dependency injection | Constructor injection / DI container / service provider | <!-- REF: SRC-0003 --> | 🟡 |
 | Retry / resilience | Search for `retry`/`backoff`/`timeout`/`circuit_breaker` patterns | <!-- REF: SRC-0005 --> | 🟡 |
 | Batch / chunk processing | Search for `batch`/`chunk`/`bulk` in method/class names | <!-- REF: SRC-0006 --> | 🟢 |
-| Native module bridging | Search for C++/Rust FFI, N-API, `ffi`/`ctypes`/`napi` calls | [REF: src/native/] | 🟢 |
+| Native module bridging | Search for C++/Rust FFI, N-API, `ffi`/`ctypes`/`napi` calls | <!-- REF: SRC-NNNN --> | 🟢 |
 
 For each pattern found, note:
 - **Consistency**: Does the whole project use one pattern, or are multiple approaches mixed?
@@ -901,12 +901,12 @@ How the application handles per-platform differences.
 
 | Abstraction Layer | Mechanism | OS differences handled | Source |
 |:-------------------|:----------|:----------------------|:-------|
-| File paths | (path platform module / conditional paths) | POSIX vs Windows separators, app data dirs | [REF: ...] |
-| Window chrome | (frameless + custom controls / native chrome) | Traffic lights (macOS) vs system buttons (Win/Linux) | [REF: ...] |
-| Menu bar | (native menu / rendered menu bar) | macOS: app menu on menu bar; Win/Linux: in-window menu bar | [REF: ...] |
-| Shortcuts | (platform-conditional key binding) | Cmd vs Ctrl prefix, macOS reserved shortcuts | [REF: ...] |
-| Font rendering | (system fonts + font fallback) | Core Text (macOS) vs DirectWrite (Windows) vs FreeType (Linux) | [REF: ...] |
-| Notifications | (platform notification API abstraction) | UserNotifications vs Toast vs GNotification | [REF: ...] |
+| File paths | (path platform module / conditional paths) | POSIX vs Windows separators, app data dirs | <!-- REF: SRC-NNNN --> |
+| Window chrome | (frameless + custom controls / native chrome) | Traffic lights (macOS) vs system buttons (Win/Linux) | <!-- REF: SRC-NNNN --> |
+| Menu bar | (native menu / rendered menu bar) | macOS: app menu on menu bar; Win/Linux: in-window menu bar | <!-- REF: SRC-NNNN --> |
+| Shortcuts | (platform-conditional key binding) | Cmd vs Ctrl prefix, macOS reserved shortcuts | <!-- REF: SRC-NNNN --> |
+| Font rendering | (system fonts + font fallback) | Core Text (macOS) vs DirectWrite (Windows) vs FreeType (Linux) | <!-- REF: SRC-NNNN --> |
+| Notifications | (platform notification API abstraction) | UserNotifications vs Toast vs GNotification | <!-- REF: SRC-NNNN --> |
 
 [🟡 INFERRED — platform abstraction patterns are structurally detectable but the degree of abstraction varies]
 

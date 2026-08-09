@@ -21,7 +21,7 @@ These 5 tables exist as **abstractions in every language and framework** and for
 | Marker | Meaning | Grounding evidence | Doubt-pass behaviour |
 |--------|---------|-------------------|---------------------|
 | 🟢 **VERIFIED** | Confirmed the real code by reading it with the Read tool | The file appears in the read history | May still trigger if comment/claim conflict detected |
-| 🟡 **INFERRED** | **Mechanically extracted** via ripgrep / imports / naming convention | The `rg` hit line can be cited as `[REF: path:Lstart-Lend]` | Triggers if chain length ≥ 3 (configurable via `goal.json.doubt.inferred_chain_min`) |
+| 🟡 **INFERRED** | **Mechanically extracted** via ripgrep / imports / naming convention | The `rg` hit line can be cited as `<!-- REF: SRC-NNNN -->` (or `<!-- REF: path:Lstart-Lend -->`) | Triggers if chain length ≥ 3 (configurable via `goal.json.doubt.inferred_chain_min`) |
 | 🔴 **ASSUMED** | Inferred from framework "typical behaviour" (code unread) | Needs SME confirmation; pair with `<!-- ASK SME -->` marker | **Always triggers** — highest priority in doubt-pass |
 
 **🟢 and 🟡 are source-derived (trustworthy). 🔴 is from the agent's knowledge base only (needs confirmation).**
@@ -432,7 +432,7 @@ Example:
 ```
 Use case: "A user creates an issue"
 → Candidate feature: "Issue creation" (F-003)
-→ Evidence: IssuesController#create [REF: ...], IssueService::create [REF: ...]
+→ Evidence: IssuesController#create <!-- REF: SRC-NNNN -->, IssueService::create <!-- REF: SRC-NNNN -->
 → Confidence: 🟡 (code path confirmed)
 ```
 

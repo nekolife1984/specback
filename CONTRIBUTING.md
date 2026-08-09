@@ -205,7 +205,7 @@ mypy scripts/source_map_v2/ --ignore-missing-imports --follow-imports=skip
 ### テンプレート構造の要件
 
 - `## Sources Read` セクションを含める
-- `[REF: path:line]` マーカーでトレーサビリティを確保する
+- `<!-- REF: ... -->` マーカーでトレーサビリティを確保する（SRC-ID形式 `<!-- REF: SRC-NNNN -->` を推奨）
 - `<!-- CONFIDENCE: ... -->` ラベルで推測と確定を区別する
 - Mermaid ダイアグラムを含める（該当する場合）
 

@@ -617,7 +617,7 @@ def generate_markdown(
         lines.append("")
         lines.append(
             "These files have been deleted but are referenced in one or more "
-            "spec sections. The corresponding `[REF: ...]` markers are orphaned."
+            "spec sections. The corresponding `<!-- REF: ... -->` markers are orphaned."
         )
         lines.append("")
         for entry in deleted:
@@ -684,7 +684,7 @@ def generate_markdown(
         if deleted:
             lines.append(
                 "1. **🔴 Fix orphaned REFs**: "
-                "Update or remove `[REF: ...]` markers in specs that reference "
+                "Update or remove `<!-- REF: ... -->` markers in specs that reference "
                 "deleted files. Mark them as `[DEPRECATED]` if the content is "
                 "still relevant as historical reference."
             )
@@ -692,7 +692,7 @@ def generate_markdown(
             lines.append(
                 "2. **🆕 Add new sources to spec**: "
                 "Run `scripts/source-map.py` to refresh the source map, then "
-                "consider adding `[REF: ...]` markers for the new source units "
+                "consider adding `<!-- REF: ... -->` markers for the new source units "
                 "in the relevant spec sections."
             )
         high_moderate = any(
@@ -704,7 +704,7 @@ def generate_markdown(
             lines.append(
                 "3. **🟡 Verify moderate-impact sections**: "
                 "Review the affected spec sections above, re-read the changed "
-                "source files, and update `[REF: ...]` line numbers and "
+                "source files, and update `<!-- REF: ... -->` line numbers and "
                 "section content as needed."
             )
         lines.append(

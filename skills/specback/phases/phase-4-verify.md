@@ -97,9 +97,9 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
 
 3. **Failure → loop back to Phase 3**
    - When exit code is 1, read the "gate decision" section of the output and:
-     1. Identify the failed chapter (e.g. `chapter 05-data-model.md: [REF:] count is 7 < required 10`)
+     1. Identify the failed chapter (e.g. `chapter 05-data-model.md: <!-- REF: ... --> count is 7 < required 10`)
      2. **Read additional sources** corresponding to the chapter's `assigned_inventory_ids`
-     3. Add to Sources Read, raise `[REF:]` count, thicken the body
+     3. Add to Sources Read, raise `<!-- REF: ... -->` count, thicken the body
      4. Re-run coverage-check.py
    - For `user_custom` chapters that are missing or empty, treat the failure the same way: return to Phase 3 and fill the chapter using `wbs.json.chapters[].source_intent` and any Phase 5 dialogue answers that pertain to it.
    - Maximum iterations: **3**. If a `kind: "standard"` chapter still fails after 3 attempts, record it in `99-unresolved.md` as "insufficient quality" and continue. A failing `kind: "user_custom"` chapter must NOT be silently demoted to `99-unresolved.md`; instead, prompt the user via `AskUserQuestion` to (a) keep retrying, (b) reduce scope, or (c) abandon the deliverable explicitly.
@@ -126,8 +126,8 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    |---------|-------|-----------|
    | 🔴 **ASSUMED** | Every chapter containing 🔴 ASSUMED markers | Always selected (default: auto-include) |
    | 🟡 **INFERRED chain ≥ 3** | Any claim inferred from ≥3 sequential code readings without verification | `doubt_inferred_chain_length >= 3` (configurable via `goal.json.doubt.inferred_chain_min`) |
-   | 🟢 **VERIFIED with comment conflict** | Code comments and spec interpretation diverge | Detected via `[REF:]` line re-read — if the comment contradicts the claim in the spec |
-   | **Cross-chapter axiom** | A statement shared across multiple chapters that has no single `[REF:]` backing | Any statement with zero `[REF:]` citations that appears in ≥2 chapters |
+   | 🟢 **VERIFIED with comment conflict** | Code comments and spec interpretation diverge | Detected via `<!-- REF: ... -->` line re-read — if the comment contradicts the claim in the spec |
+   | **Cross-chapter axiom** | A statement shared across multiple chapters that has no single `<!-- REF: ... -->` backing | Any statement with zero `<!-- REF: ... -->` citations that appears in ≥2 chapters |
 
    Read `docs/doubt-pass.md` for the full trigger definitions, threshold tuning, and examples.
 
@@ -138,8 +138,8 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    CLAIM → EXTRACT → DOUBT → RECONCILE → STOP
    ```
 
-   - **CLAIM**: Isolate one specific claim from the draft (e.g. "`IssuesController#create` returns a 201 status on success"). Record the claim verbatim with its source chapter and `[REF:]`.
-   - **EXTRACT**: Identify the exact code file(s) and line(s) that support the claim. Only use the `[REF:]` citations already in the draft — do not add new citations while extracting.
+   - **CLAIM**: Isolate one specific claim from the draft (e.g. "`IssuesController#create` returns a 201 status on success"). Record the claim verbatim with its source chapter and `<!-- REF: ... -->`.
+   - **EXTRACT**: Identify the exact code file(s) and line(s) that support the claim. Only use the `<!-- REF: ... -->` citations already in the draft — do not add new citations while extracting.
    - **DOUBT**: Re-read the extracted code in a **fresh context** (do not reuse any prior reading notes, cached observations, or earlier interpretations from Phase 3). Evaluate:
      - Does the code actually say what the claim asserts?
      - Is there an edge case, error path, or alternative flow the claim misses?
@@ -147,7 +147,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
      - Is the claim's confidence label (🟢/🟡/🔴) appropriate given the re-read evidence?
    - **RECONCILE**: For each discrepancy found in DOUBT:
      - If the claim is **wrong** → add a corrective note to the draft chapter and push the chapter back to Phase 3 (loopback, counting toward the 3-attempt limit).
-     - If the claim is **imprecise** → adjust the wording and tighten the `[REF:]` range.
+     - If the claim is **imprecise** → adjust the wording and tighten the `<!-- REF: ... -->` range.
      - If the claim is **correct but under-confident** → upgrade the marker (🔴→🟡 or 🟡→🟢).
    - **STOP**: Assign a **confidence score** (1.0 = certain, 0.0 = contradictory material found) to the claim. Record it in `{output_dir}/.specback/doubt-report.json`.
 

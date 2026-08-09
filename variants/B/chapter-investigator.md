@@ -34,7 +34,7 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 > **Language handling**: render the chapter body, headings, prose, and
 > detail-question text in `goal.output_language` (`"en"` by default,
 > `"ja"` only when explicitly chosen in Phase 0). Code blocks, file
-> paths, JSON keys, `[REF: ...]` markers, `<!-- CONFIDENCE: ... -->` labels,
+> paths, JSON keys, `<!-- REF: ... -->` markers, `<!-- CONFIDENCE: ... -->` labels,
 > and the literal heading `## Sources Read` stay English regardless.
 
 ---
@@ -44,7 +44,7 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 | Item | Minimum |
 |------|---------|
 | Body lines (excluding code blocks and comments) | **≥ 200 lines** |
-| `[REF: path:Lstart-Lend]` citations | **≥ 10**, with precise line ranges |
+| `<!-- REF: SRC-NNNN -->` citations | **≥ 10** (SRC-ID refs are stable across refactors) |
 | fenced code blocks | **≥ 3** |
 | Mermaid diagrams (` ```mermaid `) | **≥ 1** |
 | `## Sources Read` section at the end of the chapter | **≥ 5** viewed source files listed |
@@ -57,7 +57,7 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 ### STEP A: Sources Read (mandatory)
 
-For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `[REF: ...]` citation for a file that you did not read is forbidden.
+For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
 List the read files at the **end of the chapter** (after the chapter body):
 
@@ -75,12 +75,28 @@ List the read files at the **end of the chapter** (after the chapter body):
 
 ### STEP B: Citation extraction (mandatory)
 
-Extract at least **10 concrete citations** from the read code:
+Extract at least **10 concrete citations** from the read code. **Use the SRC-ID format as the default** — it stays valid across refactors (regenerate `source-map.json` and all refs keep working):
 
 ```
-[REF: app/models/issue.rb:42-56]
-[REF: app/models/issue.rb:120-145]
+<!-- REF: SRC-NNNN -->
 ```
+
+To find the SRC-ID for a file you read, open `{output_dir}/.specback/source-map.json` and match the file's `path` against the `units[].path` entries; use its `units[].id` (e.g. `SRC-0142`). If a file has no source-map entry, fall back to the HTML-comment path:line format:
+
+```
+<!-- REF: <workspace-relative path>:<Lstart> -->
+<!-- REF: <workspace-relative path>:<Lstart>-<Lend> -->
+```
+
+Examples:
+
+```
+<!-- REF: SRC-0142 -->
+<!-- REF: SRC-0143 -->
+<!-- REF: app/models/issue.rb:42-56 -->
+```
+
+The legacy bracket form `[REF: path:line]` is **deprecated — do not write it in new specs** (NOT parsed by the scripts; it renders as plain text).
 
 Cover class definitions, key methods, validations, callbacks, exception handling, etc. **Line ranges must be precise** (coarse ranges like `:1-500` are not acceptable).
 
@@ -88,7 +104,7 @@ Cover class definitions, key methods, validations, callbacks, exception handling
 
 Integrate the citations into the prose:
 
-- Around each `[REF: ...]` write a paragraph explaining "what is happening".
+- Around each `<!-- REF: ... -->` write a paragraph explaining "what is happening".
 - Filling the chapter with only framework (Rails / Django, etc.) "typical behaviour" is forbidden.
 - Write **what the actual code does**, based on what you read.
 

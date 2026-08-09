@@ -199,15 +199,15 @@ For each feature listed above, describe the processing flow structured as below.
 - Conditions that must hold before execution
 
 **Main flow**
-1. Step 1 [REF: src/path:line]
-2. Step 2 [REF: src/path:line]
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
 3. ...
 
 **Alternative flows**
-- Alt-1: When [condition] → [behaviour] [REF: src/path:line]
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
 
 **Error handling**
-- Error type → system behaviour [REF: src/path:line]
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
 
 **Post-conditions**
 - State of the system after successful execution
@@ -442,7 +442,7 @@ Code-derived record of design decisions. Confidence is typically low since ratio
 
 | ID | Topic | Decision (as observed in code) | Rationale (inferred) | Alternatives (inferred) | Confidence | Supporting REF |
 |----|-------|------------------------------|---------------------|----------------------|-----------|---------------|
-| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | [REF: ...] |
+| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... |
 
 Extraction strategy:

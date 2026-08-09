@@ -173,7 +173,7 @@ Example `.gitignore` entry:
 
 Starting **v0.4.0**, the entire skill bundle (`SKILL.md`, `agents/`, `templates/`, `references/`, and the docstrings/messages of `scripts/`) is **English-base**. The default for `goal.json.output_language` is `"en"`.
 
-Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Step 3, and the agent dynamically renders chapter bodies, AskUserQuestion bodies, and progress messages in Japanese while preserving every machine-readable element (`## Sources Read`, `[REF: ...]`, `<!-- CONFIDENCE: ... -->`, JSON keys, file slugs, ID prefixes) verbatim in English. See SKILL.md Principle #11 for the full contract.
+Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Step 3, and the agent dynamically renders chapter bodies, AskUserQuestion bodies, and progress messages in Japanese while preserving every machine-readable element (`## Sources Read`, `<!-- REF: ... -->`, `<!-- CONFIDENCE: ... -->`, JSON keys, file slugs, ID prefixes) verbatim in English. See SKILL.md Principle #11 for the full contract.
 
 ---
 
@@ -200,7 +200,7 @@ Three depth modes are selectable at the end of Phase 1, based on codebase scale 
 
 | Mode | Use Case | Chapter Body Format |
 |------|----------|---------------------|
-| **`comprehensive`** | Audit / regulatory compliance — full coverage required | Each chapter: 200+ lines, 10+ `[REF:]` markers, 1+ Mermaid diagram |
+| **`comprehensive`** | Audit / regulatory compliance — full coverage required | Each chapter: 200+ lines, 10+ `<!-- REF: ... -->` markers, 1+ Mermaid diagram |
 | **`outline`** (recommended default) | General use, large codebases | Enumerated tables of Modules / Entities / Actions / Data / Dependencies + Mermaid + deep-dive candidate lists |
 | **`interactive`** | Team reference, iterative refinement | Same as outline + Phase 6.5 accepts user-directed deep-dives |
 
@@ -339,7 +339,7 @@ specback/
             │   ├── pipeline.py          #   3-layer orchestrator
             │   ├── extractors/          #   per-language extractors (layer 2)
             │   └── tests/               #   acceptance tests
-            ├── build-trace.py           # End of Phase 3 / Phase 4: build trace.json from [REF:] markers
+            ├── build-trace.py           # End of Phase 3 / Phase 4: build trace.json from <!-- REF: ... --> markers
             ├── build-traceability.py    # Phase 6: generate traceability.md
             └── coverage-check.py        # Phase 4: multi-item verification (comprehensive / outline modes)
 ```
@@ -576,7 +576,7 @@ Drafts（中間ドラフト）は出力先に関わらず常に `.specback/draft
 
 **v0.4.0** から、スキル本体一式 (`SKILL.md` / `agents/` / `templates/` / `references/` / `scripts/` の docstring・メッセージ) は **英語ベース** になりました。`goal.json.output_language` のデフォルトは `"en"` です。
 
-日本語出力は引き続き完全サポート: Phase 0 Step 3 で `日本語 (Japanese)` を選択すると、章本文・AskUserQuestion 質問文・進捗メッセージ等の自然言語出力が日本語で動的に生成されます。ただし機械可読要素 (`## Sources Read`、`[REF: ...]`、`<!-- CONFIDENCE: ... -->`、JSON キー、ファイル名 slug、ID prefix 等) は言語に関わらず英語固定です。詳細は SKILL.md の Principle #11 を参照。
+日本語出力は引き続き完全サポート: Phase 0 Step 3 で `日本語 (Japanese)` を選択すると、章本文・AskUserQuestion 質問文・進捗メッセージ等の自然言語出力が日本語で動的に生成されます。ただし機械可読要素 (`## Sources Read`、`<!-- REF: ... -->`、`<!-- CONFIDENCE: ... -->`、JSON キー、ファイル名 slug、ID prefix 等) は言語に関わらず英語固定です。詳細は SKILL.md の Principle #11 を参照。
 
 ---
 
@@ -603,7 +603,7 @@ Drafts（中間ドラフト）は出力先に関わらず常に `.specback/draft
 
 | モード | 用途 | 章本文の形 |
 |-------|------|----------|
-| **`comprehensive`** | 監査・規制対応など完全網羅が必要な場合 | 各章 200 行以上、`[REF:]` 10件以上、Mermaid 1個以上 |
+| **`comprehensive`** | 監査・規制対応など完全網羅が必要な場合 | 各章 200 行以上、`<!-- REF: ... -->` 10件以上、Mermaid 1個以上 |
 | **`outline`** (推奨デフォルト) | 通常用途、大規模コードベース | Modules / Entities / Actions / Data / Dependencies の **概観テーブル全列挙** + Mermaid + 深掘り候補リスト |
 | **`interactive`** | チームで継続参照、対話的に詳細化 | outline と同じ + Phase 6.5 で利用者指示の深掘りを受付 |
 
@@ -742,7 +742,7 @@ specback/
             │   ├── pipeline.py          #   三層オーケストレータ
             │   ├── extractors/          #   言語別エクストラクタ (第2層)
             │   └── tests/               #   受け入れテスト
-            ├── build-trace.py           # Phase 3末/Phase 4: [REF:] からの trace.json 生成
+            ├── build-trace.py           # Phase 3末/Phase 4: <!-- REF: ... --> からの trace.json 生成
             ├── build-traceability.py    # Phase 6: traceability.md 生成
             └── coverage-check.py        # Phase 4: 多項目検証(comprehensive / outline モード対応)
 ```

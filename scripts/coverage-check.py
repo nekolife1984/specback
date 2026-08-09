@@ -10,7 +10,7 @@ enumeration in a single pass.
 
 Checks performed:
 
-1.  `[REF: path:start-end]` count per chapter (`--min-refs-per-chapter`)
+1.  `<!-- REF: ... -->` count per chapter (`--min-refs-per-chapter`)
 2.  Body-line count per chapter (`--min-lines-per-chapter`, default 0 — tone-guided)
 3.  Fenced-code-block count per chapter (`--min-code-blocks-per-chapter`)
 4.  Mermaid-diagram count per chapter (`--min-mermaid-per-chapter`)
@@ -363,7 +363,7 @@ def evaluate_chapter_gates(
             continue
         effective_lines = m.body_lines + int(m.code_block_lines * code_block_line_weight)
         if m.refs < min_refs:
-            m.failures.append(f"[REF:] count is {m.refs} < required {min_refs}")
+            m.failures.append(f"<!-- REF: ... --> count is {m.refs} < required {min_refs}")
         if effective_lines < min_lines:
             m.failures.append(
                 f"body lines {m.body_lines} (code-block-adjusted: {effective_lines}) < required {min_lines}"

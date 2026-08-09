@@ -193,15 +193,15 @@ For each feature listed above, describe the processing flow structured as below.
 - Conditions that must hold before execution
 
 **Main flow**
-1. Step 1 [REF: src/path:line]
-2. Step 2 [REF: src/path:line]
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
 3. ...
 
 **Alternative flows**
-- Alt-1: When [condition] → [behaviour] [REF: src/path:line]
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
 
 **Error handling**
-- Error type → system behaviour [REF: src/path:line]
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
 
 **Post-conditions**
 - State of the system after successful execution
@@ -259,8 +259,8 @@ For each feature listed above, describe the processing flow structured as below.
 
 | Class | Kind | Module | Responsibility | Depends on | Source |
 |:------|:----|:-------|:-------------|:----------|:-------|
-| rootCmd | Command | cmd/ | Root command definition | subcommands | [REF: cmd/root.go:10] |
-| UserService | Service | internal/ | User-management logic | Config, HTTP client | [REF: internal/user.go:5] |
+| rootCmd | Command | cmd/ | Root command definition | subcommands | <!-- REF: SRC-NNNN --> |
+| UserService | Service | internal/ | User-management logic | Config, HTTP client | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 #### 4.3 Class diagram (Mermaid)
@@ -327,10 +327,10 @@ tool-name
 
 | Command ID | Path | Summary | Category | Aliases | Source |
 |:-----------|:-----|:--------|:---------|:--------|:-------|
-| CMD-001 | `tool-name` | Root command | top-level | (none) | [REF: cmd/root.go:10] |
-| CMD-002 | `tool-name init` | Initialize config | setup | `i` | [REF: cmd/init.go:5] |
-| CMD-003 | `tool-name run` | Run main process | action | `r`, `exec` | [REF: cmd/run.go:5] |
-| CMD-004 | `tool-name config get` | Get config value | config | `cg` | [REF: cmd/config/get.go:3] |
+| CMD-001 | `tool-name` | Root command | top-level | (none) | <!-- REF: SRC-NNNN --> |
+| CMD-002 | `tool-name init` | Initialize config | setup | `i` | <!-- REF: SRC-NNNN --> |
+| CMD-003 | `tool-name run` | Run main process | action | `r`, `exec` | <!-- REF: SRC-NNNN --> |
+| CMD-004 | `tool-name config get` | Get config value | config | `cg` | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... |
 
 #### 6.3 Per-command details
@@ -662,7 +662,7 @@ Code-derived record of design decisions. Confidence is typically low since ratio
 
 | ID | Topic | Decision (as observed in code) | Rationale (inferred) | Alternatives (inferred) | Confidence | Supporting REF |
 |----|-------|------------------------------|---------------------|----------------------|-----------|---------------|
-| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | [REF: ...] |
+| ADR-001 | (topic) | (decision) | (inferred rationale) | (inferred alternatives) | 🟢/🟡/🔴 | <!-- REF: SRC-NNNN --> |
 | ... | ... | ... | ... | ... | ... | ... |
 
 Extraction strategy:
@@ -709,11 +709,11 @@ Code-wide patterns that span multiple modules.
 |---------|----------------|-------------|-----------|
 | Error handling strategy | Search for `try`/`catch`/`except`/`raise`/`throw` patterns, custom exception classes | <!-- REF: SRC-0001 --> | 🟢 |
 | Logging approach | Search for `logger`/`logging`/`console.log`/`print`/`warn` calls | <!-- REF: SRC-0002 --> | 🟢 |
-| Command routing | How subcommands are registered and dispatched | [REF: cmd/root.go:1-30] | 🟢 |
-| Output formatting | Search for `render`/`format`/`print`/`tablewriter`/`json.Marshal` | [REF: internal/output/format.go] | 🟢 |
-| Validation pattern | Search for `validate`/`assert`/`required` flags, validation functions | [REF: internal/validate/] | 🟢 |
-| Retry / resilience | Search for `retry`/`backoff`/`timeout` patterns in network calls | [REF: internal/client/retry.go] | 🟡 |
-| Batch / chunk processing | Search for `batch`/`chunk`/`bulk` in method/class names | [REF: internal/batch_processor.go] | 🟢 |
+| Command routing | How subcommands are registered and dispatched | <!-- REF: SRC-NNNN --> | 🟢 |
+| Output formatting | Search for `render`/`format`/`print`/`tablewriter`/`json.Marshal` | <!-- REF: SRC-NNNN --> | 🟢 |
+| Validation pattern | Search for `validate`/`assert`/`required` flags, validation functions | <!-- REF: SRC-NNNN --> | 🟢 |
+| Retry / resilience | Search for `retry`/`backoff`/`timeout` patterns in network calls | <!-- REF: SRC-NNNN --> | 🟡 |
+| Batch / chunk processing | Search for `batch`/`chunk`/`bulk` in method/class names | <!-- REF: SRC-NNNN --> | 🟢 |
 
 For each pattern found, note:
 - **Consistency**: Does the whole project use one pattern, or are multiple approaches mixed?

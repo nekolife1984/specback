@@ -67,7 +67,7 @@ Regardless of template, confirm the following on every spec.
 - [ ] Chapter numbers (`NN`) have no duplicates and no unnecessary gaps.
 
 ### Traceability
-- [ ] Every chapter has at least one `[REF: file:lines]` citation.
+- [ ] Every chapter has at least one `<!-- REF: ... -->` citation.
 - [ ] The traceability table is generated as `final/traceability.md`.
 - [ ] Cited file paths exist (no broken links).
 - [ ] Cited line ranges are valid (do not exceed the file's line count).
