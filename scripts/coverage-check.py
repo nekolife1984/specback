@@ -699,6 +699,73 @@ def check_mermaid_styling(chapters: dict[str, str]) -> list[str]:
     return failures
 
 
+# Edge label inside a Mermaid flowchart edge: |...|
+MERMAID_EDGE_LABEL_RE = re.compile(r"\|([^|\n]*)\|")
+# Cylinder node opening: [( ... )]  — must close with )]
+MERMAID_CYLINDER_OPEN_RE = re.compile(r"\[\s*\(")
+
+
+def _mermaid_unquoted(block: str) -> str:
+    """Return the block with double-quoted strings blanked out.
+
+    Mermaid labels use double quotes for literal text; parentheses inside
+    quoted labels are legal (e.g. `A["OpenAIModel (OpenAI互換API)"]`).
+    Blanking quoted spans avoids false positives from literal text.
+    """
+    return re.sub(r'"[^"]*"', '""', block)
+
+
+def check_mermaid_syntax(chapters: dict[str, str]) -> list[str]:
+    """Static syntax sanity checks for Mermaid code blocks.
+
+    Catches the two most common Mermaid parse errors that break rendering
+    on GitHub etc. without invoking a full Mermaid parser:
+
+    1. Unquoted parentheses inside an edge label ``|...|``
+       (e.g. ``E -->|OpenAIModel (OpenAI互換API)| P``).
+    2. Cylinder node ``[( ... )]`` opened but not closed with ``)]``
+       (e.g. ``DB[(SQLite)<br/>F-004 永続化]``).
+
+    Quoted strings are ignored so legal labels do not produce false
+    positives. Returns a list of failure messages (empty when OK).
+    """
+    failures: list[str] = []
+    for name, content in chapters.items():
+        in_mermaid = False
+        for line in content.splitlines():
+            stripped = line.strip()
+            if MERMAID_FENCE_RE.match(stripped):
+                in_mermaid = True
+                continue
+            if CODE_FENCE_RE.match(stripped) and in_mermaid:
+                in_mermaid = False
+                continue
+            if not in_mermaid:
+                continue
+            # 1) edge labels: |...| must not contain unquoted parentheses
+            unquoted_line = _mermaid_unquoted(stripped)
+            for m in MERMAID_EDGE_LABEL_RE.finditer(unquoted_line):
+                label = m.group(1)
+                if "(" in label or ")" in label:
+                    failures.append(
+                        f"{name}: Mermaid edge label contains unquoted "
+                        f"parentheses: {m.group(0)} (quote the label, "
+                        f"e.g. |\"text (…)\"|)"
+                    )
+            # 2) cylinder nodes: [( ... )] must close with )]
+            for cm in MERMAID_CYLINDER_OPEN_RE.finditer(unquoted_line):
+                rest = unquoted_line[cm.end() :]
+                # Look for a matching )] on the same line (no nesting depth
+                # tracking — cylinders are flat in practice).
+                close_idx = rest.find(")]")
+                if close_idx == -1:
+                    failures.append(
+                        f"{name}: Mermaid cylinder node opens with [( "
+                        f"but is not closed with )] on line: {stripped[:80]}"
+                    )
+    return failures
+
+
 def check_placeholder_patterns(
     chapters: dict[str, str],
     extra_patterns: list[str] | None = None,
@@ -754,6 +821,7 @@ def build_report(
     require_min_body_lines_for_reserved: int = 5,
     forbid_mermaid_styling: bool = True,
     forbid_placeholder_pattern: list[str] | None = None,
+    check_mermaid_syntax_flag: bool = True,
 ) -> CoverageReport:
     # Resolve the target directory:
     # 1. Try output_dir / target_dir_name (e.g. .specback/final or specs/final)
@@ -898,6 +966,10 @@ def build_report(
     # #158: Mermaid styling check
     if forbid_mermaid_styling:
         for f in check_mermaid_styling(chapters):
+            gate_failures.append(f)
+    # Mermaid static syntax check (unquoted edge-label parens, cylinder closure)
+    if check_mermaid_syntax_flag:
+        for f in check_mermaid_syntax(chapters):
             gate_failures.append(f)
     # #158: placeholder pattern check
     for f in check_placeholder_patterns(chapters, forbid_placeholder_pattern):
@@ -1146,6 +1218,11 @@ def main() -> int:
     p.add_argument("--forbid-mermaid-styling", default=True, action=argparse.BooleanOptionalAction,
                    help="Check that Mermaid blocks contain no style/classDef fill/stroke/color directives. "
                         "Default: ON.")
+    p.add_argument("--check-mermaid-syntax", dest="check_mermaid_syntax_flag",
+                   default=True, action=argparse.BooleanOptionalAction,
+                   help="Check Mermaid blocks for common parse errors detectable by static analysis "
+                        "(unquoted parentheses in edge labels |...|, cylinder nodes [( ... )] not closed "
+                        "with )]). Default: ON.")
     p.add_argument("--forbid-placeholder-pattern", nargs="*", default=None,
                    help="Additional placeholder patterns to forbid (in addition to defaults: "
                         "'Phase [0-9]+ で記入予定', 'TODO', 'FIXME'). "
@@ -1194,6 +1271,7 @@ def main() -> int:
             require_min_body_lines_for_reserved=args.require_min_body_lines_for_reserved,
             forbid_mermaid_styling=args.forbid_mermaid_styling,
             forbid_placeholder_pattern=args.forbid_placeholder_pattern,
+            check_mermaid_syntax_flag=args.check_mermaid_syntax_flag,
         )
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
