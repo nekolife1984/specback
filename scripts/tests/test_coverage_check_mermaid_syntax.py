@@ -21,6 +21,7 @@ SCRIPT = Path(__file__).resolve().parent.parent / "coverage-check.py"
 import importlib.util
 
 _spec = importlib.util.spec_from_file_location("coverage_check_mermaid", SCRIPT)
+assert _spec is not None and _spec.loader is not None
 cov = importlib.util.module_from_spec(_spec)
 sys.modules["coverage_check_mermaid"] = cov
 _spec.loader.exec_module(cov)
