@@ -58,6 +58,7 @@ All paths are relative to the repo root.
 | `references/inventory-units.md` | Inventory units per language |
 | `references/verification-checklists.md` | Verification checklists |
 | `references/drift-detection.md` | Drift detection protocol |
+| `references/source-map-update.md` | Safe source-map update when adding files (avoid SRC-ID renumber trap) |
 | `references/change-specification.md` | ChangeSpec protocol |
 | `references/outline-tables.md` | Outline table patterns |
 | `references/question-categories.md` | Question Bank categories |
