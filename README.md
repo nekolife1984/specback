@@ -156,6 +156,17 @@ A `.specback/` directory is created at the root of the target project, containin
 
 Drafts always stay in `.specback/drafts/` regardless of the output directory choice. Final deliverables go to `{output_dir}/` (default: `.specback/final/`; custom: e.g. `docs/specs/`).
 
+#### Version control
+
+`goal.json` is the only file under `.specback/` that should be **committed to version control**: it records the Phase 0 goal definition and the chapter selection rationale (`customized_chapters`) — "why each chapter exists / does not exist" — which the delivered specs reference but do not fully duplicate. Everything else under `.specback/` (`state.json`, `drafts/`, `inventory.json`, `source-map.json`, `trace.json`, etc.) is intermediate state and should stay ignored.
+
+Example `.gitignore` entry:
+
+```gitignore
+.specback/*
+!.specback/goal.json
+```
+
 ---
 
 ## Language
@@ -547,6 +558,17 @@ cp -r scripts references schemas .claude/skills/specback/  # 共有アセット
 ```
 
 Drafts（中間ドラフト）は出力先に関わらず常に `.specback/drafts/` に配置されます。最終成果物は `{output_dir}/` に出力されます（デフォルト: `.specback/final/`、カスタム例: `docs/specs/`）。
+
+#### バージョン管理 (Version control)
+
+`.specback/` 配下で**コミット推奨なのは `goal.json` のみ**です。`goal.json` には Phase 0 のゴール定義と章の採用/除外判断（`customized_chapters`）—「各章が存在する／しない理由」— が記録されており、成果物（00-metadata.md 等）から参照される一方で完全には複製されません。それ以外（`state.json` / `drafts/` / `inventory.json` / `source-map.json` / `trace.json` 等）は中間状態なのでコミット対象外とします。
+
+`.gitignore` の例:
+
+```gitignore
+.specback/*
+!.specback/goal.json
+```
 
 ---
 

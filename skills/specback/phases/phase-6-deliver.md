@@ -53,6 +53,16 @@ File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d
 4. **Generate metadata (fill in `00-metadata.md`)**
    - Phase 2 created the empty file; write its body now.
    - Include: generation timestamp, commit hash of the target codebase (if available), goal definition finalised in Phase 0, template selection result, specback version.
+   - Include a **chapter selection table** mirroring `goal.json.customized_chapters`: for every chapter, its status (included/excluded), the detection rationale (`note`), and confidence. This preserves "why this chapter exists / does not exist" in the delivered spec itself so readers do not need to open `goal.json`. Example (JA):
+     ```markdown
+     ## 章の取捨判断（customized_chapters）
+
+     | 章 | 状態 | 判断根拠 | 確信度 |
+     |----|------|---------|--------|
+     | 概要 | 採用 | テンプレート標準 | always |
+     | 認証・認可 | **除外** | 認証フレームワークなし | high |
+     ```
+   - Note the delivery rule: commit `goal.json` alongside the final specs (see README "Version control" below) so the chapter-selection rationale stays reproducible.
 
 5. **Final deliverable layout**
    ```
