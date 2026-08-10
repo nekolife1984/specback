@@ -14,6 +14,7 @@ Exit codes:
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from pathlib import Path
 
@@ -31,7 +32,13 @@ EXEMPT_SYMBOLS: set[str] = {
 
 
 def get_public_symbols(filepath: Path) -> set[str]:
-    """Extract names of public functions, async functions, and classes."""
+    """Extract names of TOP-LEVEL public functions, classes, and async functions.
+
+    Nested functions (e.g. ``id_factory`` inside ``build_source_map``) are
+    exercised through their enclosing function's tests, so they are not
+    reported — walking every node with ``ast.walk`` produced false
+    "missing coverage" reports for them.
+    """
     try:
         tree = ast.parse(filepath.read_text(encoding="utf-8"))
     except SyntaxError as e:
@@ -42,7 +49,7 @@ def get_public_symbols(filepath: Path) -> set[str]:
         sys.exit(2)
 
     symbols: set[str] = set()
-    for node in ast.walk(tree):
+    for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node.name.startswith("_"):
                 symbols.add(node.name)
@@ -66,6 +73,39 @@ def get_test_symbols(filepath: Path) -> set[str]:
         elif isinstance(node, ast.ClassDef):
             symbols.add(node.name)
     return symbols
+
+
+def get_test_files(script_path: Path) -> list[Path]:
+    """Find ALL test files for a script (split-test support).
+
+    Coverage-check.py is tested across multiple files
+    (test_coverage_check_code_blocks.py, test_coverage_check_core.py, …);
+    matching only ``test_<name>.py`` produced false "missing" reports.
+    """
+    base = script_path.stem.replace("-", "_")
+    tests_dir = script_path.parent / "tests"
+    if not tests_dir.is_dir():
+        return []
+    return sorted(tests_dir.glob(f"test_{base}*.py"))
+
+
+def _is_covered(sym: str, test_files: list[Path]) -> bool:
+    """A symbol is covered if a candidate test name exists OR the symbol is
+    referenced in any test file (e.g. ``drift.analyze_impact(...)``)."""
+    candidates = set(_test_name_candidates(sym))
+    for tf in test_files:
+        if any(c in get_test_symbols(tf) for c in candidates):
+            return True
+        try:
+            content = tf.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        # Reference-based: symbol used via module attribute or bare call.
+        # ``import gates`` alone does NOT match — the module name differs
+        # from the public symbols of the script.
+        if re.search(rf"\b{sym}\b", content):
+            return True
+    return False
 
 
 def _test_name_candidates(symbol: str) -> list[str]:
@@ -94,17 +134,26 @@ def _test_name_candidates(symbol: str) -> list[str]:
 
 
 def check_coverage(script_path: Path, test_path: Path) -> int:
-    """Return 0 if coverage is adequate, 1 if symbols are missing."""
+    """Return 0 if coverage is adequate, 1 if symbols are missing.
+
+    ``test_path`` may be a single file (explicit CLI arg) or a directory of
+    split test files; all matching ``test_<name>*`` files are considered.
+    """
     script_syms = get_public_symbols(script_path)
-    test_syms = get_test_symbols(test_path)
+
+    if test_path.is_dir():
+        test_files = get_test_files(script_path)
+    else:
+        # Single explicit test file, or the resolved default.
+        test_files = [test_path] if test_path.exists() else get_test_files(script_path)
+        if not test_files and test_path.suffix == ".py":
+            test_files = [test_path]
 
     missing: list[str] = []
     for sym in sorted(script_syms):
         if sym in EXEMPT_SYMBOLS:
             continue
-        # Check if any candidate test name exists in test file
-        candidates = _test_name_candidates(sym)
-        if not any(c in test_syms for c in candidates):
+        if not _is_covered(sym, test_files):
             missing.append(sym)
 
     if not missing:
@@ -131,9 +180,8 @@ def main() -> int:
     if len(sys.argv) >= 3:
         test_path = Path(sys.argv[2]).resolve()
     else:
-        # Default: tests/test_<name>.py
-        base = script_path.stem.replace("-", "_")
-        test_path = script_path.parent / "tests" / f"test_{base}.py"
+        # Default: tests/ directory — all test_<name>* files are collected.
+        test_path = script_path.parent / "tests"
 
     return check_coverage(script_path, test_path)
 
