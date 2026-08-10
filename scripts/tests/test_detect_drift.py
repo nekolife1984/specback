@@ -1,12 +1,22 @@
-"""Smoke + security regression tests for detect-drift.py (Phase 7 — Drift Detection)."""
+"""Smoke + security regression + core-logic tests for detect-drift.py (Phase 7)."""
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "detect-drift.py"
+
+# Import detect-drift.py as a module for pure-function tests (Issue #258).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_spec = importlib.util.spec_from_file_location("detect_drift_core", SCRIPT)
+assert _spec is not None and _spec.loader is not None
+drift = importlib.util.module_from_spec(_spec)
+sys.modules["detect_drift_core"] = drift
+_spec.loader.exec_module(drift)
 
 
 def test_help_includes_specback_dir():
@@ -172,3 +182,450 @@ def test_json_written_on_no_changes(tmp_path):
     assert json_path.exists(), "drift-report.json not written on no-changes path"
     data = json.loads(json_path.read_text(encoding="utf-8"))
     assert data["summary"]["changed_files"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Core logic unit tests (Issue #258)
+# ---------------------------------------------------------------------------
+
+
+def _source_map(units: list[dict], target_root: str = ".") -> dict:
+    """Build a source_map dict in the shape load_source_map returns."""
+    by_path: dict[str, list[dict]] = {}
+    by_id: dict[str, dict] = {}
+    for u in units:
+        by_path.setdefault(u["path"], []).append(u)
+        by_id[u["id"]] = u
+    return {"units": units, "by_path": by_path, "by_id": by_id,
+            "stats": {}, "target_root": target_root}
+
+
+def _trace(by_source: dict) -> dict:
+    return {"by_source": by_source, "schema_version": "0.1.0"}
+
+
+# --- parse_diff_text ------------------------------------------------------
+
+
+def test_parse_diff_text_basic():
+    text = "M\tapp/models/issue.rb\nA\tspec/issue_spec.rb\nD\told.rb\n"
+    entries = drift.parse_diff_text(text)
+    assert entries == [
+        {"status": "M", "file": "app/models/issue.rb"},
+        {"status": "A", "file": "spec/issue_spec.rb"},
+        {"status": "D", "file": "old.rb"},
+    ]
+
+
+def test_parse_diff_text_rename():
+    text = "R100\told/path.rb\tnew/path.rb\n"
+    entries = drift.parse_diff_text(text)
+    assert entries == [
+        {"status": "R", "file": "new/path.rb", "old_file": "old/path.rb"},
+    ]
+
+
+def test_parse_diff_text_ignores_garbage():
+    text = "\nnot-a-diff\nM\tonly_file.rb\n"
+    entries = drift.parse_diff_text(text)
+    assert entries == [{"status": "M", "file": "only_file.rb"}]
+
+
+# --- hash_line_range ------------------------------------------------------
+
+
+def test_hash_line_range_basic(tmp_path):
+    f = tmp_path / "sample.py"
+    f.write_text("line1\nline2\nline3\n", encoding="utf-8")
+    digest, count = drift.hash_line_range(f, 1, 3)
+    assert count == 3
+    expected = hashlib.sha256(b"line1line2line3").hexdigest()
+    assert digest == expected
+
+
+def test_hash_line_range_partial_range(tmp_path):
+    f = tmp_path / "sample.py"
+    f.write_text("a\nb\nc\nd\n", encoding="utf-8")
+    digest, count = drift.hash_line_range(f, 2, 3)
+    assert count == 2
+    expected = hashlib.sha256(b"bc").hexdigest()
+    assert digest == expected
+
+
+def test_hash_line_range_crlf_normalized(tmp_path):
+    f = tmp_path / "sample.py"
+    f.write_text("a\r\nb\r\n", encoding="utf-8")
+    digest_crlf, count = drift.hash_line_range(f, 1, 2)
+    assert count == 2
+    expected = hashlib.sha256(b"ab").hexdigest()
+    assert digest_crlf == expected
+
+
+def test_hash_line_range_missing_file(tmp_path):
+    digest, count = drift.hash_line_range(tmp_path / "nope.py", 1, 5)
+    assert digest == ""
+    assert count == 0
+
+
+# --- compute_hash_changes -------------------------------------------------
+
+
+def test_compute_hash_changes_detects_modify_delete_add(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "mod.py").write_text("x = 1\n", encoding="utf-8")
+    (src / "gone.py").write_text("y = 2\n", encoding="utf-8")
+
+    # Snapshot: mod.py recorded as hash of "x = 1", gone.py as present,
+    # plus one path NOT in source-map (new.py) to exercise the ADD path.
+    mod_hash = hashlib.sha256(b"x = 1").hexdigest()
+    source_hashes = {
+        "units": {
+            "SRC-0001": {"path": "src/mod.py", "line_range": [1, 1],
+                         "hash": f"sha256:{mod_hash}", "line_count": 1,
+                         "status": "OK"},
+            "SRC-0002": {"path": "src/gone.py", "line_range": [1, 1],
+                         "hash": f"sha256:{hashlib.sha256(b'y = 2').hexdigest()}",
+                         "line_count": 1, "status": "OK"},
+        }
+    }
+    # Modify mod.py, delete gone.py
+    (src / "mod.py").write_text("x = 999\n", encoding="utf-8")
+    (src / "gone.py").unlink()
+
+    source_map = _source_map([
+        {"id": "SRC-0001", "path": "src/mod.py"},
+        {"id": "SRC-0002", "path": "src/gone.py"},
+        {"id": "SRC-0003", "path": "src/new.py"},
+    ], target_root=str(tmp_path))
+
+    changes = drift.compute_hash_changes(source_hashes, source_map, str(tmp_path))
+    by_file = {c["file"]: c["status"] for c in changes}
+    assert by_file.get("src/mod.py") == "M"
+    assert by_file.get("src/gone.py") == "D"
+    assert by_file.get("src/new.py") == "A"
+
+
+def test_compute_hash_changes_no_changes(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "same.py").write_text("keep\n", encoding="utf-8")
+    h = hashlib.sha256(b"keep").hexdigest()
+    source_hashes = {
+        "units": {
+            "SRC-0001": {"path": "src/same.py", "line_range": [1, 1],
+                         "hash": f"sha256:{h}", "line_count": 1, "status": "OK"},
+        }
+    }
+    source_map = _source_map([{"id": "SRC-0001", "path": "src/same.py"}])
+    changes = drift.compute_hash_changes(source_hashes, source_map, str(tmp_path))
+    assert changes == []
+
+
+# --- analyze_impact -------------------------------------------------------
+
+
+def test_analyze_impact_modified_with_trace():
+    changes = [{"status": "M", "file": "app/models/issue.rb"}]
+    sm = _source_map([{"id": "SRC-0001", "path": "app/models/issue.rb"}])
+    tr = _trace({
+        "SRC-0001": {
+            "path": "app/models/issue.rb",
+            "covered_by_sections": [
+                {"file": "01-overview.md", "section": "Overview"},
+            ],
+        }
+    })
+    result = drift.analyze_impact(changes, sm, tr)
+    assert len(result["affected_sections"]) == 1
+    entry = result["affected_sections"][0]
+    assert entry["file"] == "app/models/issue.rb"
+    assert entry["src_ids"] == ["SRC-0001"]
+    assert entry["impacted_sections"][0]["impact"] == "moderate"
+    assert result["section_keys_seen"] == ["01-overview.md::Overview"]
+
+
+def test_analyze_impact_add_new_uncovered():
+    changes = [{"status": "A", "file": "src/new.py"}]
+    sm = _source_map([])  # new file not in source-map
+    tr = _trace({})
+    result = drift.analyze_impact(changes, sm, tr)
+    assert len(result["new_uncovered"]) == 1
+    assert result["new_uncovered"][0]["file"] == "src/new.py"
+    assert result["affected_sections"] == []
+
+
+def test_analyze_impact_delete_with_refs():
+    changes = [{"status": "D", "file": "app/models/issue.rb"}]
+    sm = _source_map([{"id": "SRC-0001", "path": "app/models/issue.rb"}])
+    tr = _trace({
+        "SRC-0001": {
+            "path": "app/models/issue.rb",
+            "covered_by_sections": [
+                {"file": "01-overview.md", "section": "Overview"},
+            ],
+        }
+    })
+    result = drift.analyze_impact(changes, sm, tr)
+    assert len(result["deleted_with_refs"]) == 1
+    assert result["deleted_with_refs"][0]["status"] == "D"
+
+
+def test_analyze_impact_no_impact():
+    changes = [{"status": "M", "file": "app/not-mapped.rb"}]
+    sm = _source_map([])
+    tr = _trace({})
+    result = drift.analyze_impact(changes, sm, tr)
+    assert len(result["no_impact"]) == 1
+    assert result["affected_sections"] == []
+    assert result["new_uncovered"] == []
+
+
+def test_analyze_impact_deleted_path_in_trace():
+    """Deleted file NOT in source-map but referenced by path in trace."""
+    changes = [{"status": "D", "file": "legacy.rb"}]
+    sm = _source_map([])
+    tr = _trace({
+        "SRC-0099": {
+            "path": "legacy.rb",
+            "covered_by_sections": [
+                {"file": "02-design.md", "section": "Legacy"},
+            ],
+        }
+    })
+    result = drift.analyze_impact(changes, sm, tr)
+    assert len(result["deleted_with_refs"]) == 1
+    assert result["deleted_with_refs"][0]["matched_by_path"] is True
+
+
+# --- _determine_impact ----------------------------------------------------
+
+
+def test_determine_impact_levels():
+    assert drift._determine_impact("D", {}, {}) == drift.IMPACT_HIGH
+    assert drift._determine_impact("A", {}, {}) == drift.IMPACT_HIGH
+    assert drift._determine_impact("M", {}, {}) == drift.IMPACT_MODERATE
+    assert drift._determine_impact("R", {}, {}) == drift.IMPACT_MODERATE
+    assert drift._determine_impact("T", {}, {}) == drift.IMPACT_MODERATE
+    assert drift._determine_impact("C", {}, {}) == drift.IMPACT_LOW
+
+
+# --- loaders --------------------------------------------------------------
+
+
+def test_load_source_map_builds_indexes(tmp_path):
+    p = tmp_path / "source-map.json"
+    p.write_text(json.dumps({
+        "units": [
+            {"id": "SRC-0001", "path": "a.py"},
+            {"id": "SRC-0002", "path": "a.py"},
+            {"id": "SRC-0003", "path": "b.py"},
+        ],
+    }), encoding="utf-8")
+    sm = drift.load_source_map(p)
+    assert sm["by_path"]["a.py"] == [
+        {"id": "SRC-0001", "path": "a.py"},
+        {"id": "SRC-0002", "path": "a.py"},
+    ]
+    assert sm["by_id"]["SRC-0003"]["path"] == "b.py"
+
+
+def test_load_source_map_missing_exits(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit):
+        drift.load_source_map(tmp_path / "nope.json")
+
+
+def test_load_state_returns_none_when_missing(tmp_path):
+    assert drift.load_state(tmp_path / "state.json") is None
+
+
+def test_load_state_parses(tmp_path):
+    p = tmp_path / "state.json"
+    p.write_text(json.dumps({"generated_at_commit": "abc123"}), encoding="utf-8")
+    assert drift.load_state(p) == {"generated_at_commit": "abc123"}
+
+
+def test_load_state_handles_bad_json(tmp_path):
+    p = tmp_path / "state.json"
+    p.write_text("{ not json", encoding="utf-8")
+    assert drift.load_state(p) is None
+
+
+# --- resolve_base / resolve_mode ------------------------------------------
+
+
+def test_resolve_base_precedence(tmp_path):
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": "deadbeef"}), encoding="utf-8")
+    assert drift.resolve_base("v1.0", specback) == "v1.0"
+    assert drift.resolve_base(None, specback) == "deadbeef"
+
+
+def test_resolve_base_fallback_head(tmp_path):
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    assert drift.resolve_base(None, specback) == "HEAD"
+
+
+def test_resolve_mode_explicit(tmp_path):
+    assert drift.resolve_mode("git", tmp_path) == "git"
+    assert drift.resolve_mode("hash", tmp_path) == "hash"
+
+
+def test_resolve_mode_auto_git(tmp_path):
+    (tmp_path / ".git").mkdir()
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": "abc"}), encoding="utf-8")
+    assert drift.resolve_mode(None, specback) == "git"
+
+
+def test_resolve_mode_auto_hash(tmp_path):
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    (specback / "source-hashes.json").write_text("{}", encoding="utf-8")
+    assert drift.resolve_mode(None, specback) == "hash"
+
+
+def test_resolve_mode_auto_error(tmp_path):
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    import pytest
+    with pytest.raises(SystemExit):
+        drift.resolve_mode(None, specback)
+
+
+# --- generate_markdown / generate_json ------------------------------------
+
+
+def test_generate_markdown_includes_summary():
+    result = {
+        "affected_sections": [], "new_uncovered": [],
+        "deleted_with_refs": [], "no_impact": [],
+        "section_keys_seen": [],
+    }
+    md = drift.generate_markdown(result, "HEAD", 0, ".specback")
+    assert "# Drift Report" in md
+    assert "## Summary" in md
+    assert "No spec sections are affected" in md
+
+
+def test_generate_markdown_with_affected():
+    result = {
+        "affected_sections": [{
+            "file": "app/models/issue.rb", "status": "M",
+            "src_ids": ["SRC-0001"],
+            "impacted_sections": [
+                {"file": "01-overview.md", "section": "Overview",
+                 "impact": "moderate"},
+            ],
+        }],
+        "new_uncovered": [], "deleted_with_refs": [], "no_impact": [],
+        "section_keys_seen": ["01-overview.md::Overview"],
+    }
+    md = drift.generate_markdown(result, "main", 1, ".specback")
+    assert "## Affected Spec Sections" in md
+    assert "01-overview.md" in md
+    assert "SRC-0001" in md
+
+
+def test_generate_json_shape():
+    result = {
+        "affected_sections": [], "new_uncovered": [],
+        "deleted_with_refs": [], "no_impact": [],
+        "section_keys_seen": [],
+    }
+    data = drift.generate_json(result, "HEAD", 0)
+    assert data["schema_version"] == drift.SCHEMA_VERSION
+    assert data["summary"]["changed_files"] == 0
+    assert data["summary"]["affected_spec_sections"] == 0
+
+
+# --- remaining loaders / CLI helpers ---------------------------------------
+
+
+def test_load_source_hashes(tmp_path):
+    p = tmp_path / "source-hashes.json"
+    p.write_text(json.dumps({"units": {"SRC-1": {"path": "a.py"}}}), encoding="utf-8")
+    data = drift.load_source_hashes(p)
+    assert data["units"]["SRC-1"]["path"] == "a.py"
+
+
+def test_load_source_hashes_missing_exits(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit):
+        drift.load_source_hashes(tmp_path / "nope.json")
+
+
+def test_load_trace_parses(tmp_path):
+    p = tmp_path / "trace.json"
+    p.write_text(json.dumps({"by_source": {}}), encoding="utf-8")
+    assert drift.load_trace(p) == {"by_source": {}}
+
+
+def test_load_trace_missing_exits(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit):
+        drift.load_trace(tmp_path / "nope.json")
+
+
+def test_parse_args_defaults():
+    args = drift.parse_args([])
+    assert args.specback_dir == ".specback"
+    assert args.mode is None
+    assert args.base is None
+    assert args.json is False
+
+
+def test_parse_args_values():
+    args = drift.parse_args([
+        "--specback-dir", ".specback", "--mode", "git",
+        "--base", "v1.0", "--json",
+    ])
+    assert args.mode == "git"
+    assert args.base == "v1.0"
+    assert args.json is True
+
+
+def test_print_base_info_head(capsys):
+    drift.print_base_info("HEAD")
+    err = capsys.readouterr().err
+    assert "HEAD" in err
+
+
+def test_print_base_info_commit(capsys):
+    drift.print_base_info("deadbeef12345678")
+    err = capsys.readouterr().err
+    assert "deadbeef1234" in err
+
+
+def test_print_mode_info(capsys):
+    drift.print_mode_info("git")
+    assert "git" in capsys.readouterr().err
+
+
+def test_run_git_diff_name_status_in_repo(tmp_path):
+    """Real git repo: git diff --name-status returns parsed entries."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "a.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"],
+                   cwd=tmp_path, check=True,
+                   env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00",
+                        "GIT_COMMITTER_DATE": "2026-01-01T00:00:00"})
+    (tmp_path / "a.py").write_text("x = 2\n", encoding="utf-8")
+    entries = drift.run_git_diff_name_status("HEAD", cwd=str(tmp_path))
+    assert {"status": "M", "file": "a.py"} in entries
+
+
+def test_run_git_diff_name_status_injection_rejected(tmp_path):
+    """Option-like base must be rejected before git runs (Issue #253)."""
+    import pytest
+    with pytest.raises(SystemExit):
+        drift.run_git_diff_name_status("--output=/tmp/x", cwd=str(tmp_path))
