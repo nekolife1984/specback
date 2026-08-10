@@ -113,3 +113,63 @@ def test_venv_excluded_in_real_scan(tmp_path: Path) -> None:
     paths = [u["path"] for u in data.get("units", [])]
     assert "src/main.py" in paths
     assert not any(".venv" in p for p in paths), f".venv が除外されていない: {paths}"
+
+
+def test_symlink_outside_target_ignored(tmp_path: Path) -> None:
+    """target 外を指す symlink はスキャン対象外（Issue #254 回帰）。
+
+    symlink を追跡して target 外のファイル内容が source-map.json に
+    保存される脆弱性の再現テスト。シンボル名・クラス名が成果物に
+    漏れないことを検証する。
+    """
+    import os
+
+    secret = tmp_path.parent / "outside-secret.py"
+    secret.write_text(
+        "class SecretLeak:\n"
+        "    def top_secret_func(self):\n"
+        "        return 'hunter2'\n",
+        encoding="utf-8",
+    )
+    try:
+        (tmp_path / "secret-link.py").symlink_to(secret)
+    except OSError:
+        import pytest
+        pytest.skip("symlink creation not supported on this platform")
+
+    (tmp_path / "src" / "main.py").parent.mkdir(parents=True)
+    (tmp_path / "src" / "main.py").write_text("def main():\n    pass\n", encoding="utf-8")
+    out = tmp_path / "out.json"
+
+    result = _run_source_map(tmp_path, out)
+    assert result.returncode == 0, f"source-map failed:\n{result.stderr}"
+
+    data = json.loads(out.read_text(encoding="utf-8"))
+    paths = [u["path"] for u in data.get("units", [])]
+    assert "src/main.py" in paths
+    # symlink 経由の外部ファイル内容が source-map.json に漏れないこと
+    assert "secret-link.py" not in paths, f"symlink がスキャンされた: {paths}"
+    assert not any("SecretLeak" in str(u) for u in data.get("units", [])), (
+        "target 外ファイルのシンボルが漏れている"
+    )
+
+
+def test_symlink_inside_target_ignored(tmp_path: Path) -> None:
+    """target 内を指す symlink も追跡しない（通常ファイルとの二重登録防止）。"""
+    import os
+
+    (tmp_path / "real.py").write_text("def real():\n    pass\n", encoding="utf-8")
+    try:
+        (tmp_path / "alias.py").symlink_to(tmp_path / "real.py")
+    except OSError:
+        import pytest
+        pytest.skip("symlink creation not supported on this platform")
+
+    out = tmp_path / "out.json"
+    result = _run_source_map(tmp_path, out)
+    assert result.returncode == 0, f"source-map failed:\n{result.stderr}"
+
+    data = json.loads(out.read_text(encoding="utf-8"))
+    paths = [u["path"] for u in data.get("units", [])]
+    assert "real.py" in paths
+    assert "alias.py" not in paths, f"target 内 symlink がスキャンされた: {paths}"

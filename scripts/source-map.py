@@ -322,7 +322,19 @@ def matches_any(rel_path: str, globs: list[str]) -> bool:
 
 def iter_target_files(target: Path, exclude_globs: list[str]) -> Iterable[Path]:
     for p in target.rglob("*"):
+        # Symlinks are not followed: a symlink inside target may point
+        # OUTSIDE target (e.g. .env / secret keys), and reading it would
+        # leak external file contents into source-map.json (Issue #254).
+        if p.is_symlink():
+            continue
         if not p.is_file():
+            continue
+        # Defense in depth: after resolving, the file must still live
+        # inside target (protects against any path that escapes it).
+        try:
+            resolved = p.resolve()
+            resolved.relative_to(target.resolve())
+        except (OSError, ValueError):
             continue
         rel = p.relative_to(target)
         rel_str = str(rel)
