@@ -61,16 +61,21 @@ HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 # ---------------------------------------------------------------------------
 
 
-def parse_hunks(diff_text: str) -> dict[str, list[dict[str, int]]]:
+def parse_hunks(diff_text: str) -> dict[str, list[dict[str, Any]]]:
     """Parse unified diff text and return hunk offsets per file.
 
     Returns
     -------
     dict mapping file path → list of hunks, where each hunk is:
-        {"old_start": N, "old_count": N, "new_start": N, "new_count": N}
+        {"old_start": N, "old_count": N, "new_start": N, "new_count": N,
+         "lines": [(kind, text), ...]}
+    ``lines`` holds the hunk body (``"-"`` removed / ``"+"`` added /
+    ``" "`` context); it is empty for header-only hunks (e.g. when a caller
+    strips the body). Body lines are what make the old→new mapping exact.
     """
-    files: dict[str, list[dict[str, int]]] = {}
+    files: dict[str, list[dict[str, Any]]] = {}
     current_file: str | None = None
+    current_hunk: dict[str, Any] | None = None
 
     for line in diff_text.splitlines():
         # Detect file header: "--- a/path" / "+++ b/path"
@@ -78,34 +83,47 @@ def parse_hunks(diff_text: str) -> dict[str, list[dict[str, int]]]:
             current_file = line[6:].strip()  # strip "+++ b/"
             if current_file not in files:
                 files[current_file] = []
+            current_hunk = None
             continue
         if line.startswith("--- a/"):
             continue  # skip, we use +++ as authoritative
 
         # Hunk header
-        if current_file is not None:
-            m = HUNK_RE.match(line)
-            if m:
-                old_start = int(m.group(1))
-                old_count = int(m.group(2)) if m.group(2) else 1
-                new_start = int(m.group(3))
-                new_count = int(m.group(4)) if m.group(4) else 1
-                files[current_file].append({
-                    "old_start": old_start,
-                    "old_count": old_count,
-                    "new_start": new_start,
-                    "new_count": new_count,
-                })
+        m = HUNK_RE.match(line)
+        if m and current_file is not None:
+            old_start = int(m.group(1))
+            old_count = int(m.group(2)) if m.group(2) else 1
+            new_start = int(m.group(3))
+            new_count = int(m.group(4)) if m.group(4) else 1
+            current_hunk = {
+                "old_start": old_start,
+                "old_count": old_count,
+                "new_start": new_start,
+                "new_count": new_count,
+                "lines": [],
+            }
+            files[current_file].append(current_hunk)
+            continue
+
+        # Hunk body lines (only meaningful inside a hunk)
+        if current_hunk is not None and current_file is not None:
+            if line[:1] in ("-", "+", " "):
+                current_hunk["lines"].append((line[0], line[1:]))
 
     return files
 
 
-def build_line_map(hunks: list[dict[str, int]]) -> dict[int, int | None]:
+def build_line_map(hunks: list[dict[str, Any]]) -> dict[int, int | None]:
     """Build a mapping from old line numbers to new line numbers.
 
     For each old line N, returns:
     - M (new line number) if the line is preserved/shifted
     - None if the line was deleted
+
+    Uses the hunk body (``-`` / ``+`` / `` `` lines) when available, which
+    yields an exact mapping — deleted lines map to None wherever they occur,
+    not just at the hunk tail (Issue #249 / F2). Falls back to the header-only
+    approximation ("deletions at hunk tail") when body lines are absent.
 
     Only covers line numbers within hunk ranges.
     Lines outside any hunk are assumed unchanged.
@@ -118,33 +136,35 @@ def build_line_map(hunks: list[dict[str, int]]) -> dict[int, int | None]:
 
     for hunk in hunks:
         old_start = hunk["old_start"]
-        old_count = hunk["old_count"]
         new_start = hunk["new_start"]
-        new_count = hunk["new_count"]
+        body = hunk.get("lines")
 
-        old_end = old_start + old_count - 1
-        new_cursor = new_start
+        if body:
+            old_cur = old_start
+            new_cur = new_start
+            for kind, _text in body:
+                if kind == "-":
+                    line_map[old_cur] = None
+                    old_cur += 1
+                elif kind == "+":
+                    new_cur += 1
+                else:  # " " context — preserved 1:1
+                    line_map[old_cur] = new_cur
+                    old_cur += 1
+                    new_cur += 1
+            continue
 
-        # In a unified diff, the hunk contains both old and new lines.
-        # We need the full diff context to map precisely. For -U0 diffs,
-        # each line is either removed (only in old) or added (only in new).
-        # Since we don't have the full diff body here, we use an approximation:
+        # Header-only fallback (approximation):
         # - If old_count == new_count: 1:1 mapping (modified lines)
         # - If old_count > new_count: some lines deleted
         # - If old_count < new_count: some lines added
-        #
-        # Within the hunk, we distribute:
-        #   overlap = min(old_count, new_count)
-        #   first overlap lines map 1:1
-        #   extra old lines → deleted (None)
-        #   extra new lines = insertion (no old source)
-        overlap = min(old_count, new_count)
+        # Within the hunk, distribute: the first overlap lines map 1:1,
+        # extra old lines → deleted (None).
+        overlap = min(hunk["old_count"], hunk["new_count"])
         for i in range(overlap):
-            line_map[old_start + i] = new_cursor + i
-        # Deleted lines
-        for i in range(overlap, old_count):
+            line_map[old_start + i] = new_start + i
+        for i in range(overlap, hunk["old_count"]):
             line_map[old_start + i] = None
-        # Note: new_cursor + overlap is the first insertion point
 
     return line_map
 
@@ -168,23 +188,28 @@ def apply_line_shift(
     Returns
     -------
     (new_line, new_end_line) where None means "orphaned/deleted".
+
+    For ranges, the end line is looked up in the map when present; when the
+    end is outside every hunk it inherits the start's delta — in a unified
+    diff, a hunk whose start shifted by ``d`` implies every later line also
+    shifted by ``d`` (Issue #249 / F3).
     """
     new_start = line_map.get(old_line, old_line)
+    if new_start is None:
+        # Start deleted → the whole range is orphaned
+        return (None, None)
     if old_end_line is None:
         # Single-line reference
         return (new_start, None)
 
-    # For ranges, look up the end. If not in map, it's unchanged.
-    new_end = line_map.get(old_end_line, old_end_line)
-
-    # If either start or end is deleted, the range is orphaned
-    if new_start is None or new_end is None:
-        return (None, None)
-
-    # Both lines are preserved. Shift each independently per the map.
-    # If only the start shifted but the end wasn't affected by any hunk,
-    # the range length changes naturally (correct behavior — the end
-    # genuinely didn't move).
+    if old_end_line in line_map:
+        new_end = line_map[old_end_line]
+        if new_end is None:
+            # End deleted → orphaned
+            return (None, None)
+    else:
+        # End outside any hunk: it shifts by the same delta as the start.
+        new_end = old_end_line + (new_start - old_line)
 
     return (new_start, new_end)
 
@@ -416,10 +441,21 @@ def resolve_base(args_base: str | None, specback_path: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def format_ref(ref: dict[str, Any]) -> str:
-    """Format a REF marker as a string."""
-    # SRC-ID refs have no line numbers
-    if str(ref.get("ref_path", "")).startswith("SRC-"):
+def format_ref(
+    ref: dict[str, Any],
+    *,
+    is_src_id: bool | None = None,
+) -> str:
+    """Format a REF marker as a string.
+
+    ``is_src_id`` forces SRC-ID formatting; when None it is inferred from the
+    ``is_src_id`` key (present on scanned refs). The ``SRC-`` prefix of a path
+    is never used to infer the form — a file named ``SRC-notes.md`` must stay
+    a path:line ref (Issue #249 / F6).
+    """
+    if is_src_id is None:
+        is_src_id = bool(ref.get("is_src_id"))
+    if is_src_id:
         return f"<!-- REF: {ref['ref_path']} -->"
     if ref["ref_start"] == ref["ref_end"]:
         return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']} -->"
@@ -530,7 +566,10 @@ def run_migrate_srcid(
             migratable.append({
                 **ref,
                 "src_id": unit["id"],
-                "new_ref": format_ref({"ref_path": unit["id"]}),
+                "new_ref": format_ref(
+                    {"ref_path": unit["id"], "ref_start": 0, "ref_end": 0},
+                    is_src_id=True,
+                ),
             })
         else:
             not_migratable.append({**ref, "reason": cls})
