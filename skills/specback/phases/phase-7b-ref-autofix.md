@@ -74,8 +74,11 @@ When `goal.multi_scope == false` (default), run the procedure once with `{output
 ### Safety
 
 - **Dry-run by default**: no files are modified until `--apply` is passed
-- **Backups**: originals saved to `{output_dir}/.specback/backups/<file>.bak` before modification
+- **Backups**: originals saved to `{output_dir}/.specback/backups/<file>.<timestamp>.bak` (timestamped — repeated applies never overwrite an earlier backup)
+- **Position-based replacement**: each REF is rewritten at the exact line/column recorded by the scanner, not at the first occurrence of the same text elsewhere in the file (code examples or duplicate markers are never mis-targeted)
+- **Symlink refusal**: spec files that are symlinks are skipped with an error (no writes outside the spec directory)
 - **Check mode**: exits with code 1 if orphaned REFs remain after correction
+- **Flag validation**: `--migrate-srcid` cannot be combined with `--diff`/`--base` (they are ignored by migration mode — the combination is rejected); `--check` has no effect in migration mode and prints a warning
 
 ### Snapshot management (hash mode)
 
@@ -87,7 +90,7 @@ python "$(cat {output_dir}/.specback/.skill-path)/scripts/snapshot-hashes.py" --
 
 ### Phase-specific cautions
 - Dry-run by default: review proposed changes before applying with `--apply`.
-- Backups are saved to `{output_dir}/.specback/backups/<file>.bak` — verify they exist before applying.
+- Backups are saved to `{output_dir}/.specback/backups/<file>.<timestamp>.bak` — verify they exist before applying. The timestamp suffix means repeated applies never destroy the first backup.
 - REF corrections shift line numbers in the spec files. After applying, re-run `coverage-check.py` to verify structural integrity.
 - Multi-scope: run per scope — shared `.skill-path` but separate `SPECBACK_DIR`.
 
