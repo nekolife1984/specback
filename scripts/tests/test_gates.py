@@ -3,6 +3,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -13,6 +14,13 @@ import pytest
 # Ensure gates.py is importable.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import gates  # noqa: E402
+
+
+def _proc(stdout: str, returncode: int = 0) -> subprocess.CompletedProcess:
+    """Build a fake subprocess.CompletedProcess for _run_script mocks."""
+    return subprocess.CompletedProcess(
+        args=[], returncode=returncode, stdout=stdout, stderr="",
+    )
 
 
 # ===========================================================================
@@ -96,6 +104,44 @@ class TestCoverageMece:
         assert not r.passed
         assert len(r._checks) > 0
 
+    def test_mece_strict_flag_honored(self) -> None:
+        """mece_passed_strict=false must fail the MECE check even at rate>=0.7.
+
+        Regression for Issue #256: gates.py fell back to ``rate >= 0.7``
+        because coverage-check.py never emitted mece_passed_strict.
+        """
+        fake_stdout = json.dumps({
+            "total_inventory": 1,
+            "mece_coverage_rate": 0.9,
+            "mece_passed_strict": False,
+            "gate_failures": [],
+            "missing_required": [],
+            "chapter_metrics": [],
+        })
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc(fake_stdout, returncode=0)
+            r = gates.coverage_mece(specback_dir="/x", output_dir="/x")
+        assert not r.passed
+        assert any(c["item"] == "MECE coverage" and not c["ok"] for c in r._checks), (
+            f"MECE check should fail when mece_passed_strict=false: {r._checks}"
+        )
+
+    def test_mece_strict_true_passes(self) -> None:
+        """mece_passed_strict=true passes the MECE check."""
+        fake_stdout = json.dumps({
+            "total_inventory": 1,
+            "mece_coverage_rate": 0.9,
+            "mece_passed_strict": True,
+            "gate_failures": [],
+            "missing_required": [],
+            "chapter_metrics": [],
+        })
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc(fake_stdout, returncode=0)
+            r = gates.coverage_mece(specback_dir="/x", output_dir="/x")
+        mece_check = next(c for c in r._checks if c["item"] == "MECE coverage")
+        assert mece_check["ok"] is True
+
 
 # ===========================================================================
 # schema_valid gate
@@ -163,6 +209,22 @@ class TestDriftDetected:
         )
         assert isinstance(r, gates.GateReport)
         assert r.name == "drift_detected"
+
+    def test_passes_json_flag(self) -> None:
+        """detect-drift.py must always be invoked with --json (Issue #256).
+
+        Without --json, drift-report.json is only written when changes
+        exist, so the gate's JSON existence check depends on run history.
+        """
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc("", returncode=1)
+            gates.drift_detected(specback_dir="/x", output_dir="/x")
+        # _run_script(script_name, args, timeout) — positional
+        call_args = mock_run.call_args
+        assert call_args.args[0] == "detect-drift.py"
+        assert "--json" in call_args.args[1], (
+            f"--json not passed to detect-drift.py: {call_args.args[1]}"
+        )
 
 
 # ===========================================================================

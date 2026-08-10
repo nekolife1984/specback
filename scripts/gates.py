@@ -368,7 +368,10 @@ def drift_detected(
     GateReport
     """
     report = GateReport(name="drift_detected")
-    args = ["--specback-dir", specback_dir, "--output-dir", output_dir]
+    # --json is required so drift-report.json is written on every run —
+    # including the zero-changes case (Issue #256). Without it the gate
+    # would look for a JSON file that only exists when prior runs wrote it.
+    args = ["--specback-dir", specback_dir, "--output-dir", output_dir, "--json"]
 
     try:
         proc = _run_script("detect-drift.py", args, timeout=120)

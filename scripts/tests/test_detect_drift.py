@@ -145,3 +145,30 @@ def test_state_json_valid_commit_ok(tmp_path):
     )
     assert result.returncode == 0
     assert "No changes detected" in result.stdout
+
+
+def test_json_written_on_no_changes(tmp_path):
+    """--json must produce drift-report.json even with zero changes (Issue #256).
+
+    Gates consume drift-report.json; without this, the file only exists
+    when a prior run recorded changes, making the gate depend on history.
+    """
+    specback = _init_repo(tmp_path)
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": commit}),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
+         "--mode", "git", "--json"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"detect-drift failed:\n{result.stderr}"
+    json_path = specback / "drift-report.json"
+    assert json_path.exists(), "drift-report.json not written on no-changes path"
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    assert data["summary"]["changed_files"] == 0
