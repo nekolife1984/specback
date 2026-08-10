@@ -194,12 +194,40 @@ def apply_line_shift(
 # ---------------------------------------------------------------------------
 
 
+_SAFE_REF_RE = re.compile(r"^[A-Za-z0-9._/\-]+$")
+
+
+def _resolve_ref(base: str, cwd: str | Path | None) -> str:
+    """Resolve a git ref to a commit hash, rejecting option-like values.
+
+    ``base`` must not start with ``-`` (git would treat it as an option —
+    e.g. ``--output=/tmp/x`` — enabling argument injection) and must only
+    contain ref-safe characters. The resolved hash is what ``git diff`` runs
+    against.
+    """
+    if not base or base.startswith("-") or not _SAFE_REF_RE.match(base):
+        print(f"ERROR: invalid git ref: {base!r}", file=sys.stderr)
+        sys.exit(1)
+    resolved = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{base}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        timeout=30,
+    )
+    if resolved.returncode != 0:
+        print(f"ERROR: cannot resolve git ref: {base}", file=sys.stderr)
+        sys.exit(1)
+    return resolved.stdout.strip()
+
+
 def get_git_diff(
     base: str,
     cwd: str | Path | None = None,
 ) -> str:
     """Run ``git diff -U0 <base>`` and return the diff text."""
-    cmd = ["git", "diff", "-U0", base]
+    resolved = _resolve_ref(base, cwd)
+    cmd = ["git", "diff", "-U0", resolved]
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -243,7 +271,7 @@ def find_refs_in_file(
     refs: list[dict[str, Any]] = []
     try:
         content = file_path.read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError):
+    except (FileNotFoundError, OSError, UnicodeDecodeError):
         return refs
 
     for line_no_0idx, line in enumerate(content.splitlines()):
@@ -346,16 +374,29 @@ def find_unit_for_ref(
     ref: dict[str, Any],
     units_by_path: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any] | None:
-    """Return the unit whose line_range exactly matches a REF, else None."""
+    """Return the unit whose line_range exactly matches a REF, else None.
+
+    Refuses to proceed when several units share the same (path, line_range):
+    an ambiguous conversion would silently point the REF at the wrong unit.
+    """
     units = units_by_path.get(ref["ref_path"])
     if not units:
         return None
     start, end = ref["ref_start"], ref["ref_end"]
+    matches = []
     for u in units:
         lr = u.get("line_range") or [0, 0]
         if lr[0] == start and lr[1] == end:
-            return u
-    return None
+            matches.append(u)
+    if len(matches) > 1:
+        ids = sorted(str(u.get("id", "?")) for u in matches)
+        print(
+            f"ERROR: duplicate units for {ref['ref_path']}:{start}-{end}: "
+            f"{ids}. Refusing ambiguous migration.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return matches[0] if matches else None
 
 
 def resolve_base(args_base: str | None, specback_path: Path) -> str:
@@ -383,6 +424,61 @@ def format_ref(ref: dict[str, Any]) -> str:
     if ref["ref_start"] == ref["ref_end"]:
         return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']} -->"
     return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']}-{ref['ref_end']} -->"
+
+
+def _sanitize(s: str) -> str:
+    """Strip control characters from report output (terminal escape injection)."""
+    return re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\x{ord(m.group(0)):02x}", s)
+
+
+def replace_at(
+    content: str,
+    line_no: int,
+    col_start: int,
+    col_end: int,
+    new_text: str,
+    expected: str,
+) -> str:
+    """Replace the exact span (line_no, col_start..col_end) with new_text.
+
+    Unlike ``str.replace(..., 1)`` this targets the position recorded by the
+    scanner, not the first occurrence of the same text elsewhere in the file.
+    Refuses to proceed if the span no longer holds ``expected`` (guards against
+    the file changing between scan and apply).
+    """
+    lines = content.splitlines(keepends=True)
+    if line_no >= len(lines):
+        raise RuntimeError(f"line {line_no + 1} no longer exists in the file")
+    line = lines[line_no]
+    actual = line[col_start:col_end]
+    if actual != expected:
+        raise RuntimeError(
+            f"REF text mismatch at line {line_no + 1} col {col_start}: "
+            f"expected {expected!r}, found {actual!r}"
+        )
+    lines[line_no] = line[:col_start] + new_text + line[col_end:]
+    return "".join(lines)
+
+
+def _check_writable_spec(spec_path: Path, spec_dir: Path) -> bool:
+    """Return False (with a warning) when spec_path is a symlink or outside spec_dir."""
+    if not spec_path.exists():
+        return False
+    if spec_path.is_symlink():
+        print(
+            f"ERROR: refusing to process symlink: {spec_path}",
+            file=sys.stderr,
+        )
+        return False
+    real = spec_path.resolve()
+    root = spec_dir.resolve()
+    if real != root and root not in real.parents:
+        print(
+            f"ERROR: refusing to write outside spec dir: {real}",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def run_migrate_srcid(
@@ -473,7 +569,7 @@ def run_migrate_srcid(
         for m in migratable:
             lines.append(
                 f"- `{m['spec_file']}` (line {m['line_no'] + 1}): "
-                f"`{m['full_match']}` → `{m['new_ref']}`"
+                f"`{_sanitize(m['full_match'])}` → `{_sanitize(m['new_ref'])}`"
             )
         lines.append("")
 
@@ -494,7 +590,7 @@ def run_migrate_srcid(
             }.get(n["reason"], n["reason"])
             lines.append(
                 f"- `{n['spec_file']}` (line {n['line_no'] + 1}): "
-                f"`{n['full_match']}` — {reason_label}"
+                f"`{_sanitize(n['full_match'])}` — {reason_label}"
             )
         lines.append("")
 
@@ -514,19 +610,29 @@ def run_migrate_srcid(
 
         for spec_name, file_migrations in by_spec_file.items():
             spec_path = spec_dir / spec_name
-            if not spec_path.exists():
+            if not _check_writable_spec(spec_path, spec_dir):
                 continue
 
             content = spec_path.read_text(encoding="utf-8")
-            backup_path = backup_dir / f"{spec_name}.bak"
+            backup_path = backup_dir / (
+                f"{spec_name}.{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.bak"
+            )
             backup_path.write_text(content, encoding="utf-8")
 
-            # Apply bottom-up to avoid offset issues
+            # Apply bottom-up; replace at the exact recorded position, not the
+            # first occurrence of the same text (Issue #248 / FIX-1).
             sorted_migrations = sorted(
                 file_migrations, key=lambda x: -x["line_no"]
             )
             for m in sorted_migrations:
-                content = content.replace(m["full_match"], m["new_ref"], 1)
+                content = replace_at(
+                    content,
+                    m["line_no"],
+                    m["col_start"],
+                    m["col_end"],
+                    m["new_ref"],
+                    expected=m["full_match"],
+                )
 
             spec_path.write_text(content, encoding="utf-8")
             print(
@@ -625,6 +731,17 @@ def main(argv: list[str] | None = None) -> int:
 
     # -- SRC-ID migration mode (does not need a git diff) --
     if args.migrate_srcid:
+        if args.diff is not None or args.base is not None:
+            print(
+                "ERROR: --migrate-srcid cannot be combined with --diff/--base.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.check:
+            print(
+                "WARNING: --check has no effect with --migrate-srcid.",
+                file=sys.stderr,
+            )
         return run_migrate_srcid(args, specback_path, output_dir, spec_dir)
 
     # -- Get diff --
@@ -747,7 +864,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             lines.append(
                 f"- `{c['spec_file']}`: "
-                f"`<!-- REF: {c['ref_path']}:{old} -->` → `<!-- REF: {c['ref_path']}:{new} -->`"
+                f"`<!-- REF: {_sanitize(c['ref_path'])}:{old} -->` → `<!-- REF: {_sanitize(c['ref_path'])}:{new} -->`"
                 f"  (line {c['line_no'] + 1})"
             )
         lines.append("")
@@ -766,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             lines.append(
                 f"- `{o['spec_file']}`: "
-                f"`<!-- REF: {o['ref_path']}:{old} -->` (line {o['line_no'] + 1})"
+                f"`<!-- REF: {_sanitize(o['ref_path'])}:{old} -->` (line {o['line_no'] + 1})"
             )
         lines.append("")
 
@@ -790,29 +907,35 @@ def main(argv: list[str] | None = None) -> int:
 
         for spec_name, file_corrections in by_spec_file.items():
             spec_path = spec_dir / spec_name
-            if not spec_path.exists():
+            if not _check_writable_spec(spec_path, spec_dir):
                 continue
 
             content = spec_path.read_text(encoding="utf-8")
-            backup_path = backup_dir / f"{spec_name}.bak"
+            backup_path = backup_dir / (
+                f"{spec_name}.{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.bak"
+            )
             backup_path.write_text(content, encoding="utf-8")
 
-            # Apply corrections in reverse line order (bottom-up to avoid offset issues)
+            # Apply corrections in reverse line order (bottom-up to avoid offset
+            # issues); replace at the exact recorded position, not the first
+            # occurrence of the same text (Issue #248 / FIX-1).
             sorted_corrections = sorted(
                 file_corrections, key=lambda x: -x["line_no"]
             )
             for c in sorted_corrections:
-                old_ref = format_ref({
-                    "ref_path": c["ref_path"],
-                    "ref_start": c["old_start"],
-                    "ref_end": c["old_end"],
-                })
                 new_ref = format_ref({
                     "ref_path": c["ref_path"],
                     "ref_start": c["new_start"],
                     "ref_end": c["new_end"],
                 })
-                content = content.replace(old_ref, new_ref, 1)
+                content = replace_at(
+                    content,
+                    c["line_no"],
+                    c["col_start"],
+                    c["col_end"],
+                    new_ref,
+                    expected=c["full_match"],
+                )
 
             spec_path.write_text(content, encoding="utf-8")
             print(

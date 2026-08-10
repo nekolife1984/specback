@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parent.parent / "fix-refs.py"
 
 # Import the regex patterns from the script for unit testing
@@ -326,8 +328,10 @@ class TestMigrateSrcidCli:
             "--migrate-srcid",
             "--apply",
         )
-        backup = specback / "backups" / "01-overview.md.bak"
-        assert backup.exists()
+        # Backup is timestamped (Issue #248 / H-8: no fixed-name overwrite)
+        backups = sorted((specback / "backups").glob("01-overview.md.*.bak"))
+        assert len(backups) == 1, [p.name for p in backups]
+        backup = backups[0]
         assert "<!-- REF: src/app.py:10-42 -->" in backup.read_text(encoding="utf-8")
 
     def test_missing_source_map_errors(self, tmp_path):
@@ -356,3 +360,153 @@ class TestMigrateSrcidCli:
         assert report["summary"]["migratable"] == 2
         assert report["summary"]["not_migratable"] == 2
         assert report["summary"]["refs_already_src_id"] == 1
+
+    # -- Issue #248 / FIX-1: position-based replacement --
+
+    def test_apply_targets_recorded_position(self, tmp_path):
+        """Duplicate marker text: only the recorded position is rewritten (both)."""
+        specback, drafts = self._setup(tmp_path)
+        (drafts / "01-overview.md").write_text(
+            "# Overview\n\n"
+            "<!-- REF: src/app.py:10-42 -->\n"
+            "\n"
+            "```\n"
+            "<!-- REF: src/app.py:10-42 -->\n"
+            "```\n",
+            encoding="utf-8",
+        )
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+        )
+        assert result.returncode == 0, result.stderr
+        content = (drafts / "01-overview.md").read_text(encoding="utf-8")
+        # Both occurrences (real marker + code example) were converted at their
+        # own positions; with str.replace(...,1) the second one would be left
+        # as a path:line ref and the first would be double-converted.
+        assert content.count("<!-- REF: SRC-0001 -->") == 2
+        assert "<!-- REF: src/app.py:10-42 -->" not in content
+
+    def test_apply_handles_no_space_variant(self, tmp_path):
+        """<!-- REF:a.py:10 --> without space after REF: is replaced at its position."""
+        specback, drafts = self._setup(tmp_path)
+        (drafts / "01-overview.md").write_text(
+            "# Overview\n\n<!-- REF:src/app.py:10-42 -->\n",
+            encoding="utf-8",
+        )
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+        )
+        assert result.returncode == 0, result.stderr
+        content = (drafts / "01-overview.md").read_text(encoding="utf-8")
+        assert "<!-- REF: SRC-0001 -->" in content
+        assert "<!-- REF:src/app.py:10-42 -->" not in content
+
+    # -- Issue #248 / H-1: git ref validation --
+
+    def test_rejects_option_like_state_commit(self, tmp_path):
+        """A malicious generated_at_commit in state.json is refused (no git arg injection)."""
+        specback, drafts = self._setup(tmp_path)
+        (specback / "state.json").write_text(json.dumps({
+            "generated_at_commit": "--output=/tmp/pwned",
+        }), encoding="utf-8")
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+        )
+        assert result.returncode == 1
+        assert "invalid git ref" in result.stderr
+
+    # -- Issue #248 / Y8: flag combination validation --
+
+    def test_migrate_conflicts_with_diff(self, tmp_path):
+        specback, drafts = self._setup(tmp_path)
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--diff", "raw-diff-text",
+        )
+        assert result.returncode == 2
+        assert "cannot be combined" in result.stderr
+
+    def test_migrate_with_check_warns(self, tmp_path):
+        specback, drafts = self._setup(tmp_path)
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--check",
+        )
+        assert result.returncode == 0
+        assert "--check has no effect" in result.stderr
+
+    # -- Issue #248 / H-2: symlink refusal --
+
+    def test_apply_refuses_symlink(self, tmp_path):
+        """A symlinked spec file is skipped; the link target stays untouched."""
+        specback, drafts = self._setup(tmp_path)
+        target = tmp_path / "outside.md"
+        target.write_text("<!-- REF: src/app.py:10-42 -->\n", encoding="utf-8")
+        (drafts / "01-overview.md").unlink()
+        (drafts / "01-overview.md").symlink_to(target)
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+        )
+        assert result.returncode == 0
+        assert "refusing to process symlink" in result.stderr
+        assert "<!-- REF: src/app.py:10-42 -->" in target.read_text(encoding="utf-8")
+
+    # -- Issue #248 / H-11: duplicate unit detection --
+
+    def test_duplicate_units_refuse_migration(self, tmp_path):
+        """Ambiguous duplicate (path, line_range) units abort the migration."""
+        specback = tmp_path / ".specback"
+        specback.mkdir()
+        (specback / "source-map.json").write_text(json.dumps({
+            "units": [
+                {"id": "SRC-0001", "path": "src/app.py", "line_range": [10, 42]},
+                {"id": "SRC-0002", "path": "src/app.py", "line_range": [10, 42]},
+            ]
+        }), encoding="utf-8")
+        drafts = specback / "drafts"
+        drafts.mkdir()
+        (drafts / "01-overview.md").write_text(
+            "<!-- REF: src/app.py:10-42 -->\n", encoding="utf-8"
+        )
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+        )
+        assert result.returncode == 1
+        assert "duplicate units" in result.stderr
+
+
+class TestReplaceAt:
+    """Unit tests for the position-based replacement helper (Issue #248 / FIX-1)."""
+
+    def test_replaces_exact_position_only(self):
+        mod = _import_fix_refs()
+        marker = "<!-- REF: a.py:1-5 -->"
+        content = "# H\n\n" + marker + "\n" + marker + "\n"
+        out = mod.replace_at(content, 2, 0, len(marker), "<!-- REF: SRC-0001 -->", expected=marker)
+        lines = out.splitlines()
+        assert lines[2] == "<!-- REF: SRC-0001 -->"
+        assert lines[3] == marker  # second occurrence untouched
+
+    def test_mismatch_raises(self):
+        mod = _import_fix_refs()
+        marker = "<!-- REF: a.py:1-5 -->"
+        content = marker + "\n"
+        with pytest.raises(RuntimeError):
+            mod.replace_at(content, 0, 0, len(marker), "X", expected="<!-- REF: b.py:9 -->")
