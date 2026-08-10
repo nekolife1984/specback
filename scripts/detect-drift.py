@@ -949,6 +949,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         output_path = args.output or str(output_dir / "drift-report.md")
         Path(output_path).write_text(empty_md, encoding="utf-8")
+        # Contract: when --json is requested, drift-report.json is ALWAYS
+        # written (even with zero changes) so gates that consume it do not
+        # depend on prior run history (Issue #256).
+        if args.json:
+            empty_json = generate_json({}, base, 0)
+            json_path = output_dir / "drift-report.json"
+            json_path.write_text(
+                json.dumps(empty_json, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            print(f"detect-drift.py: written to {json_path}")
         return 0
 
     # -- Analyze --

@@ -1178,6 +1178,7 @@ def render_json(report: CoverageReport) -> str:
         "mece_excluded": report.mece_excluded,
         "mece_uncovered": report.mece_uncovered,
         "mece_coverage_rate": report.mece_coverage_rate,
+        "mece_passed_strict": report.mece_passed_strict,
         "user_custom_expected": report.user_custom_expected,
         "user_custom_failures": report.user_custom_failures,
         "gate_failures": report.gate_failures,

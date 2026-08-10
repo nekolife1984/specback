@@ -101,6 +101,21 @@ def test_help_shows_code_block_line_weight():
     assert "--code-block-line-weight" in result.stdout
 
 
+def test_json_contains_mece_passed_strict(tmp_path):
+    """--output-format json must include mece_passed_strict (Issue #256).
+
+    gates.py reads mece_passed_strict to decide the strict MECE gate;
+    without the key it silently falls back to rate >= 0.7.
+    """
+    content = "# Overview\n\nSome text.\n"
+    specback_dir = _minimal_specback(tmp_path, content)
+    report = _run_check(specback_dir, **{"--min-lines-per-chapter": "0"})
+    assert "mece_passed_strict" in report, (
+        f"mece_passed_strict missing from JSON: {list(report.keys())}"
+    )
+    assert isinstance(report["mece_passed_strict"], bool)
+
+
 def test_code_block_lines_counted_at_default_weight(tmp_path):
     """
     A chapter with 6 non-blank code-block lines should get +3 effective
