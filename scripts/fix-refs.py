@@ -45,6 +45,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from git_utils import resolve_ref
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -219,31 +221,14 @@ def apply_line_shift(
 # ---------------------------------------------------------------------------
 
 
-_SAFE_REF_RE = re.compile(r"^[A-Za-z0-9._/\-]+$")
-
-
 def _resolve_ref(base: str, cwd: str | Path | None) -> str:
-    """Resolve a git ref to a commit hash, rejecting option-like values.
+    """Resolve a git ref to a commit hash (shared implementation).
 
-    ``base`` must not start with ``-`` (git would treat it as an option —
-    e.g. ``--output=/tmp/x`` — enabling argument injection) and must only
-    contain ref-safe characters. The resolved hash is what ``git diff`` runs
-    against.
+    Delegates to :func:`git_utils.resolve_ref` — validates that ``base``
+    does not start with ``-`` (argument injection guard, Issue #253) and
+    resolves it to a commit hash before ``git diff`` runs against it.
     """
-    if not base or base.startswith("-") or not _SAFE_REF_RE.match(base):
-        print(f"ERROR: invalid git ref: {base!r}", file=sys.stderr)
-        sys.exit(1)
-    resolved = subprocess.run(
-        ["git", "rev-parse", "--verify", f"{base}^{{commit}}"],
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        timeout=30,
-    )
-    if resolved.returncode != 0:
-        print(f"ERROR: cannot resolve git ref: {base}", file=sys.stderr)
-        sys.exit(1)
-    return resolved.stdout.strip()
+    return resolve_ref(base, cwd)
 
 
 def get_git_diff(

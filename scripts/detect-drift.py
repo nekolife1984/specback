@@ -47,6 +47,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from git_utils import resolve_ref
+
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -80,6 +82,9 @@ def run_git_diff_name_status(
 
     Returns a list of ``{"status": "M", "file": "path/to/file"}``.
     """
+    # Resolve base to a validated commit hash before building argv —
+    # prevents git option injection via --base / state.json (Issue #253).
+    base = resolve_ref(base, cwd)
     cmd = ["git", "diff", "--name-status", base]
     result = subprocess.run(
         cmd,
