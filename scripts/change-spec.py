@@ -44,6 +44,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from git_utils import resolve_ref
+
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -436,6 +438,9 @@ def run_git_unified_diff(
     context_lines: int = 5,
 ) -> str:
     """Run ``git diff -U<context_lines> <base>`` and return raw text."""
+    # Resolve base to a validated commit hash before building argv —
+    # prevents git option injection via --base / state.json (Issue #253).
+    base = resolve_ref(base, cwd)
     cmd = ["git", "diff", f"-U{context_lines}", base]
     result = subprocess.run(
         cmd,
@@ -458,6 +463,9 @@ def run_git_diff_name_status(
     cwd: str | Path | None = None,
 ) -> list[dict[str, str]]:
     """Run ``git diff --name-status <base>`` and return parsed entries."""
+    # Resolve base to a validated commit hash before building argv —
+    # prevents git option injection via --base / state.json (Issue #253).
+    base = resolve_ref(base, cwd)
     cmd = ["git", "diff", "--name-status", base]
     result = subprocess.run(
         cmd,
