@@ -786,10 +786,16 @@ def check_placeholder_patterns(
                 patterns.append(re.compile(re.escape(p)))
     failures: list[str] = []
     for name, content in chapters.items():
+        in_code = False
         for i, line in enumerate(content.splitlines(), start=1):
             stripped = line.strip()
-            # Skip code fences (placeholders are expected inside code blocks as examples)
+            # Skip code fences (placeholders are expected inside code blocks
+            # as examples). Track fence state so fenced body lines are
+            # ignored, not just the fence markers themselves (Issue #257).
             if CODE_FENCE_RE.match(stripped):
+                in_code = not in_code
+                continue
+            if in_code:
                 continue
             for pat in patterns:
                 if pat.search(stripped):
