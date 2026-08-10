@@ -50,7 +50,8 @@ fresh IDs.
 # 1) Restore old units from committed specs/trace.json + append new units
 python3 scripts/restore-sourcemap-from-trace.py \
   --repo <codebase> \
-  --new-ids SRC-0014,SRC-0015,...   # IDs the new module got in the re-generated map
+  --new-ids SRC-0014,SRC-0015,... \  # IDs the new module got in the re-generated map
+  --apply                            # write the restored map (default: dry-run)
 
 # 2) ALWAYS regenerate inventory.json from the restored source-map
 python3 scripts/build-inventory-from-sourcemap.py \
@@ -61,6 +62,26 @@ python3 scripts/build-inventory-from-sourcemap.py \
 The restore script reads the re-generated `source-map.json` for the new
 units' metadata (path / line_range / kind / name) and renumbers them from
 `old_max_id + 1`.
+
+### Safety behaviour (added in Issue #247)
+
+- **Dry-run by default** — without `--apply` the script only prints what it
+  would do; the map is not touched.
+- **Backup + atomic write** — `--apply` saves `source-map.json.pre-restore`
+  next to the map, writes a temp file, then `os.replace`s it into place.
+  The only copy is never truncated in place.
+- **Re-run is refused** — the restored map carries
+  `"restored_from": "trace.json"`; running the script again on it fails
+  (re-running would swap the appended units' identities). Pass `--force`
+  only if the re-generated map is genuinely fresh.
+- **`--new-ids` is validated** — IDs must be `SRC-NNNN`, must exist in the
+  re-generated map, and must not collide with old unit IDs. Unknown IDs are
+  a hard error, not silent data loss.
+- **fingerprint warning** — old units restored without a `fingerprint`
+  (when trace.json lacks one) emit a warning: drift detection will be
+  degraded for those units.
+- **Clean errors** — missing / empty / malformed trace.json or
+  source-map.json fail with an `ERROR:` message instead of a traceback.
 
 ### Traps
 
