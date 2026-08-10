@@ -1,0 +1,38 @@
+# specback-drift — GitLab CI サンプル
+#
+# GitHub Actions を使っていないプロジェクト向けの同等チェック。
+# ローカル検証モード（--ci）で merge-base を自動解決するため、
+# act や GitHub Actions が無くても同一動作を再現できます。
+#
+# 使用方法:
+#   1. このファイルを .gitlab-ci.yml にマージ
+#   2. specback リポジトリの scripts/ が PATH に通っていること
+#      （例: pip install 済み、または CI 内でクローン）
+#   3. fail-on-drift 相当の制御は exit code で行う（1 = ドリフトあり）
+#
+# 参考: docs/ja/05-drift-ci.md
+specback-drift:
+  stage: test
+  image: python:3.11
+  variables:
+    SPECBACK_DIR: ".specback"
+    # true にするとドリフト検出時に CI が失敗します
+    SPECBACK_FAIL_ON_DRIFT: "false"
+  before_script:
+    - git fetch origin main --depth=1
+  script:
+    # specback-gate.py を取得（specback リポジトリの scripts/ を使用）
+    - git clone --depth 1 https://github.com/nekolife1984/specback.git /tmp/specback
+    - python /tmp/specback/scripts/specback-gate.py
+        --ci
+        --specback-dir "${SPECBACK_DIR}"
+        --json
+      || { test "${SPECBACK_FAIL_ON_DRIFT}" = "false"; }
+  artifacts:
+    when: always
+    paths:
+      - "${SPECBACK_DIR}/drift-report.md"
+      - "${SPECBACK_DIR}/drift-report.json"
+    expire_in: 14 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

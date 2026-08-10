@@ -407,7 +407,7 @@ The design draws significant inspiration from:
 ## Documentation
 
 - [Branching Strategy](docs/en/01-branching-strategy.md)
-- [Agent Roster — Phase-Specific Model Optimization](docs/en/05-agent-roster.md)
+- [Drift Detection CI](docs/en/05-drift-ci.md)
 
 ---
 > "An honest spec with visible holes is more practically valuable than a polished spec full of fiction."
@@ -777,9 +777,9 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 |ブランチ戦略・開発フローについては以下を参照してください：
 |
 |- EN: [Branching Strategy](docs/en/01-branching-strategy.md)
-|- EN: [Agent Roster](docs/en/05-agent-roster.md)
+|- EN: [Drift Detection CI](docs/en/05-drift-ci.md)
 |- JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
-|- JA: [Agent Roster](docs/ja/05-agent-roster.md)
+|- JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
 
 ---
 

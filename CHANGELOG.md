@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- (nothing yet)
+- ドリフト検出の CI 自動化 ([#266]): `scripts/specback-gate.py`（薄い CI ラッパー: merge-base 解決 → detect-drift → fix-refs --check → レポート健全性）、`specback-drift` GitHub Action（composite action + PR コメント投稿）、opt-in pre-push フック `scripts/install-drift-hooks.sh`（初期値 warn モード）、GitHub Actions / GitLab CI テンプレート（`templates/ci/`）、ローカル検証モード（`--ci`、`act` 不要）、specback 自身でのドッグフーディング導入
 
 ## [v1.1.0] - 2026-08-01
 
