@@ -1,0 +1,84 @@
+name: specback-drift
+description: >-
+  Run specback's drift gate on a pull request and post a summary comment.
+  Resolves the merge-base via GITHUB_BASE_REF, runs detect-drift.py +
+  fix-refs --check + drift report sanity, and gates the build when the
+  spec is affected (fail) unless fail-on-drift is false.
+  Requires a checkout with fetch-depth: 0 (full history) so the merge-base
+  can be resolved.
+
+inputs:
+  specback-dir:
+    description: Path to the .specback/ directory (relative to repo root)
+    default: .specback
+  fail-on-drift:
+    description: Fail the build when drift is detected (true/false)
+    default: "true"
+  comment-on-pr:
+    description: Post a drift summary comment on the PR (true/false)
+    default: "true"
+  token:
+    description: GitHub token used to post PR comments
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Run specback drift gate
+      id: gate
+      shell: bash
+      run: |
+        set +e
+        # specback-gate.py lives in the specback repo that provides this
+        # action; the target project is the current workspace.
+        GATE_PY="$(cd "${{ github.action_path }}/../../.." && pwd)/scripts/specback-gate.py"
+        if [ "${{ inputs.fail-on-drift }}" = "false" ]; then
+          WARN_ONLY="--warn-only"
+        else
+          WARN_ONLY=""
+        fi
+        python "$GATE_PY" \
+          --ci \
+          --specback-dir "${{ inputs.specback-dir }}" \
+          --json \
+          $WARN_ONLY \
+          > "$RUNNER_TEMP/specback-gate-report.json" \
+          2> "$RUNNER_TEMP/specback-gate-stderr.txt"
+        GATE_EXIT=$?
+        echo "exit_code=$GATE_EXIT" >> "$GITHUB_OUTPUT"
+        # Classify for the PR comment step.
+        VERDICT=$(python -c "import json;print(json.load(open('$RUNNER_TEMP/specback-gate-report.json')).get('verdict','error'))" 2>/dev/null || echo error)
+        echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+        echo "--- specback-gate stderr ---" >&2
+        cat "$RUNNER_TEMP/specback-gate-stderr.txt" >&2 || true
+        if [ "$GATE_EXIT" -ne 0 ]; then
+          echo "::error::specback drift gate failed (exit $GATE_EXIT, verdict $VERDICT)"
+        fi
+        exit "$GATE_EXIT"
+
+    - name: Post PR comment
+      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GATE_REPORT: ${{ steps.gate.outputs.verdict }}
+      run: |
+        REPORT_JSON="$RUNNER_TEMP/specback-gate-report.json"
+        if [ ! -f "$REPORT_JSON" ]; then
+          echo "No gate report — skipping comment."
+          exit 0
+        fi
+        COMMENT_PY="$(cd "${{ github.action_path }}" && pwd)/post-comment.py"
+        COMMENT_MD="$RUNNER_TEMP/specback-drift-comment.md"
+        python "$COMMENT_PY" "$REPORT_JSON" "$COMMENT_MD" || true
+        if [ ! -f "$COMMENT_MD" ]; then
+          echo "Nothing to report — skipping comment."
+          exit 0
+        fi
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        gh pr comment "$PR_NUMBER" --body-file "$COMMENT_MD"

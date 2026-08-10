@@ -1,0 +1,28 @@
+name: specback-drift
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # fetch-depth: 0 is required — specback-gate resolves the merge-base
+      # against origin/<base>, which needs full history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/specback-drift
+        with:
+          specback-dir: .specback
+          fail-on-drift: "false"
+          comment-on-pr: "true"

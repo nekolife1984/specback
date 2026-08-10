@@ -1,0 +1,40 @@
+# specback-drift — GitHub Actions テンプレート
+#
+# 対象プロジェクト（specback で仕様書を生成したリポジトリ）にこのファイルを
+# .github/workflows/specback-drift.yml として追加すると、PR ごとに
+# ドリフト検出が走り、結果が PR コメントに投稿されます。
+#
+# 使用方法:
+#   1. このファイルを .github/workflows/specback-drift.yml にコピー
+#   2. specback-dir を必要に応じて変更（デフォルト: .specback）
+#   3. fail-on-drift: "true" にするとドリフト検出時に CI が失敗します
+#      （false = コメントのみ・CI はブロックしない）
+#
+# 参考: docs/ja/05-drift-ci.md
+name: specback-drift
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # fetch-depth: 0 必須 — merge-base 解決にフル履歴が必要
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: nekolife1984/specback/.github/actions/specback-drift@main
+        with:
+          specback-dir: .specback
+          fail-on-drift: "false"
+          comment-on-pr: "true"
