@@ -21,14 +21,14 @@ fi
 # ── Phase 2: Test coverage for new/modified scripts ───────────
 echo "🔍 Checking staged scripts for test coverage..."
 
-SCRIPT_DIR="skills/specback/scripts"
+SCRIPT_DIR="scripts"
 CHECKER="${SCRIPT_DIR}/tests/check_test_coverage.py"
 HAS_VIOLATION=0
 
-# Get staged .py files (new or modified) in scripts/ dir
+# Get staged .py files (new, modified, or renamed) in scripts/ dir
 # Exclude __init__.py and source_map_v2/ (those have their own test structure)
 staged_scripts=$( \
-    git diff --cached --name-only --diff-filter=AM -- "${SCRIPT_DIR}/*.py" \
+    git diff --cached --name-only --diff-filter=AMR -- "${SCRIPT_DIR}/*.py" \
     | grep -v '__init__' \
     | grep -v 'source_map_v2/' \
     | grep -v '/tests/' \
