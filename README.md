@@ -411,6 +411,7 @@ The design draws significant inspiration from:
 - [Drift Detection CI](docs/en/05-drift-ci.md)
 - [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - [Incremental Spec Update](docs/en/08-incremental-update.md)
+- [Spec Health Report](docs/en/09-health-report.md)
 
 ---
 > "An honest spec with visible holes is more practically valuable than a polished spec full of fiction."
@@ -784,10 +785,12 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 - EN: [Drift Detection CI](docs/en/05-drift-ci.md)
 - EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - EN: [Incremental Spec Update](docs/en/08-incremental-update.md)
+- EN: [Spec Health Report](docs/en/09-health-report.md)
 - JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
 - JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
 - JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
 - JA: [インクリメンタル仕様更新](docs/ja/08-incremental-update.md)
+- JA: [仕様ヘルスレポート](docs/ja/09-health-report.md)
 
 ---
 
