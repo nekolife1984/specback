@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - ドリフト検出の CI 自動化 ([#266]): `scripts/specback-gate.py`（薄い CI ラッパー: merge-base 解決 → detect-drift → fix-refs --check → レポート健全性）、`specback-drift` GitHub Action（composite action + PR コメント投稿）、opt-in pre-push フック `scripts/install-drift-hooks.sh`（初期値 warn モード）、GitHub Actions / GitLab CI テンプレート（`templates/ci/`）、ローカル検証モード（`--ci`、`act` 不要）、specback 自身でのドッグフーディング導入
+- トークン見積り & バジェットゲート ([#267]): `scripts/specback-estimate.py`（Phase 2 完了時点の `inventory.json` / `goal.json` / `wbs.json` から Phase 3 の推定トークン消費量を出力。モデル非依存・料金は出力しない。`--json` / `--budget-limit` / `--record-actual` に対応し、実測3件以上で中央値比により校正）。Phase 2 → Phase 3 境界（`phase-2-wbs.md` ステップ 6.5）に組み込み
 
 ## [v1.1.0] - 2026-08-01
 

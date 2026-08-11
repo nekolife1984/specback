@@ -408,6 +408,7 @@ The design draws significant inspiration from:
 
 - [Branching Strategy](docs/en/01-branching-strategy.md)
 - [Drift Detection CI](docs/en/05-drift-ci.md)
+- [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 
 ---
 > "An honest spec with visible holes is more practically valuable than a polished spec full of fiction."
@@ -778,8 +779,10 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 |
 |- EN: [Branching Strategy](docs/en/01-branching-strategy.md)
 |- EN: [Drift Detection CI](docs/en/05-drift-ci.md)
+|- EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 |- JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
 |- JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
+|- JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
 
 ---
 

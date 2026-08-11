@@ -264,6 +264,12 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    - Display the WBS and the skeleton and ask the user "Is it OK to start Phase 3 with this decomposition?".
    - In outline / interactive mode, also call out that the chapters are "overview-table-first" and obtain consent.
 
+6.5. **🆕 Token estimate & budget gate (before Phase 3)**
+   - Run `python scripts/specback-estimate.py --specback-dir {output_dir}/.specback` and show the **estimated token consumption** for Phase 3 to the user.
+   - If the estimate exceeds the user's budget (optional `--budget-limit <tokens>`), the script warns / exits with code 2:
+     - Suggest switching `depth_mode` to `outline` (see `goal.json`) and re-running — outline uses roughly half the tokens of comprehensive.
+   - This step exists so the user can decide **before** Phase 3's parallel sub-agent investigation starts (token cost grows with codebase size and cannot be stopped mid-run).
+
 7. **Phase 2 complete**
    - Update `state.json` and proceed to Phase 3.
 
