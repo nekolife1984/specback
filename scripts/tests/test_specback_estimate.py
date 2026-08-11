@@ -78,6 +78,9 @@ def run_cli(specback_dir: Path, *extra: str) -> subprocess.CompletedProcess:
          *extra],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
     )
 
 
@@ -118,22 +121,29 @@ def test_depth_mode_factor_halves_outline() -> None:
 
 
 def test_depth_mode_interactive_factor() -> None:
-    """interactive = 0.8 × comprehensive."""
+    """interactive = 0.8 × comprehensive (spec value literal, not self-referential)."""
     comp = mod.compute_estimate(5, 1000, "comprehensive", "thorough")
     inter = mod.compute_estimate(5, 1000, "interactive", "thorough")
-    assert inter["estimated_tokens"] == int(
-        comp["estimated_tokens"] * mod.DEPTH_MODE_FACTOR["interactive"]
-    )
+    assert inter["estimated_tokens"] == int(comp["estimated_tokens"] * 0.8)
 
 
 def test_tone_concise_smaller_than_thorough() -> None:
-    """concise is smaller than thorough for the same inputs."""
+    """concise = 0.7 × thorough (spec value literal, not self-referential)."""
     thorough = mod.compute_estimate(5, 1000, "comprehensive", "thorough")
     concise = mod.compute_estimate(5, 1000, "comprehensive", "concise")
-    assert concise["estimated_tokens"] < thorough["estimated_tokens"]
     assert concise["estimated_tokens"] == int(
-        thorough["estimated_tokens"] * mod.TONE_FACTOR["concise"]
+        thorough["estimated_tokens"] * 0.7
     )
+
+
+def test_factor_values_match_spec() -> None:
+    """Pin the spec factor values independently of the implementation."""
+    assert mod.DEPTH_MODE_FACTOR == {
+        "comprehensive": 1.0,
+        "interactive": 0.8,
+        "outline": 0.5,
+    }
+    assert mod.TONE_FACTOR == {"thorough": 1.0, "concise": 0.7}
 
 
 def test_unknown_depth_mode_uses_factor_one(tmp_path: Path, capsys) -> None:
@@ -314,6 +324,171 @@ def test_record_actual_preserves_prior_runs(tmp_path: Path) -> None:
     history = json.loads((d / "estimate-history.json").read_text(encoding="utf-8"))
     assert len(history["runs"]) == 4
     assert history["runs"][3]["actual_tokens"] == 400000
+
+
+# ---------------------------------------------------------------------------
+# 8. Broken / malformed input files → graceful errors
+# ---------------------------------------------------------------------------
+
+
+def test_broken_json_inventory_exits_1(tmp_path: Path) -> None:
+    d = make_specback(tmp_path)
+    (d / "inventory.json").write_text("{ not json", encoding="utf-8")
+    proc = run_cli(d)
+    assert proc.returncode == 1
+    assert "failed to read" in proc.stderr
+
+
+def test_invalid_inventory_shape_exits_1(tmp_path: Path) -> None:
+    """inventory.json that is neither a list nor {\"units\": [...]} → exit 1."""
+    d = make_specback(tmp_path)
+    (d / "inventory.json").write_text("{}", encoding="utf-8")
+    proc = run_cli(d)
+    assert proc.returncode == 1
+    assert "must be a list or an object" in proc.stderr
+
+
+def test_invalid_wbs_shape_exits_1(tmp_path: Path) -> None:
+    """wbs.json whose chapters is not a list → exit 1."""
+    d = make_specback(tmp_path)
+    (d / "wbs.json").write_text('{"chapters": "oops"}', encoding="utf-8")
+    proc = run_cli(d)
+    assert proc.returncode == 1
+    assert "chapters" in proc.stderr
+
+
+def test_goal_array_depth_mode_warns_not_crash(tmp_path: Path) -> None:
+    """depth_mode as a list must not crash (unhashable) — warns, factor 1.0."""
+    d = make_specback(tmp_path, num_units=1000, num_chapters=5)
+    (d / "goal.json").write_text(
+        '{"depth_mode": ["x"], "tone": "thorough"}', encoding="utf-8"
+    )
+    proc = run_cli(d)
+    assert proc.returncode == 0, proc.stderr
+    assert "unknown depth_mode" in proc.stderr
+    assert "Estimated tokens: 310,000" in proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# 9. Input validation — --record-actual / --budget-limit positive-only
+# ---------------------------------------------------------------------------
+
+
+def test_negative_record_actual_rejected(tmp_path: Path) -> None:
+    d = make_specback(tmp_path)
+    proc = run_cli(d, "--record-actual", "-500")
+    assert proc.returncode == 2  # argparse ArgumentTypeError
+    assert "positive integer" in proc.stderr
+
+
+def test_zero_record_actual_rejected(tmp_path: Path) -> None:
+    d = make_specback(tmp_path)
+    proc = run_cli(d, "--record-actual", "0")
+    assert proc.returncode == 2
+    assert "positive integer" in proc.stderr
+
+
+def test_negative_budget_limit_rejected(tmp_path: Path) -> None:
+    d = make_specback(tmp_path)
+    proc = run_cli(d, "--budget-limit", "-1")
+    assert proc.returncode == 2
+    assert "positive integer" in proc.stderr
+
+
+def test_budget_limit_equal_boundary(tmp_path: Path) -> None:
+    """estimated == budget-limit → exit 0 (`>` not `>=`)."""
+    d = make_specback(tmp_path, num_units=1000, num_chapters=5)  # 310000
+    proc = run_cli(d, "--budget-limit", "310000")
+    assert proc.returncode == 0, proc.stderr
+    proc = run_cli(d, "--budget-limit", "309999")
+    assert proc.returncode == 2
+
+
+# ---------------------------------------------------------------------------
+# 10. History hardening — symlink, NaN/Infinity, corrupt file
+# ---------------------------------------------------------------------------
+
+
+def test_record_actual_refuses_symlink(tmp_path: Path) -> None:
+    """estimate-history.json as symlink → refused, target untouched."""
+    d = make_specback(tmp_path)
+    victim = tmp_path / "victim.json"
+    victim.write_text("{}", encoding="utf-8")
+    (d / "estimate-history.json").symlink_to(victim)
+    proc = run_cli(d, "--record-actual", "300000")
+    assert proc.returncode == 1
+    assert "symlink" in proc.stderr
+    assert victim.read_text(encoding="utf-8") == "{}"
+
+
+def test_non_finite_history_rejected_and_quarantined(tmp_path: Path) -> None:
+    """NaN/Infinity in history → rejected, quarantined to .bak, fresh start."""
+    d = make_specback(tmp_path, num_units=1000, num_chapters=5)
+    (d / "estimate-history.json").write_text(
+        '{"runs": [{"estimated_tokens": 1000, "actual_tokens": NaN},'
+        ' {"estimated_tokens": 1000, "actual_tokens": 2000}]}',
+        encoding="utf-8",
+    )
+    proc = run_cli(d, "--json")
+    assert proc.returncode == 0, proc.stderr
+    assert "corrupt estimate-history.json" in proc.stderr
+    assert (d / "estimate-history.json.bak").exists()
+    data = json.loads(proc.stdout)
+    assert data["calibration_runs"] == 0
+    assert data["estimated_tokens"] == 310000
+
+
+def test_corrupt_history_quarantined_and_continues(tmp_path: Path) -> None:
+    d = make_specback(tmp_path, history_runs=_RUNS)
+    (d / "estimate-history.json").write_text("{broken", encoding="utf-8")
+    proc = run_cli(d, "--json")
+    assert proc.returncode == 0, proc.stderr
+    assert "corrupt estimate-history.json" in proc.stderr
+    assert (d / "estimate-history.json.bak").exists()
+    data = json.loads(proc.stdout)
+    assert data["calibration_ratio"] is None  # quarantine reset history
+
+
+def test_history_runs_capped_at_max(tmp_path: Path) -> None:
+    """load_runs caps history to the last MAX_HISTORY_RUNS entries."""
+    d = tmp_path / ".specback"
+    _write_json(d / "estimate-history.json", {"runs": [
+        {"estimated_tokens": 1000, "actual_tokens": 1500}
+        for _ in range(60)
+    ]})
+    runs = mod.load_runs(d / "estimate-history.json")
+    assert len(runs) == mod.MAX_HISTORY_RUNS
+    assert mod.calibration_ratio(runs) == 1.5
+
+
+# ---------------------------------------------------------------------------
+# 11. Calibration input filtering
+# ---------------------------------------------------------------------------
+
+
+def test_calibration_skips_invalid_entries() -> None:
+    """Non-numeric / non-positive / non-finite entries are excluded."""
+    runs = [
+        {"estimated_tokens": 1000, "actual_tokens": "oops"},   # non-numeric
+        {"estimated_tokens": 0, "actual_tokens": 1500},        # est <= 0
+        {"estimated_tokens": 1000, "actual_tokens": 0},        # act <= 0
+        {"estimated_tokens": 1000, "actual_tokens": 2000},     # ratio 2.0
+        {"estimated_tokens": 1000, "actual_tokens": 1000},     # ratio 1.0
+        {"estimated_tokens": 1000, "actual_tokens": 3000},     # ratio 3.0
+    ]
+    assert mod.calibration_ratio(runs) == 2.0  # median of 2.0, 1.0, 3.0
+    assert len(mod.usable_ratios(runs)) == 3
+
+
+def test_zero_units_and_chapters_ok(tmp_path: Path) -> None:
+    """Empty inventory / zero chapters → estimate 0, exit 0."""
+    d = make_specback(tmp_path, num_units=0, num_chapters=0)
+    proc = run_cli(d, "--json")
+    assert proc.returncode == 0, proc.stderr
+    data = json.loads(proc.stdout)
+    assert data["num_units"] == 0
+    assert data["num_chapters"] == 0
+    assert data["estimated_tokens"] == 0
 
 
 if __name__ == "__main__":

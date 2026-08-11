@@ -37,6 +37,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
 import statistics
 import sys
 from datetime import datetime, timezone
@@ -61,6 +63,8 @@ TONE_FACTOR: dict[str, float] = {
 
 REQUIRED_FILES = ("inventory.json", "goal.json", "wbs.json")
 HISTORY_FILE = "estimate-history.json"
+MAX_INPUT_BYTES = 50 * 1024 * 1024  # 50 MiB guard against unbounded reads
+MAX_HISTORY_RUNS = 50  # cap recorded runs so old anomalies fade out
 
 
 # ---------------------------------------------------------------------------
@@ -68,9 +72,44 @@ HISTORY_FILE = "estimate-history.json"
 # ---------------------------------------------------------------------------
 
 
+def positive_int(raw: str) -> int:
+    """argparse type: require an integer > 0 (rejects 0 and negatives)."""
+    try:
+        value = int(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"must be an integer, got {raw!r}")
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"must be a positive integer, got {value}")
+    return value
+
+
+def _reject_nonfinite(name: str) -> Any:
+    """json.loads parse_constant hook — reject NaN/Infinity as invalid JSON."""
+    raise ValueError(f"non-finite JSON constant: {name}")
+
+
 def load_json(path: Path) -> Any:
-    """Read and parse ``path``; raises OSError / ValueError on failure."""
-    return json.loads(path.read_text(encoding="utf-8"))
+    """Read and parse ``path``; raises OSError / ValueError on failure.
+
+    Guards against unbounded reads (size cap) and rejects NaN / Infinity
+    constants so a corrupt history file cannot crash calibration later.
+    """
+    size = path.stat().st_size
+    if size > MAX_INPUT_BYTES:
+        raise ValueError(
+            f"{path}: file too large ({size} bytes > {MAX_INPUT_BYTES} bytes)"
+        )
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        parse_constant=_reject_nonfinite,
+    )
+
+
+def sanitize_text(value: Any) -> str:
+    """Strip control characters from a value for terminal / CI output."""
+    return "".join(
+        ch for ch in str(value) if ch.isprintable() or ch in "\t\n"
+    )
 
 
 def num_units(inventory: Any) -> int:
@@ -91,13 +130,14 @@ def num_chapters(wbs: Any) -> int:
     raise ValueError('wbs.json must be an object with a "chapters" list')
 
 
-def factor_for(value: str, table: dict[str, float], kind: str) -> float:
+def factor_for(value: Any, table: dict[str, float], kind: str) -> float:
     """Look up ``value`` in ``table``; warn on stderr and return 1.0 when
-    the value is unknown."""
-    if value in table:
+    the value is unknown or not a string (also guards unhashable types)."""
+    if isinstance(value, str) and value in table:
         return table[value]
+    safe = sanitize_text(value)
     print(
-        f"warning: unknown {kind} '{value}' — using factor 1.0",
+        f"warning: unknown {kind} {safe!r} — using factor 1.0",
         file=sys.stderr,
     )
     return 1.0
@@ -126,40 +166,79 @@ def compute_estimate(
 
 
 def load_runs(history_path: Path) -> list[dict[str, Any]]:
-    """Load recorded runs from estimate-history.json (empty list if absent)."""
+    """Load recorded runs from estimate-history.json (empty list if absent).
+
+    A corrupt / oversized / non-JSON history is quarantined to a ``.bak``
+    sibling and treated as empty, so the tool keeps working instead of
+    crashing with an uncaught traceback.
+    """
     if not history_path.exists():
         return []
-    data = load_json(history_path)
+    try:
+        data = load_json(history_path)
+    except (OSError, ValueError) as exc:
+        backup = history_path.with_name(history_path.name + ".bak")
+        try:
+            os.replace(history_path, backup)
+        except OSError:
+            pass
+        print(
+            f"warning: corrupt estimate-history.json ({exc}) — moved to "
+            f"{backup}, starting fresh",
+            file=sys.stderr,
+        )
+        return []
     runs = data.get("runs", []) if isinstance(data, dict) else []
-    return [r for r in runs if isinstance(r, dict)]
+    if not isinstance(runs, list):
+        return []
+    return [r for r in runs if isinstance(r, dict)][-MAX_HISTORY_RUNS:]
 
 
-def calibration_ratio(runs: list[dict[str, Any]]) -> float | None:
-    """Median ``actual_tokens / estimated_tokens`` across runs.
+def usable_ratios(runs: list[dict[str, Any]]) -> list[float]:
+    """Ratios ``actual_tokens / estimated_tokens`` for usable entries.
 
-    Returns ``None`` when fewer than three usable runs are recorded
-    (entries with a non-positive ``estimated_tokens`` are skipped).
+    Skips entries with non-numeric, non-positive, or non-finite values so
+    a bad record cannot corrupt calibration.
     """
     ratios: list[float] = []
     for r in runs:
         est = r.get("estimated_tokens")
         act = r.get("actual_tokens")
-        if isinstance(est, (int, float)) and isinstance(act, (int, float)) \
-                and est > 0:
+        if (isinstance(est, (int, float)) and isinstance(act, (int, float))
+                and est > 0 and act > 0
+                and math.isfinite(est) and math.isfinite(act)):
             ratios.append(act / est)
+    return ratios
+
+
+def calibration_ratio(runs: list[dict[str, Any]]) -> float | None:
+    """Median ``actual_tokens / estimated_tokens`` across usable runs.
+
+    Returns ``None`` when fewer than three usable runs are recorded.
+    """
+    ratios = usable_ratios(runs)
     if len(ratios) < 3:
         return None
     return statistics.median(ratios)
 
 
 def record_actual(history_path: Path, entry: dict[str, Any]) -> None:
-    """Append ``entry`` to estimate-history.json (indent=2, ensure_ascii=False)."""
+    """Append ``entry`` to estimate-history.json (indent=2, ensure_ascii=False).
+
+    Writes atomically (temp file + ``os.replace``) and refuses to write
+    through a symlink, so an attacker-controlled repo cannot overwrite an
+    arbitrary file via ``--record-actual``.
+    """
+    if history_path.is_symlink():
+        raise ValueError(f"refusing to write through symlink: {history_path}")
     runs = load_runs(history_path)
     runs.append(entry)
-    history_path.write_text(
+    tmp = history_path.with_name(history_path.name + ".tmp")
+    tmp.write_text(
         json.dumps({"runs": runs}, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    os.replace(tmp, history_path)
 
 
 # ---------------------------------------------------------------------------
@@ -180,11 +259,11 @@ def main() -> None:
         help="Output a single JSON object on stdout",
     )
     p.add_argument(
-        "--budget-limit", type=int, default=None, metavar="TOKENS",
+        "--budget-limit", type=positive_int, default=None, metavar="TOKENS",
         help="Exit 2 with a warning when the estimate exceeds this budget",
     )
     p.add_argument(
-        "--record-actual", type=int, default=None, metavar="TOKENS",
+        "--record-actual", type=positive_int, default=None, metavar="TOKENS",
         help="Append this run's estimate and the actual token count to "
              "estimate-history.json for post-hoc calibration",
     )
@@ -224,11 +303,12 @@ def main() -> None:
     history_path = specback_dir / HISTORY_FILE
     runs = load_runs(history_path)
     ratio = calibration_ratio(runs)
+    usable = len(usable_ratios(runs))
     if ratio is not None:
         estimated = int(estimated * ratio)
     result["estimated_tokens"] = estimated
     result["calibration_ratio"] = ratio
-    result["calibration_runs"] = len(runs)
+    result["calibration_runs"] = usable
 
     # Post-hoc calibration: record this run's estimate vs. actual tokens.
     if args.record_actual is not None:
@@ -256,17 +336,17 @@ def main() -> None:
             "depth_mode": depth_mode,
             "tone": tone,
             "calibration_ratio": ratio,
-            "calibration_runs": len(runs),
+            "calibration_runs": usable,
         }))
     else:
         print(f"Estimated tokens: {estimated:,}")
         print(f"Chapters: {n_chapters}")
         print(f"Units: {n_units}")
-        print(f"depth_mode: {depth_mode}")
-        print(f"tone: {tone}")
+        print(f"depth_mode: {sanitize_text(depth_mode)}")
+        print(f"tone: {sanitize_text(tone)}")
         if ratio is not None:
             print(
-                f"Calibration: ratio={ratio:.4f} applied from {len(runs)} run(s)"
+                f"Calibration: ratio={ratio:.4f} applied from {usable} run(s)"
             )
 
     # Budget gate — warn on stderr and exit 2 when over budget.

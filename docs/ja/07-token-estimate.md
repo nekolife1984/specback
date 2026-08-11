@@ -57,6 +57,13 @@ python scripts/specback-estimate.py --specback-dir .specback --record-actual <�
 
 これにより `.specback/estimate-history.json` に `{timestamp, depth_mode, tone, num_chapters, num_units, estimated_tokens, actual_tokens}` が追記されます。実測が3件以上溜まると、以降の見積りは中央値の `実績 ÷ 見積り` 比で校正されます。
 
+### 履歴の堅牢化
+
+- `--record-actual` / `--budget-limit` は**正の整数のみ**受け付けます（0・負値は exit 2 で拒否）— 校正データが静かに汚染されるのを防ぎます。
+- `estimate-history.json` への書き込みは**アトミック**（一時ファイル + リネーム）で、**symlink 経由の書き込みは拒否**します — 悪意あるリポジトリが `--record-actual` 経由で任意ファイルを上書きできません。
+- 履歴に非有限な JSON 定数（`NaN` / `Infinity`）や壊れた JSON が含まれる場合は拒否し、破損ファイルは `estimate-history.json.bak` に隔離して新規から見積りを続行します。
+- 履歴は直近50件に制限され（古い異常値の影響を薄める）、正の有限な `estimated_tokens` / `actual_tokens` を持つエントリのみが校正比に寄与します。
+
 ## 組み込みポイント
 
 Phase 2 → Phase 3 の境界: `skills/specback/phases/phase-2-wbs.md` のステップ 6.5（"Token estimate & budget gate"）。見積りが予算を超える場合、スクリプトは `depth_mode` を `outline`（comprehensive の約半分のトークン）に切替えて再実行することを提案します。
