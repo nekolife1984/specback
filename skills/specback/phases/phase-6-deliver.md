@@ -84,6 +84,14 @@ File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d
    - Use `--skip-kg` to disable this step (useful when the additional output is not needed).
 
 6. **Intent-vs-delivery audit (mandatory; the final gate before completion)**
+   - **Generate the health report (`specback-health.py`) — mandatory (Issue #268).** Run:
+     ```bash
+     python "$(cat {output_dir}/.specback/.skill-path)/scripts/specback-health.py" \
+       --specback-dir {output_dir}/.specback \
+       --output-dir {output_dir} \
+       --min-health-score 70
+     ```
+     Exit code must be 0 (overall score ≥ 70). If the score is below 70, the chapters listed under "Needs refinement" (🔴 ASSUMED density above `--assumed-ratio-threshold`) must be reopened (`wbs.json.chapters[].status = "pending"`) and sent back to Phase 5 for dialogue refinement — do NOT mark Phase 6 complete.
    - Re-run `coverage-check.py` against the final output directory. Exit code must be 0.
 
      **Recommended invocation:**
