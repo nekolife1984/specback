@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - ドリフト検出の CI 自動化 ([#266]): `scripts/specback-gate.py`（薄い CI ラッパー: merge-base 解決 → detect-drift → fix-refs --check → レポート健全性）、`specback-drift` GitHub Action（composite action + PR コメント投稿）、opt-in pre-push フック `scripts/install-drift-hooks.sh`（初期値 warn モード）、GitHub Actions / GitLab CI テンプレート（`templates/ci/`）、ローカル検証モード（`--ci`、`act` 不要）、specback 自身でのドッグフーディング導入
 - トークン見積り & バジェットゲート ([#267]): `scripts/specback-estimate.py`（Phase 2 完了時点の `inventory.json` / `goal.json` / `wbs.json` から Phase 3 の推定トークン消費量を出力。モデル非依存・料金は出力しない。`--json` / `--budget-limit` / `--record-actual` に対応し、実測3件以上で中央値比により校正）。Phase 2 → Phase 3 境界（`phase-2-wbs.md` ステップ 6.5）に組み込み
 
+### Fixed
+
+- `specback-estimate.py` の堅牢化 (agency review 事後対応): `--record-actual` / `--budget-limit` の正値検証（0・負値拒否）、`estimate-history.json` のアトミック書き込み + symlink 拒否（任意ファイル上書き防止）、非有限 JSON 定数（NaN/Infinity）と破損履歴の拒否・`.bak` 隔離、履歴の最大50件キャップと不正エントリ除外、`depth_mode` / `tone` の型ガードと制御文字サニタイズ、入力ファイルのサイズ上限（50 MiB）。テストを 20 → 35 件に拡充
+
 ## [v1.1.0] - 2026-08-01
 
 ### Added

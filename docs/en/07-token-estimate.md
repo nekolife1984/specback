@@ -68,6 +68,21 @@ estimated_tokens, actual_tokens}` to `.specback/estimate-history.json`. Once 3+
 actuals exist, the CLI calibrates future estimates by the median
 `actual / estimated` ratio.
 
+### History hardening
+
+- `--record-actual` / `--budget-limit` only accept **positive integers** —
+  zero / negative values are rejected (exit 2), so calibration data cannot be
+  silently poisoned.
+- `estimate-history.json` is written **atomically** (temp file + rename) and
+  **refuses to write through a symlink** — a malicious repo cannot overwrite
+  an arbitrary file via `--record-actual`.
+- Non-finite JSON constants (`NaN` / `Infinity`) and broken JSON in the
+  history are rejected; the corrupt file is quarantined to
+  `estimate-history.json.bak` and estimation continues fresh.
+- History is capped at the last 50 runs so old anomalies fade out, and only
+  entries with positive finite `estimated_tokens` / `actual_tokens`
+  contribute to the calibration ratio.
+
 ## Integration point
 
 Phase 2 → Phase 3 boundary: `skills/specback/phases/phase-2-wbs.md` step 6.5
