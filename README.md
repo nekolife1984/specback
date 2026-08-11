@@ -347,6 +347,20 @@ specback/
 
 ---
 
+## Companion: specback-search
+
+The `specback-search` skill (`skills/specback-search/`) queries generated
+data (`source-map.json`, `trace.json`, `inventory.json`, `questions.json`,
+`drift-report.json`) via:
+
+- **CLI**: `python skills/specback-search/scripts/build-search-index.py [query] [flags]`
+- **MCP server** (Issue #270): `python skills/specback-search/scripts/specback-search-mcp.py`
+  — a stdlib-only MCP stdio server exposing `specback_search` /
+  `specback_uncovered` / `specback_drift` / `specback_questions` to
+  Claude Code / Cursor / Hermes. See `docs/en/10-specback-search-mcp.md`.
+
+---
+
 ## Status
 
 Currently **v1.0.0** — initial stable release.

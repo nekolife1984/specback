@@ -23,6 +23,7 @@ Dependencies:
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import re
 import sys
@@ -37,10 +38,22 @@ from typing import Any
 
 SCHEMA_VERSION = "0.1.0"
 
+# Max artifact file size accepted (bytes) — guards against multi-GB inputs.
+MAX_ARTIFACT_BYTES = 50 * 1024 * 1024  # 50 MiB
+
 # Confidence markers found in spec chapter <!-- REF: ... --> annotations
 # Supports both path:line format (<!-- REF: path:file:1-50 --> 🟢) and
-# SRC-ID format (<!-- REF: SRC-0001 --> 🟢)
-CONFIDENCE_RE = re.compile(r'<!-- REF:\s*(?:\S+:\d+(?:-\d+)?|SRC-\d+)\s*-->\s*([🟢🟡🔴])')
+# SRC-ID format (<!-- REF: SRC-0001 --> 🟢). Group 1 = REF target, group 2 = marker.
+CONFIDENCE_RE = re.compile(r'<!-- REF:\s*(\S+:\d+(?:-\d+)?|SRC-\d+)\s*-->\s*([🟢🟡🔴])')
+
+
+class SpecbackDataError(Exception):
+    """Raised when specback artifacts are missing, unreadable, or invalid.
+
+    The CLI's main() catches this and exits 2; the MCP server catches it and
+    returns an isError tool result. Never sys.exit() from data loading — a
+    library consumer (e.g. the MCP server) must be able to survive bad data.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -92,17 +105,26 @@ class SourceUnitResult:
 # ---------------------------------------------------------------------------
 
 def load_json(path: Path, optional: bool = False) -> Any:
-    """Load a JSON file, exiting with error if missing and not optional."""
+    """Load a JSON artifact, raising SpecbackDataError if unusable.
+
+    Raises SpecbackDataError (never sys.exit) so library consumers such as the
+    MCP server can return a tool-level error instead of dying. The CLI's
+    main() catches it and exits 2, preserving CLI behavior.
+    """
     if not path.exists():
         if optional:
             return None
-        print(f"ERROR: {path} not found. Run specback first.", file=sys.stderr)
-        sys.exit(2)
+        raise SpecbackDataError(f"{path} not found. Run specback first.")
+    if not path.is_file():
+        # FIFOs / sockets / devices exist but are not regular files; reading
+        # them can hang forever (FIFO) or return garbage.
+        raise SpecbackDataError(f"{path} is not a regular file.")
+    if path.stat().st_size > MAX_ARTIFACT_BYTES:
+        raise SpecbackDataError(f"{path} exceeds {MAX_ARTIFACT_BYTES} bytes.")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
-        print(f"ERROR: invalid JSON in {path}: {e}", file=sys.stderr)
-        sys.exit(2)
+        raise SpecbackDataError(f"invalid JSON in {path}: {e}") from e
 
 
 def build_index(specback_dir: Path) -> SearchIndex:
@@ -122,13 +144,35 @@ def build_index(specback_dir: Path) -> SearchIndex:
 # ---------------------------------------------------------------------------
 
 def _chapter_files(specback_dir: Path) -> list[Path]:
-    """Find spec chapter files (final/*.md or drafts/*.md)."""
-    candidates = []
+    """Find spec chapter files (final/*.md or drafts/*.md).
+
+    Skips symlinked directories and files that escape the specback dir, so a
+    planted symlink cannot make the search read arbitrary .md trees outside
+    the project.
+    """
+    resolved_sb = specback_dir.resolve()
+    candidates: list[Path] = []
     for sub in ("final", "drafts"):
         d = specback_dir / sub
-        if d.is_dir():
-            candidates.extend(sorted(d.glob("*.md")))
+        if d.is_dir() and not d.is_symlink():
+            for f in sorted(d.glob("*.md")):
+                try:
+                    if f.resolve().is_relative_to(resolved_sb):
+                        candidates.append(f)
+                except OSError:
+                    continue
     return candidates
+
+
+@functools.lru_cache(maxsize=256)
+def _read_chapter_text(ch_path: Path) -> str:
+    """Read a chapter file with process-lifetime caching.
+
+    Confidence extraction re-scans chapter files on every search request;
+    caching avoids re-reading the same files repeatedly. Chapter files change
+    rarely during a server session, so staleness is acceptable.
+    """
+    return ch_path.read_text(encoding="utf-8")
 
 
 def _extract_confidence(src_id: str, specback_dir: Path) -> str | None:
@@ -136,15 +180,22 @@ def _extract_confidence(src_id: str, specback_dir: Path) -> str | None:
     confidence_markers = []
     for ch_path in _chapter_files(specback_dir):
         try:
-            text = ch_path.read_text(encoding="utf-8")
+            text = _read_chapter_text(ch_path)
         except Exception:
             continue
         # Find lines with REFs referencing this SRC-ID
         for line in text.split("\n"):
-            if src_id in line:
-                m = CONFIDENCE_RE.search(line)
-                if m:
-                    confidence_markers.append(m.group(1))
+            if src_id not in line:
+                continue
+            for m in CONFIDENCE_RE.finditer(line):
+                target, marker = m.group(1), m.group(2)
+                # SRC-ID REFs must point at this unit; path:line REFs are
+                # accepted when the unit id appears on the same line.
+                if target.startswith("SRC-"):
+                    if target == src_id:
+                        confidence_markers.append(marker)
+                else:
+                    confidence_markers.append(marker)
     if not confidence_markers:
         return None
     # Return the lowest confidence found (🔴 < 🟡 < 🟢)
@@ -427,7 +478,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    index = build_index(specback_dir)
+    try:
+        index = build_index(specback_dir)
+    except SpecbackDataError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
 
     # ── Collect output sections ───────────────────────────────────────
 
