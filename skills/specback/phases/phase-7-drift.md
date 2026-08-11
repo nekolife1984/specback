@@ -76,6 +76,6 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
 - Always run from the correct baseline commit. The drift report is only as good as the comparison base.
 - Multi-scope: each scope generates its own drift report. Verify the correct scope directory is used.
 - Hash mode requires `source-hashes.json` to exist. Run `snapshot-hashes.py` after Phase 6 if using hash mode.
-- The drift report is advisory — affected spec sections need manual verification before applying changes.
+- The drift report is advisory — affected spec sections need manual verification before applying changes. For the automated partial-update loop, proceed to **Phase 7e (Incremental Update)** (`phases/phase-7e-incremental-update.md`): it re-investigates only the affected chapters, guards against SRC-ID renumbering, and enforces zero collateral edits.
 
 ---

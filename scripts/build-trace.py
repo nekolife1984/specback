@@ -224,8 +224,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--target-dir-for-required",
         default="final",
-        choices=["drafts", "final"],
-        help="Which directory to scan for <!-- REF: ... --> markers (drafts or final)",
+        help=(
+            "Which directory to scan for <!-- REF: ... --> markers: "
+            "'drafts'/'final' resolve relative to --specback-dir, or pass an "
+            "absolute path to scan any chapter directory (e.g. the output dir)."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -237,7 +240,8 @@ def main(argv: list[str] | None = None) -> int:
     sb_dir = Path(args.specback_dir)
     output_dir = Path(args.output_dir)
     source_map_path = sb_dir / "source-map.json"
-    drafts_dir = sb_dir / args.target_dir_for_required
+    target_arg = Path(args.target_dir_for_required)
+    drafts_dir = target_arg if target_arg.is_absolute() else sb_dir / target_arg
     output_path = output_dir / "trace.json"
     exclusions_path = sb_dir / "exclusions.yaml"
 
