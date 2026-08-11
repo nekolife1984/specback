@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -17,7 +18,7 @@ INSTALL_SCRIPT = ROOT / "scripts" / "specback_install.py"
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 
-def _run(*args: str, **kwargs: int) -> subprocess.CompletedProcess:
+def _run(*args: str, **kwargs: Any) -> subprocess.CompletedProcess:
     """Run specback_install.py with given args."""
     return subprocess.run(
         [sys.executable, str(INSTALL_SCRIPT), *args],
