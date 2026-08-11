@@ -308,6 +308,7 @@ specback/
         ├── phase-7-drift.md                 # Phase 7: Drift Detection
         ├── phase-7b-ref-autofix.md          # Phase 7b: REF Auto-Fix
         ├── phase-7c-changespec.md           # Phase 7c: ChangeSpec
+        ├── phase-7e-incremental-update.md   # Phase 7e: Incremental Update
         ├── question-bank.md                 # Question Bank operation
         ├── subagent-behavior.md             # Sub-agent behaviour
         ├── state-management.md              # State management & resume
@@ -409,6 +410,7 @@ The design draws significant inspiration from:
 - [Branching Strategy](docs/en/01-branching-strategy.md)
 - [Drift Detection CI](docs/en/05-drift-ci.md)
 - [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
+- [Incremental Spec Update](docs/en/08-incremental-update.md)
 
 ---
 > "An honest spec with visible holes is more practically valuable than a polished spec full of fiction."
@@ -712,6 +714,7 @@ specback/
         ├── phase-7-drift.md                 # Phase 7: Drift Detection
         ├── phase-7b-ref-autofix.md          # Phase 7b: REF Auto-Fix
         ├── phase-7c-changespec.md           # Phase 7c: ChangeSpec
+        ├── phase-7e-incremental-update.md   # Phase 7e: Incremental Update
         ├── question-bank.md                 # Question Bank operation
         ├── subagent-behavior.md             # Sub-agent behaviour
         ├── state-management.md              # State management & resume
@@ -777,12 +780,14 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 |
 |ブランチ戦略・開発フローについては以下を参照してください：
 |
-|- EN: [Branching Strategy](docs/en/01-branching-strategy.md)
-|- EN: [Drift Detection CI](docs/en/05-drift-ci.md)
-|- EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
-|- JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
-|- JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
-|- JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
+- EN: [Branching Strategy](docs/en/01-branching-strategy.md)
+- EN: [Drift Detection CI](docs/en/05-drift-ci.md)
+- EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
+- EN: [Incremental Spec Update](docs/en/08-incremental-update.md)
+- JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
+- JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
+- JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
+- JA: [インクリメンタル仕様更新](docs/ja/08-incremental-update.md)
 
 ---
 

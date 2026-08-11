@@ -41,6 +41,7 @@ Each phase is a standalone prompt sequence you can run with your coding agent.
 | 7b | REF Auto-Fix | `phases/phase-7b-ref-autofix.md` | (code) |
 | 7c | ChangeSpec | `phases/phase-7c-changespec.md` | `ChangeSpecOutput` |
 | 7d | Config Refresh | `phases/phase-7d-config-refresh.md` | (code) |
+| 7e | Incremental Update | `phases/phase-7e-incremental-update.md` | (code) |
 
 ## Supporting files (shared)
 
