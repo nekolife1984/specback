@@ -33,4 +33,4 @@ follow_imports = "skip"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["scripts/tests", "scripts/source_map_v2/tests"]
+testpaths = ["scripts/tests", "scripts/source_map_v2/tests", "skills/specback-search/scripts/tests"]

@@ -99,3 +99,24 @@ python scripts/build-search-index.py --specback-dir /path/to/project/.specback
 - **`--role` values**: exact case-insensitive match against `source-map.json` role strings. Common values: `module`, `class`, `orm_model`, `schema`, `component`, `endpoint`, `function`, `route`.
 - **Query is substring match**: `"User"` matches `User`, `UserService`, `user_repository` (case-insensitive).
 - **Filters combine as AND**: `--uncovered --role module` shows only uncovered modules.
+
+## MCP Server (Issue #270)
+
+`scripts/specback-search-mcp.py` wraps the CLI as a **stdlib-only MCP stdio
+server** (newline-delimited JSON-RPC 2.0 over stdin/stdout, no `mcp` SDK).
+AI agents (Claude Code / Cursor / Hermes) can then query generated data
+natively without shelling out to the CLI.
+
+```bash
+python scripts/specback-search-mcp.py
+```
+
+| Tool | Description |
+|------|-------------|
+| `specback_search` | Search by name/path; optional `confidence`, `chapter`, `role`, `specback_dir`, `format` filters |
+| `specback_uncovered` | List source units not covered by any chapter |
+| `specback_drift` | Show latest drift report summary |
+| `specback_questions` | Show open (or all) questions |
+
+Client configuration and protocol notes: `docs/en/10-specback-search-mcp.md`
+(日本語: `docs/ja/10-specback-search-mcp.md`).
