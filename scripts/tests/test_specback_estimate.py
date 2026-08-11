@@ -9,6 +9,7 @@ behaviour (exit codes, --json, --budget-limit) is exercised via subprocess.
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import subprocess
@@ -489,6 +490,73 @@ def test_zero_units_and_chapters_ok(tmp_path: Path) -> None:
     assert data["num_units"] == 0
     assert data["num_chapters"] == 0
     assert data["estimated_tokens"] == 0
+
+
+# ---------------------------------------------------------------------------
+# 12. Direct unit tests for helper functions (pre-commit coverage gate)
+# ---------------------------------------------------------------------------
+
+
+def test_positive_int_accepts_and_rejects() -> None:
+    """positive_int accepts positive ints, rejects non-numeric/0/negative."""
+    assert mod.positive_int("42") == 42
+    for bad in ("abc", "0", "-1", "1.5"):
+        with pytest.raises(argparse.ArgumentTypeError):
+            mod.positive_int(bad)
+
+
+def test_sanitize_text_strips_control_chars() -> None:
+    """sanitize_text removes control chars but keeps printable text."""
+    assert mod.sanitize_text("\x1b[2J fake \x00 title") == "[2J fake  title"
+    assert mod.sanitize_text("comprehensive") == "comprehensive"
+    assert mod.sanitize_text(["a", "b"]) == "['a', 'b']"
+
+
+def test_load_json_rejects_nonfinite(tmp_path: Path) -> None:
+    """load_json rejects NaN / Infinity via parse_constant."""
+    p = tmp_path / "bad.json"
+    p.write_text('{"x": NaN}', encoding="utf-8")
+    with pytest.raises(ValueError, match="non-finite"):
+        mod.load_json(p)
+
+
+def test_load_json_rejects_oversized(tmp_path: Path) -> None:
+    """load_json rejects files larger than MAX_INPUT_BYTES."""
+    p = tmp_path / "big.json"
+    p.write_text(" " * (mod.MAX_INPUT_BYTES + 1), encoding="utf-8")
+    with pytest.raises(ValueError, match="too large"):
+        mod.load_json(p)
+
+
+def test_factor_for_non_string_returns_one() -> None:
+    """factor_for handles non-string values without unhashable TypeError."""
+    assert mod.factor_for(["x"], mod.DEPTH_MODE_FACTOR, "depth_mode") == 1.0
+    assert mod.factor_for(None, mod.TONE_FACTOR, "tone") == 1.0
+    assert mod.factor_for("outline", mod.DEPTH_MODE_FACTOR, "depth_mode") == 0.5
+
+
+def test_record_actual_atomic_no_tmp_leftover(tmp_path: Path) -> None:
+    """record_actual writes atomically and leaves no .tmp file behind."""
+    d = tmp_path / ".specback"
+    d.mkdir(parents=True)
+    entry = {"timestamp": "2026-01-01T00:00:00Z", "actual_tokens": 1000}
+    mod.record_actual(d / "estimate-history.json", entry)
+    assert (d / "estimate-history.json").exists()
+    assert not (d / "estimate-history.json.tmp").exists()
+    data = json.loads((d / "estimate-history.json").read_text(encoding="utf-8"))
+    assert data["runs"] == [entry]
+
+
+def test_record_actual_refuses_symlink_direct(tmp_path: Path) -> None:
+    """record_actual raises ValueError on a symlink target (direct call)."""
+    d = tmp_path / ".specback"
+    d.mkdir(parents=True)
+    victim = tmp_path / "victim.json"
+    victim.write_text("{}", encoding="utf-8")
+    (d / "estimate-history.json").symlink_to(victim)
+    with pytest.raises(ValueError, match="symlink"):
+        mod.record_actual(d / "estimate-history.json", {"actual_tokens": 1})
+    assert victim.read_text(encoding="utf-8") == "{}"
 
 
 if __name__ == "__main__":
