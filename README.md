@@ -26,6 +26,24 @@ In the LLM era, asking an AI to "make a spec from this code" produces visually p
 
 ---
 
+## Why specback?
+
+**Works with the agent you already use.** No CLI, no server, no lock-in — install the skill into Claude Code, Codex, OpenCode, GitHub Copilot, Cursor, or any other coding agent. All scripts run on the Python standard library alone; tree-sitter is an optional extra.
+
+**One mechanical source map for 9 languages.** A tree-sitter-based extractor with framework detection (FastAPI, Rails, Next.js, Spring, …) maps every unit — from COBOL batch jobs to React Native screens — onto role-typed entries (`endpoint`, `model`, `job`, `migration`, …) across five universal tables.
+
+**The spec stays alive after delivery.** Drift-detection CI, incremental updates, and health reports keep the document in sync with the code — the spec is a living asset, not a one-shot artifact.
+
+**Predictable cost at any scale.** Token estimation and budget gates, plus three depth modes (comprehensive / outline / interactive), let you size the effort to the codebase and the reader before spending a single token.
+
+**The output is machine-queryable.** Alongside the documents, specback emits a JSON-LD knowledge graph, `trace.json`, and `source-map.json` — searchable via the `specback-search` CLI or MCP server, turning the spec into a data asset, not just prose.
+
+**Ready for real projects.** v1.0.0 stable with API stability guarantees, MIT-licensed, and open to new languages, frameworks, and templates on request.
+
+**For teams that need a specification they can trust, verify, and keep in sync — not a polished document that drifts from reality.**
+
+---
+
 ## Design Heritage
 
 `specback` is positioned as the latest generation in the following lineage:
@@ -459,6 +477,24 @@ LLM時代になり、AIに「このコードから仕様書を作って」と頼
 - **抜け漏れ防止**: コードから抽出可能な単位を全件列挙し、機械的にカバレッジを検証する
 - **段階的詳細化**: 偵察 → スケルトン → 章ドラフト → 検証 → 対話精緻化、と段階を踏む
 - **再開可能性**: 長時間のセッションを中断・再開できる
+
+---
+
+## なぜ specback なのか？
+
+**今使っているエージェントでそのまま動く。** CLIもサーバーも不要。Claude Code、Codex、OpenCode、GitHub Copilot、Cursor など、お好みのエージェントにスキルを入れるだけです。全スクリプトは Python 標準ライブラリのみで動作し、tree-sitter はオプションです。
+
+**9言語を1つの機械的ソースマップでカバー。** tree-sitter ベースの抽出器がフレームワークを検出し（FastAPI / Rails / Next.js / Spring …）、COBOL のバッチジョブから React Native の画面まで、すべてのユニットを5つの普遍テーブル上の役割型付きエントリ（`endpoint` / `model` / `job` / `migration` …）へ写像します。
+
+**納品後も仕様は「生きている」。** ドリフト検出CI・インクリメンタル更新・ヘルスレポートにより、コードが変わっても仕様を最新に保てます。使い捨ての成果物ではなく、生きた資産です。
+
+**規模と予算を制御できる。** トークン見積り＆バジェットゲートと3つの深度モード（comprehensive / outline / interactive）により、トークンを1つ消費する前に、コードベースと読者に合った規模で計画できます。
+
+**成果物は機械から検索可能。** 文書と並んで JSON-LD 知識グラフ・`trace.json`・`source-map.json` を生成し、`specback-search`（CLI / MCP サーバー）で検索できます。仕様が「読む文書」から「データ資産」になります。
+
+**実プロジェクトにそのまま使える。** v1.0.0 安定版・API 安定性保証・MIT ライセンス。未対応の言語・フレームワーク・テンプレートは要望に応じて追加されます。
+
+**「綺麗なだけで現実と乖離していく仕様書」ではなく、「信頼でき、検証でき、最新に保てる仕様書」を必要とするチームのために。**
 
 ---
 
