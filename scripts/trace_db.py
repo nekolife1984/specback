@@ -786,9 +786,10 @@ class TraceDB:
 
         # Record questions if present
         for q in state.get("questions", []):
-            q_status_map = {"open": "pending", "answered": "resolved",
-                            "resolved": "resolved",
-                            "abandoned": "abandoned", "skipped": "abandoned"}
+            q_status_map: dict[str, Literal["pending", "resolved", "abandoned"]] = {
+                "open": "pending", "answered": "resolved",
+                "resolved": "resolved",
+                "abandoned": "abandoned", "skipped": "abandoned"}
             self.question_save(
                 qid=q.get("id", f"Q-{_new_id(3)}"),
                 phase_id=phase_id,

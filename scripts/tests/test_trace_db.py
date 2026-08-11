@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import tempfile
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,7 @@ from trace_db import TraceDB, _now_iso, _new_id  # noqa: E402
 
 
 @pytest.fixture
-def tmp_db_path() -> str:
+def tmp_db_path() -> Iterator[str]:
     """Return a temporary database path that will be cleaned up."""
     fd, path = tempfile.mkstemp(suffix=".db", prefix="trace_test_")
     os.close(fd)
@@ -177,6 +178,7 @@ class TestSessions:
         db.session_start("s_xyz")
         db.session_finish("s_xyz", ok=True)
         s = db.get_session("s_xyz")
+        assert s is not None
         assert s["status"] == "success"
         assert s["ended_at"] is not None
 
@@ -184,6 +186,7 @@ class TestSessions:
         db.session_start("s_fail")
         db.session_finish("s_fail", ok=False)
         s = db.get_session("s_fail")
+        assert s is not None
         assert s["status"] == "fail"
 
     def test_session_add_usage(self, db: TraceDB):
@@ -191,6 +194,7 @@ class TestSessions:
         db.session_add_usage("s_usage", 500, 0.01)
         db.session_add_usage("s_usage", 300, 0.007)
         s = db.get_session("s_usage")
+        assert s is not None
         assert s["total_tokens"] == 800
         assert abs(s["total_cost"] - 0.017) < 0.001
 
@@ -198,6 +202,7 @@ class TestSessions:
         db.session_start("s_req")
         db.session_set_request("s_req", "Updated request")
         s = db.get_session("s_req")
+        assert s is not None
         assert s["request"] == "Updated request"
 
     def test_get_session_not_found(self, db: TraceDB):
@@ -229,6 +234,7 @@ class TestPhases:
         db = db_with_session_and_phase
         db.phase_finish("ph_01_recon", ok=True)
         p = db.get_phase("ph_01_recon")
+        assert p is not None
         assert p["status"] == "success"
         assert p["ended_at"] is not None
 
@@ -236,6 +242,7 @@ class TestPhases:
         db = db_with_session_and_phase
         db.phase_finish("ph_01_recon", ok=False, error="Timeout")
         p = db.get_phase("ph_01_recon")
+        assert p is not None
         # ok=False + error string → status becomes "error"
         assert p["status"] == "error"
         assert "Timeout" in (p.get("error") or "")

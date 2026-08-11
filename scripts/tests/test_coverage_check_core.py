@@ -13,12 +13,15 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 SCRIPT = Path(__file__).resolve().parent.parent / "coverage-check.py"
 
 _spec = importlib.util.spec_from_file_location("coverage_check_core", SCRIPT)
 assert _spec is not None and _spec.loader is not None
-cov = importlib.util.module_from_spec(_spec)
+# Dynamically loaded module — mypy cannot resolve its attributes, so it is
+# typed as Any (ChapterMetrics / evaluate_chapter_gates live in the script).
+cov: Any = importlib.util.module_from_spec(_spec)
 sys.modules["coverage_check_core"] = cov
 _spec.loader.exec_module(cov)
 
