@@ -16,6 +16,11 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "coverage-check.py"
 
+# Ensure scripts/ is importable — coverage-check.py imports count_refs from
+# scripts/refutils.py (Issue #281).
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
+
 # Import the module under test (coverage-check.py is a plain script with
 # no if-main guard around its function definitions).
 import importlib.util

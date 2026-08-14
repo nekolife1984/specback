@@ -16,6 +16,11 @@ from pathlib import Path
 # We import the script as a module for unit-testing internals
 SCRIPT = Path(__file__).resolve().parent.parent / "build-trace.py"
 
+# Ensure scripts/ is importable — build-trace.py imports REF parsing/resolver
+# helpers from scripts/refutils.py (Issue #281).
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
+
 
 def _import_build_trace():
     import importlib.util

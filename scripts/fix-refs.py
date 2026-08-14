@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any
 
 from git_utils import resolve_base, run_git_diff
+from refutils import REF_RE, SRC_REF_RE, find_refs_in_text, index_units_by_path
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +54,6 @@ from git_utils import resolve_base, run_git_diff
 # ---------------------------------------------------------------------------
 
 SCHEMA_VERSION = "0.1.0"
-REF_RE = re.compile(r"<!-- REF:\s*([^:\]]+):(\d+)(?:-(\d+))?\s*-->")
-SRC_REF_RE = re.compile(r"<!-- REF:\s*(SRC-\d+)\s*-->")
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
@@ -232,50 +231,21 @@ def find_refs_in_file(
 
     Returns list of dicts with keys:
     - line_no: 0-indexed line number in the file
+    - col_start / col_end: 0-indexed match span within the line
     - ref_path: path from the REF marker (or SRC-ID)
     - ref_start: start line number (0 for SRC-ID)
     - ref_end: end line number (0 for SRC-ID; same as ref_start for single-line)
     - is_src_id: True if this is a SRC-ID reference
     - full_match: the matched text (for replacement)
-    - prefix: text before the REF marker on the line
-    - suffix: text after the REF marker on the line
+
+    The per-marker parsing itself lives in :func:`refutils.find_refs_in_text`
+    (Issue #281); this wrapper only handles file I/O error tolerance.
     """
-    refs: list[dict[str, Any]] = []
     try:
         content = file_path.read_text(encoding="utf-8")
     except (FileNotFoundError, OSError, UnicodeDecodeError):
-        return refs
-
-    for line_no_0idx, line in enumerate(content.splitlines()):
-        # Collect all SRC-ID refs on this line first
-        for src_m in SRC_REF_RE.finditer(line):
-            src_id = src_m.group(1).strip()
-            refs.append({
-                "line_no": line_no_0idx,
-                "col_start": src_m.start(),
-                "col_end": src_m.end(),
-                "ref_path": src_id,
-                "ref_start": 0,
-                "ref_end": 0,
-                "is_src_id": True,
-                "full_match": src_m.group(0),
-            })
-        # Also collect any path:line refs on the same line
-        for m in REF_RE.finditer(line):
-            ref_path = m.group(1).strip()
-            ref_start = int(m.group(2))
-            ref_end = int(m.group(3)) if m.group(3) else ref_start
-            refs.append({
-                "line_no": line_no_0idx,
-                "col_start": m.start(),
-                "col_end": m.end(),
-                "ref_path": ref_path,
-                "ref_start": ref_start,
-                "ref_end": ref_end,
-                "is_src_id": False,
-                "full_match": m.group(0),
-            })
-    return refs
+        return []
+    return find_refs_in_text(content)
 
 
 def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
@@ -292,13 +262,7 @@ def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
     except (json.JSONDecodeError, OSError):
         return {}
     units = data.get("units", []) if isinstance(data, dict) else data
-    by_path: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for u in units or []:
-        if isinstance(u, dict) and u.get("path") is not None:
-            by_path[u["path"]].append(u)
-    for p in by_path:
-        by_path[p].sort(key=lambda u: (u.get("line_range") or [0, 0])[0])
-    return by_path
+    return index_units_by_path(units or [])
 
 
 def classify_migration(
