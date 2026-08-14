@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parent.parent / "coverage-check.py"
 
 _spec = importlib.util.spec_from_file_location("coverage_check_core", SCRIPT)
@@ -460,3 +462,186 @@ def test_build_report_gate_failures_when_uncovered(tmp_path):
     )
     chapter = next(m for m in report.chapter_metrics if m.file == "01-overview.md")
     assert chapter.failures, "expected REF-count gate failure with min_refs=10"
+
+
+# ---------------------------------------------------------------------------
+# Issue #284: split build_report into single-responsibility helpers
+# ---------------------------------------------------------------------------
+
+
+def test_load_goal_json(tmp_path):
+    """load_goal_json returns None for missing/invalid/non-dict, dict otherwise."""
+    assert cov.load_goal_json(tmp_path) is None
+    (tmp_path / "goal.json").write_text("{ bad", encoding="utf-8")
+    assert cov.load_goal_json(tmp_path) is None
+    (tmp_path / "goal.json").write_text("[1, 2]", encoding="utf-8")
+    assert cov.load_goal_json(tmp_path) is None
+    (tmp_path / "goal.json").write_text(
+        json.dumps({"template": "library-sdk", "depth_mode": "outline"}),
+        encoding="utf-8",
+    )
+    data = cov.load_goal_json(tmp_path)
+    assert data == {"template": "library-sdk", "depth_mode": "outline"}
+
+
+def test_iter_fence_state_tracks_open_close():
+    """Fence state toggles on ``` markers; openings are detectable."""
+    content = "prose\n```python\ncode\n```\nprose2\n"
+    states = list(cov.iter_fence_state(content))
+    assert [s[1] for s in states] == [False, False, True, True, False]
+    # opening fence = is_fence and not in_code
+    assert states[1][2] is True and states[1][1] is False   # opening ```python
+    assert states[3][2] is True and states[3][1] is True    # closing ```
+    # code line sits inside the fence
+    assert states[2][1] is True and states[2][2] is False
+
+
+def test_count_refs_both_forms():
+    assert cov.count_refs("<!-- REF: src/a.py:1-5 --> and <!-- REF: SRC-0042 -->") == 2
+    assert cov.count_refs("no refs here") == 0
+
+
+def test_resolve_target_dir(tmp_path):
+    output = tmp_path / "out"
+    (output / "final").mkdir(parents=True)
+    assert cov.resolve_target_dir(output, "final") == output / "final"
+    # fallback to standalone path when output_dir / name is missing
+    standalone = tmp_path / "standalone"
+    standalone.mkdir()
+    assert cov.resolve_target_dir(output, str(standalone)) == standalone
+    # no fallback when neither exists
+    assert cov.resolve_target_dir(output, "nope") == output / "nope"
+
+
+def test_compute_mention_coverage_fills_and_returns_uncovered():
+    item = cov.InventoryItem(id="INV-1", type="service", name="UserSvc", file="svc.rb", line=1)
+    chapters = {"01.md": "UserSvc is mentioned"}
+    uncovered = cov.compute_mention_coverage([item], chapters)
+    assert item.covered_by == ["01.md"]
+    assert uncovered == []
+    item2 = cov.InventoryItem(id="INV-2", type="service", name="Missing", file="x.rb", line=1)
+    uncovered = cov.compute_mention_coverage([item2], chapters)
+    assert uncovered == [item2]
+    # pre-filled covered_by is respected
+    item3 = cov.InventoryItem(
+        id="INV-3", type="service", name="Missing", file="x.rb", line=1,
+        covered_by=["01.md"],
+    )
+    assert cov.compute_mention_coverage([item3], chapters) == []
+
+
+def test_compute_required_min_inventory(tmp_path):
+    assert cov.compute_required_min_inventory(7, tmp_path) == 7
+    assert cov.compute_required_min_inventory("auto", tmp_path) == 50  # no source-map
+    (tmp_path / "source-map.json").write_text(
+        json.dumps({"stats": {"files_scanned": 1000}}), encoding="utf-8",
+    )
+    assert cov.compute_required_min_inventory("auto", tmp_path) == 50  # 1000//20 = 50
+
+
+def test_compute_macro_stats():
+    items = [
+        cov.InventoryItem(id=f"INV-{i}", type=("controller_group" if i % 2 else "service"), name=f"n{i}", file="x", line=1)
+        for i in range(4)
+    ]
+    count, ratio = cov.compute_macro_stats(items)
+    assert count == 2
+    assert ratio == 0.5
+    assert cov.compute_macro_stats([]) == (0, 0.0)
+
+
+def test_compute_covered_by_fill_rate():
+    items = [
+        cov.InventoryItem(id="INV-1", type="t", name="a", file="x", line=1, covered_by=["01.md"]),
+        cov.InventoryItem(id="INV-2", type="t", name="b", file="x", line=1),
+    ]
+    assert cov.compute_covered_by_fill_rate(items) == 0.5
+    assert cov.compute_covered_by_fill_rate([]) == 0.0
+
+
+def test_compute_open_question_stats():
+    questions = [
+        {"status": "open"}, {"status": "open"}, {"status": "answered"},
+    ]
+    open_q, ratio = cov.compute_open_question_stats(questions)
+    assert open_q == 2
+    assert ratio == pytest.approx(2 / 3)
+    assert cov.compute_open_question_stats([]) == (0, 0.0)
+
+
+def test_compute_mece_stats():
+    trace = {
+        "source_units_total": 10, "source_units_covered": 7,
+        "source_units_excluded": 2, "source_units_uncovered": 3,
+    }
+    stats = cov.compute_mece_stats(trace)
+    assert isinstance(stats, cov.MeceStats)
+    assert stats.total == 10
+    assert stats.coverage_rate == pytest.approx(7 / 8)  # denom = 10 - 2
+    assert stats.passed_strict is False
+    assert cov.compute_mece_stats(None) is None
+
+
+def test_evaluate_gates_failures():
+    failures = cov.evaluate_gates(
+        inventory_count=3, required_min=10, macro_ratio=0.5, max_macro_ratio=0.2,
+        macro_count=2, covered_by_fill_rate=0.1, min_covered_by_fill=0.9,
+        questions_count=1, min_questions=10, open_ratio=0.5, max_open_ratio=0.2,
+        mece=cov.MeceStats(coverage_rate=0.3), min_mece_coverage=0.7,
+    )
+    assert any("inventory.json size" in f for f in failures)
+    assert any("macro-type" in f for f in failures)
+    assert any("covered_by fill rate" in f for f in failures)
+    assert any("questions.json size" in f for f in failures)
+    assert any("open-status ratio" in f for f in failures)
+    assert any("MECE coverage" in f for f in failures)
+
+
+def test_evaluate_gates_trace_missing():
+    failures = cov.evaluate_gates(
+        inventory_count=0, required_min=0, macro_ratio=0.0, max_macro_ratio=1.0,
+        macro_count=0, covered_by_fill_rate=1.0, min_covered_by_fill=0.0,
+        questions_count=0, min_questions=0, open_ratio=0.0, max_open_ratio=1.0,
+        mece=None, min_mece_coverage=0.0,
+    )
+    assert any("trace.json missing" in f for f in failures)
+
+
+def test_evaluate_gates_passes_when_within_thresholds():
+    failures = cov.evaluate_gates(
+        inventory_count=10, required_min=5, macro_ratio=0.1, max_macro_ratio=0.2,
+        macro_count=1, covered_by_fill_rate=0.95, min_covered_by_fill=0.9,
+        questions_count=10, min_questions=10, open_ratio=0.1, max_open_ratio=0.2,
+        mece=cov.MeceStats(total=10, covered=8, excluded=0, uncovered=2, coverage_rate=0.8),
+        min_mece_coverage=0.7,
+    )
+    assert failures == []
+
+
+def test_check_source_map_refs():
+    item = cov.InventoryItem(
+        id="INV-1", type="t", name="a", file="x", line=1,
+        related_source_ids=["SRC-0001", "SRC-9999"],
+    )
+    failures = cov.check_source_map_refs([item], {"SRC-0001"})
+    assert len(failures) == 1
+    assert "SRC-9999" in failures[0]
+    assert cov.check_source_map_refs([item], {"SRC-0001", "SRC-9999"}) == []
+
+
+def test_count_confidence_labels():
+    chapters = {"01.md": "🟢 VERIFIED x2 🟡 INFERRED 🔴 ASSUMED VERIFIED"}
+    verified, inferred, assumed = cov.count_confidence_labels(chapters)
+    assert verified == 3  # 🟢 (1) + "VERIFIED" (2)
+    assert inferred == 2  # 🟡 (1) + "INFERRED" (1)
+    assert assumed == 2  # 🔴 (1) + "ASSUMED" (1)
+    assert cov.count_confidence_labels({}) == (0, 0, 0)
+
+
+def test_parse_args_defaults_and_overrides():
+    args = cov.parse_args(["--min-inventory", "5"])
+    assert args.min_inventory == "5"
+    assert args.output_format == "text"
+    args2 = cov.parse_args(["--output-format", "json", "--strict"])
+    assert args2.output_format == "json"
+    assert args2.strict is True
