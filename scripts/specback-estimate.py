@@ -41,7 +41,7 @@ import math
 import os
 import statistics
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -313,7 +313,7 @@ def main() -> None:
     # Post-hoc calibration: record this run's estimate vs. actual tokens.
     if args.record_actual is not None:
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": utcnow_iso(),
             "depth_mode": depth_mode,
             "tone": tone,
             "num_chapters": n_chapters,

@@ -49,7 +49,7 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -228,7 +228,7 @@ def build_knowledge_graph(
     doc: dict[str, Any] = {
         "@context": _CONTEXT,
         "@graph": graph,
-        "ccrsg:generatedAt": datetime.now(timezone.utc).isoformat(),
+        "ccrsg:generatedAt": utcnow_iso(),
         "ccrsg:schemaVersion": "0.1.0",
         "ccrsg:stats": {
             "sourceUnits": len(units_by_id),

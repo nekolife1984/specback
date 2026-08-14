@@ -63,7 +63,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from common import sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -119,11 +119,7 @@ def _as_list(value: Any, what: str) -> list:
 
 
 def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return sha256_file(path)
 
 
 def _is_chapter_file(name: str) -> bool:
@@ -323,7 +319,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
     state: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "affected_chapters": [],
         "chapter_hashes": {},
     }

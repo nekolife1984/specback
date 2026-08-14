@@ -24,12 +24,11 @@ Options:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
 import sys
-from datetime import datetime, timezone
+from common import sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -85,14 +84,7 @@ def _find_project_root() -> Path:
 
 def _sha256_file(path: Path) -> str:
     """Compute SHA-256 hex digest of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while True:
-            chunk = f.read(65536)
-            if not chunk:
-                break
-            h.update(chunk)
-    return h.hexdigest()
+    return sha256_file(path)
 
 
 def _sha256_dir_sorted(root: Path) -> dict[str, str]:
@@ -173,7 +165,7 @@ def _write_lockfile(target: Path, hashes: dict[str, str], version: str) -> dict[
     lockfile_dir.mkdir(parents=True, exist_ok=True)
 
     lock_data: dict[str, Any] = {
-        "installed_at": datetime.now(timezone.utc).isoformat(),
+        "installed_at": utcnow_iso(),
         "specback_version": version,
         "hashes": hashes,
         "user_modified": [],

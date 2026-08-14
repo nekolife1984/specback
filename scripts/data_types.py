@@ -39,8 +39,8 @@ Design principles
 from __future__ import annotations
 
 import json
+from common import utcnow_iso
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
 from typing import Any, ClassVar, Literal, Optional, get_origin, get_args, get_type_hints
 
 
@@ -347,7 +347,7 @@ class StateTracking:
 
     def record_event(self, event: str, phase: int | None = None) -> None:
         """Append a timestamped event to the session history."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = utcnow_iso()
         self.session_history.append({
             "timestamp": now,
             "phase": phase if phase is not None else self.current_phase,
@@ -403,7 +403,7 @@ class StateTracking:
     @classmethod
     def fresh(cls) -> StateTracking:
         """Create a fresh session starting at Phase 0."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = utcnow_iso()
         st = cls(started_at=now, last_updated=now)
         st.record_event("started", phase=0)
         return st

@@ -56,8 +56,8 @@ import hashlib
 import json
 import re
 import sys
+from common import utcnow_iso
 from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -422,7 +422,7 @@ def build_source_map(
     return {
         "schema_version": "0.1.0",
         "target_root": target_path.name,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "stats": {
             "files_scanned": files_scanned,
             "files_excluded": files_excluded,

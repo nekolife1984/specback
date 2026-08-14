@@ -23,7 +23,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 
 
@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     lines.append("# Traceability")
     lines.append("")
     lines.append(
-        f"<!-- auto-generated: {datetime.now(timezone.utc).isoformat()} | source: trace.json -->"
+        f"<!-- auto-generated: {utcnow_iso()} | source: trace.json -->"
     )
     lines.append("")
     lines.append("## MECE check result")

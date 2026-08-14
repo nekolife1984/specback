@@ -44,7 +44,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 
 SRC_ID_RE = re.compile(r"^SRC-(\d+)$")
@@ -202,7 +202,7 @@ def main() -> None:
     merged = old_units + added
     result = {
         "schema_version": "0.1.0",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "restored_from": RESTORED_MARKER,
         "units": merged,
     }
