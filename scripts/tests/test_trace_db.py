@@ -18,6 +18,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from trace_db import TraceDB, _now_iso, _new_id  # noqa: E402
+import trace_db  # noqa: E402
 
 
 # ===================================================================
@@ -768,3 +769,10 @@ class TestSSSFTables:
         ).fetchone()
         assert row[0] == 99999
         assert row[1] is not None
+
+
+def test_main_accepts_argv() -> None:
+    """main(argv) accepts an argv list and exits via argparse (Issue #286)."""
+    with pytest.raises(SystemExit) as excinfo:
+        trace_db.main([])  # a subcommand is required
+    assert excinfo.value.code == 2

@@ -925,7 +925,7 @@ def _cli_questions(db: TraceDB, args: argparse.Namespace) -> None:
         print(f"  {q['id']:8s} | {q['status']:10s} | {q['severity']:15s} | {q['question_text'][:60]}")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="specback trace DB — SQLite-backed session state",
     )
@@ -963,7 +963,7 @@ def main() -> int:
                      help="Filter by status")
     p_q.set_defaults(func=_cli_questions)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     db = TraceDB(args.db)
 
     try:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -13,6 +14,14 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL_SCRIPT = ROOT / "scripts" / "specback_install.py"
+
+# Load the script as a module for unit tests (imports common).
+sys.path.insert(0, str(INSTALL_SCRIPT.parent))
+_spec = importlib.util.spec_from_file_location("specback_install_core", INSTALL_SCRIPT)
+assert _spec is not None and _spec.loader is not None
+mod = importlib.util.module_from_spec(_spec)
+sys.modules["specback_install_core"] = mod  # register before exec_module
+_spec.loader.exec_module(mod)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -216,3 +225,17 @@ class TestEdgeCases:
         result = _run("--check", str(tmp_path))
         assert result.returncode == 0
         assert "No drift detected" in result.stdout
+
+
+def test_parse_args_returns_namespace() -> None:
+    """parse_args(argv) returns a Namespace (Issue #286)."""
+    ns = mod.parse_args(["--check", "/tmp/nonexistent-target"])
+    assert ns.check_mode is True
+    assert ns.dry_run is False
+    assert ns.target == "/tmp/nonexistent-target"
+
+
+def test_main_accepts_argv(tmp_path: Path) -> None:
+    """main(argv) returns an int exit code (Issue #286)."""
+    rc = mod.main(["--check", str(tmp_path)])
+    assert isinstance(rc, int)

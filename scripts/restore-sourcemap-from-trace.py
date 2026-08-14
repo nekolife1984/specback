@@ -95,7 +95,7 @@ def _warn_if_dirty_trace(repo: Path, trace_rel: str) -> None:
         )
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo", required=True, help="Codebase root (has specs/)")
     p.add_argument(
@@ -114,7 +114,7 @@ def main() -> None:
         action="store_true",
         help="Proceed even if the map looks already restored or trace.json is dirty",
     )
-    args = p.parse_args()
+    args = p.parse_args(argv)
 
     repo = Path(args.repo)
     trace_path = repo / "specs/trace.json"
@@ -219,7 +219,7 @@ def main() -> None:
             f"{len(merged)} units"
         )
         print("  New unit IDs:", [u["id"] for u in added])
-        return
+        return 0
 
     _warn_if_dirty_trace(repo, "specs/trace.json")
 
@@ -241,6 +241,8 @@ def main() -> None:
     )
     print("New unit IDs:", [u["id"] for u in added])
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

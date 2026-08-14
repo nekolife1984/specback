@@ -471,7 +471,7 @@ def cmd_check(target: Path) -> int:
 # ── Argument parser ────────────────────────────────────────────────────────
 
 
-def build_parser() -> argparse.ArgumentParser:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="specback install",
         description="Stamp specback into a target project directory",
@@ -506,12 +506,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest="dry_run",
         help="Show what would be stamped without writing",
     )
-    return parser
+    return parser.parse_args(argv)
 
 
-def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
 
     target = Path(args.target).resolve()
     specback_version = "1.2.0"  # Keep in sync with pyproject.toml
