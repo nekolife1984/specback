@@ -40,6 +40,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+import artifact_io
 from common import utcnow_iso
 from datetime import datetime, timezone
 from pathlib import Path
@@ -253,12 +254,16 @@ def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
 
     Returns a dict mapping file path → list of units sorted by line_range start.
     Units without a path are skipped. Returns {} if the file is missing or unreadable.
+
+    The raw JSON read is delegated to :func:`artifact_io.load_source_map`
+    (Issue #283); the sorted by_path index comes from
+    :func:`refutils.index_units_by_path`.
     """
     sm_path = specback_path / "source-map.json"
     if not sm_path.exists():
         return {}
     try:
-        data = json.loads(sm_path.read_text(encoding="utf-8"))
+        data = artifact_io.load_source_map(sm_path)
     except (json.JSONDecodeError, OSError):
         return {}
     units = data.get("units", []) if isinstance(data, dict) else data

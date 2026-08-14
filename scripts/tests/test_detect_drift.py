@@ -564,3 +564,39 @@ def test_print_base_info_commit(capsys):
 def test_print_mode_info(capsys):
     drift.print_mode_info("git")
     assert "git" in capsys.readouterr().err
+
+
+# --- loader delegation (Issue #283 — shared artifact_io.py) ---------------
+
+
+def test_load_state_delegates_to_artifact_io(tmp_path):
+    """drift.load_state returns artifact_io.load_state's value (identical impl)."""
+    import artifact_io
+    p = tmp_path / "state.json"
+    p.write_text(json.dumps({"generated_at_commit": "abc123"}), encoding="utf-8")
+    assert drift.load_state(p) == artifact_io.load_state(p)
+    assert drift.load_state(tmp_path / "missing.json") is None
+
+
+def test_load_source_map_matches_artifact_io_indexes(tmp_path):
+    """drift.load_source_map builds the same indexes as artifact_io."""
+    import artifact_io
+    p = tmp_path / "source-map.json"
+    p.write_text(json.dumps({
+        "units": [
+            {"id": "SRC-0001", "path": "a.py"},
+            {"id": "SRC-0002", "path": "a.py"},
+            {"id": "SRC-0003", "path": "b.py"},
+        ],
+        "stats": {"files_scanned": 2},
+        "target_root": "repo",
+    }), encoding="utf-8")
+    assert drift.load_source_map(p) == artifact_io.load_source_map(p, build_indexes=True)
+
+
+def test_load_trace_matches_artifact_io(tmp_path):
+    """drift.load_trace parses the same data as artifact_io.load_trace."""
+    import artifact_io
+    p = tmp_path / "trace.json"
+    p.write_text(json.dumps({"by_source": {"SRC-0001": {"path": "a.py"}}}), encoding="utf-8")
+    assert drift.load_trace(p) == artifact_io.load_trace(p)

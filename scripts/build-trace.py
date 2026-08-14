@@ -60,6 +60,7 @@ from refutils import (
     line_ranges_overlap,
     units_for_path,
 )
+import artifact_io
 
 # YAML is optional (not in the stdlib; try/except fallback).
 try:
@@ -73,9 +74,10 @@ SECTION_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
 def load_source_map(path: Path) -> dict:
+    """Load source-map.json (missing file → FileNotFoundError, unchanged)."""
     if not path.exists():
         raise FileNotFoundError(f"source-map.json not found: {path}")
-    return json.loads(path.read_text(encoding="utf-8"))
+    return artifact_io.load_source_map(path)
 
 
 def load_exclusions(path: Path) -> list[dict]:

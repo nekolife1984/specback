@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import artifact_io
 from pathlib import Path
 from typing import Any
 
@@ -123,12 +124,16 @@ def build_inventory(source_map: dict[str, Any], role_to_type: dict[str, str]) ->
 
 
 def load_source_map(path: Path) -> dict[str, Any]:
-    """Load and validate a source-map.json file."""
+    """Load and validate a source-map.json file.
+
+    Missing/invalid → ERROR + exit(2), unchanged.  The raw JSON read is
+    delegated to :func:`artifact_io.load_source_map` (Issue #283).
+    """
     if not path.exists():
         print(f"ERROR: source-map.json not found: {path}", file=sys.stderr)
         sys.exit(2)
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = artifact_io.load_source_map(path)
     except json.JSONDecodeError as e:
         print(f"ERROR: invalid JSON in {path}: {e}", file=sys.stderr)
         sys.exit(2)

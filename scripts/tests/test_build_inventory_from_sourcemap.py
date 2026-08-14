@@ -13,6 +13,11 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "build-inventory-from-sourcemap.py"
 
+# Ensure scripts/ is importable — build-inventory-from-sourcemap.py shares
+# artifact loaders with scripts/artifact_io.py (Issue #283).
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -144,6 +149,22 @@ def test_invalid_role_to_type(tmp_path: Path):
     ])
     assert result.returncode == 2
     assert "not valid JSON" in result.stderr
+
+
+def test_load_source_map_matches_artifact_io(tmp_path: Path):
+    """load_source_map returns the raw dict artifact_io parses (Issue #283)."""
+    import importlib.util
+    import artifact_io
+
+    spec = importlib.util.spec_from_file_location(
+        "build_inventory_src", SCRIPT,
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    sm = write_source_map(tmp_path, V2_SOURCE_MAP)
+    assert mod.load_source_map(sm) == artifact_io.load_source_map(sm)
 
 
 # ---------------------------------------------------------------------------

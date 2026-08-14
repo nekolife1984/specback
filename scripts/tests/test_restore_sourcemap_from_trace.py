@@ -306,6 +306,19 @@ def test_rejects_invalid_json(repo: Path) -> None:
     assert "Traceback" not in result.stderr
 
 
+def test_rejects_non_object_json(repo: Path) -> None:
+    """A JSON array in place of trace.json fails with a clean error.
+
+    Exercises the validated-object read shared with artifact_io (Issue #283):
+    the payload must be a dict, not just valid JSON.
+    """
+    (repo / "specs/trace.json").write_text("[1, 2, 3]", encoding="utf-8")
+    result = _run(repo)
+    assert result.returncode == 1
+    assert "must be a JSON object" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 # ---------------------------------------------------------------------------
 # Metadata preservation
 # ---------------------------------------------------------------------------

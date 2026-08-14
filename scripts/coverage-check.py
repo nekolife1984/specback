@@ -75,6 +75,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
+import artifact_io
 from refutils import count_refs
 
 
@@ -224,10 +225,12 @@ def load_source_map_count(specback_dir: Path) -> int | None:
 
 
 def load_trace(specback_dir: Path) -> dict[str, Any] | None:
-    t = specback_dir / "trace.json"
-    if not t.exists():
-        return None
-    return json.loads(t.read_text(encoding="utf-8"))
+    """Return trace.json content, or None when the file is missing.
+
+    Delegates to :func:`artifact_io.load_trace` (Issue #283); the
+    missing-file policy (None) is unchanged.
+    """
+    return artifact_io.load_trace(specback_dir / "trace.json")
 
 
 def load_goal_json(specback_dir: Path) -> dict[str, Any] | None:

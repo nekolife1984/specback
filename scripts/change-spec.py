@@ -40,6 +40,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+import artifact_io
 from common import sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
@@ -341,42 +342,32 @@ def extract_snippets(
 
 
 def load_source_map(path: Path) -> dict[str, Any]:
-    """Load source-map.json or return empty on missing."""
+    """Load source-map.json or return empty on missing.
+
+    Delegates index construction to :func:`artifact_io.load_source_map`
+    (Issue #283); the missing-file policy (empty structure) is unchanged.
+    """
     if not path.exists():
         return {"units": [], "by_path": {}, "by_id": {}, "stats": {}, "target_root": ""}
-    data = json.loads(path.read_text(encoding="utf-8"))
-    units = data.get("units", [])
-    by_path: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    by_id: dict[str, dict[str, Any]] = {}
-    for unit in units:
-        uid = unit.get("id", "")
-        u_path = unit.get("path", "")
-        by_path[u_path].append(unit)
-        by_id[uid] = unit
-    return {
-        "units": units,
-        "by_path": dict(by_path),
-        "by_id": by_id,
-        "stats": data.get("stats", {}),
-        "target_root": data.get("target_root", ""),
-    }
+    return artifact_io.load_source_map(path, build_indexes=True)
 
 
 def load_trace(path: Path) -> dict[str, Any]:
-    """Load trace.json or return empty on missing."""
-    if not path.exists():
-        return {"by_source": {}}
-    return json.loads(path.read_text(encoding="utf-8"))
+    """Load trace.json or return empty on missing.
+
+    Delegates to :func:`artifact_io.load_trace` (Issue #283); the
+    missing-file policy (``{"by_source": {}}``) is unchanged.
+    """
+    trace = artifact_io.load_trace(path)
+    return trace if trace is not None else {"by_source": {}}
 
 
 def load_state(path: Path) -> dict[str, Any] | None:
-    """Load state.json if it exists."""
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
+    """Load state.json if it exists.
+
+    Delegates to :func:`artifact_io.load_state` (Issue #283).
+    """
+    return artifact_io.load_state(path)
 
 
 def load_source_hashes(path: Path) -> dict[str, Any]:
