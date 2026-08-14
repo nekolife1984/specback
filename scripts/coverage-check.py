@@ -73,7 +73,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 # ----------------------------------------------------------------------------
@@ -230,6 +230,25 @@ def load_trace(specback_dir: Path) -> dict[str, Any] | None:
     return json.loads(t.read_text(encoding="utf-8"))
 
 
+def load_goal_json(specback_dir: Path) -> dict[str, Any] | None:
+    """Return the parsed goal.json dict, or None when missing/unreadable.
+
+    Depth-mode detection, template-threshold resolution, and the
+    user-custom deliverable loader all read the same file; a single loader
+    keeps them in sync (Issue #284 dedup). Invalid JSON, non-dict JSON, and
+    missing files all yield None.
+    """
+    goal_path = specback_dir / "goal.json"
+    if not goal_path.exists():
+        return None
+    try:
+        with goal_path.open(encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def load_user_custom_deliverables(specback_dir: Path) -> list[str]:
     """Read `goal.json.user_custom_deliverables` if present; return [] otherwise.
 
@@ -240,13 +259,7 @@ def load_user_custom_deliverables(specback_dir: Path) -> list[str]:
     Sources Read) are NOT applied to these files; only existence + non-empty
     body (check 12) is enforced.
     """
-    g = specback_dir / "goal.json"
-    if not g.exists():
-        return []
-    try:
-        data = json.loads(g.read_text(encoding="utf-8"))
-    except Exception:
-        return []
+    data = load_goal_json(specback_dir) or {}
     raw = data.get("user_custom_deliverables", [])
     if not isinstance(raw, list):
         return []
@@ -274,13 +287,43 @@ def scan_chapter_files(target_dir: Path) -> dict[str, str]:
 # Chapter-metric computation
 # ----------------------------------------------------------------------------
 
+def iter_fence_state(content: str) -> Iterator[tuple[str, bool, bool]]:
+    """Yield ``(line, in_code, is_fence)`` for every line of ``content``.
+
+    ``in_code`` is True when the line lies inside a fenced code block (a
+    fence was opened on an earlier line and not yet closed). Fence marker
+    lines are yielded with the state that precedes them, so an opening
+    fence has ``in_code is False`` / ``is_fence is True`` — callers can
+    detect openings with ``is_fence and not in_code``.
+
+    This single helper replaces the four copy-pasted fence-tracking loops
+    that used to live in the metric / deliverable / reserved-file /
+    placeholder checks (Issue #284 dedup).
+    """
+    in_code = False
+    for line in content.splitlines():
+        is_fence = CODE_FENCE_RE.match(line) is not None
+        yield line, in_code, is_fence
+        if is_fence:
+            in_code = not in_code
+
+
+def count_refs(line: str) -> int:
+    """Count REF markers on one line (``path:line`` and ``SRC-ID`` forms).
+
+    Kept as a single entry point so a future shared refutils module
+    (Issue #281) can swap the parsing logic without touching the metric
+    computation.
+    """
+    return len(REF_RE.findall(line)) + len(SRC_REF_RE.findall(line))
+
+
 def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
     raw_lines = content.splitlines()
     total = len(raw_lines)
 
     # Body lines = lines excluding blanks, code fences, and auto-generated comments.
     # code_block_lines = non-blank lines inside fenced code blocks (weighted later).
-    in_code = False
     body_lines = 0
     code_block_lines = 0
     code_blocks = 0
@@ -289,16 +332,13 @@ def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
     sources_read_count = 0
     in_sources_read = False
 
-    for line in raw_lines:
-        if CODE_FENCE_RE.match(line):
-            if not in_code:
-                in_code = True
+    for line, in_code, is_fence in iter_fence_state(content):
+        if is_fence:
+            if not in_code:  # opening fence
                 if MERMAID_FENCE_RE.match(line):
                     mermaid_blocks += 1
                 else:
                     code_blocks += 1
-            else:
-                in_code = False
             continue
         if in_code:
             stripped = line.strip()
@@ -325,8 +365,7 @@ def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
         if not stripped:
             continue
         body_lines += 1
-        refs += len(REF_RE.findall(line))
-        refs += len(SRC_REF_RE.findall(line))
+        refs += count_refs(line)
 
     return ChapterMetrics(
         file=name,
@@ -499,12 +538,10 @@ def check_user_custom_deliverables(
             content = p.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             content = p.read_text(encoding="utf-8", errors="replace")
-        in_code = False
         body_lines = 0
         code_block_lines = 0
-        for line in content.splitlines():
-            if CODE_FENCE_RE.match(line):
-                in_code = not in_code
+        for line, in_code, is_fence in iter_fence_state(content):
+            if is_fence:
                 continue
             if in_code:
                 stripped = line.strip()
@@ -547,13 +584,8 @@ def detect_depth_mode(specback_dir: Path) -> str:
     Returns "comprehensive" when the field is missing — that preserves the
     legacy behaviour for projects that pre-date the outline mode flag.
     """
-    goal_path = specback_dir / "goal.json"
-    if not goal_path.exists():
-        return "comprehensive"
-    try:
-        with goal_path.open() as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError):
+    data = load_goal_json(specback_dir)
+    if data is None:
         return "comprehensive"
     mode = data.get("depth_mode")
     if mode not in {"comprehensive", "outline", "interactive"}:
@@ -578,18 +610,34 @@ _DEFAULT_MECE_COVERAGE = 0.7
 
 def _detect_template(specback_dir: Path) -> str | None:
     """Read goal.json and return the template name, or None if unknown."""
-    goal_path = specback_dir / "goal.json"
-    if not goal_path.exists():
-        return None
-    try:
-        with goal_path.open() as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError):
+    data = load_goal_json(specback_dir)
+    if data is None:
         return None
     tmpl = data.get("template")
     if not isinstance(tmpl, str) or tmpl not in TEMPLATE_THRESHOLDS:
         return None
     return tmpl
+
+
+def _resolve_template_threshold(
+    specback_dir: Path,
+    cli_value: float | None,
+    key: str,
+    default: float,
+) -> float:
+    """Return the effective template-aware threshold.
+
+    Honour an explicit CLI value; otherwise consult goal.json's template
+    and fall back to ``default`` when the template has no entry for ``key``.
+    Single implementation shared by the covered-by-fill and MECE resolvers
+    (previously two copy-paste twins, Issue #284 dedup).
+    """
+    if cli_value is not None:
+        return cli_value
+    tmpl = _detect_template(specback_dir)
+    if tmpl is not None and tmpl in TEMPLATE_THRESHOLDS:
+        return TEMPLATE_THRESHOLDS[tmpl][key]
+    return default
 
 
 def _resolve_covered_by_fill(specback_dir: Path, cli_value: float | None) -> float:
@@ -599,22 +647,16 @@ def _resolve_covered_by_fill(specback_dir: Path, cli_value: float | None) -> flo
     Otherwise, consult goal.json for the template and return the
     template-specific default, falling back to 0.9.
     """
-    if cli_value is not None:
-        return cli_value
-    tmpl = _detect_template(specback_dir)
-    if tmpl is not None and tmpl in TEMPLATE_THRESHOLDS:
-        return TEMPLATE_THRESHOLDS[tmpl]["min_covered_by_fill"]
-    return _DEFAULT_COVERED_BY_FILL
+    return _resolve_template_threshold(
+        specback_dir, cli_value, "min_covered_by_fill", _DEFAULT_COVERED_BY_FILL
+    )
 
 
 def _resolve_mece_coverage(specback_dir: Path, cli_value: float | None) -> float:
     """Return the effective min-mece-coverage threshold (see _resolve_covered_by_fill)."""
-    if cli_value is not None:
-        return cli_value
-    tmpl = _detect_template(specback_dir)
-    if tmpl is not None and tmpl in TEMPLATE_THRESHOLDS:
-        return TEMPLATE_THRESHOLDS[tmpl]["min_mece_coverage"]
-    return _DEFAULT_MECE_COVERAGE
+    return _resolve_template_threshold(
+        specback_dir, cli_value, "min_mece_coverage", _DEFAULT_MECE_COVERAGE
+    )
 
 
 # ----------------------------------------------------------------------------
@@ -647,15 +689,13 @@ def check_reserved_body_lines(
         if name not in RESERVED_FILES:
             continue
         # Count non-blank lines outside code fences (same logic as compute_chapter_metrics)
-        in_code = False
         body_lines = 0
-        for line in content.splitlines():
-            stripped = line.strip()
-            if CODE_FENCE_RE.match(line):
-                in_code = not in_code
+        for line, in_code, is_fence in iter_fence_state(content):
+            if is_fence:
                 continue
             if in_code:
                 continue
+            stripped = line.strip()
             if not stripped:
                 continue
             body_lines += 1
@@ -786,14 +826,14 @@ def check_placeholder_patterns(
                 patterns.append(re.compile(re.escape(p)))
     failures: list[str] = []
     for name, content in chapters.items():
-        in_code = False
-        for i, line in enumerate(content.splitlines(), start=1):
+        for i, (line, in_code, is_fence) in enumerate(
+            iter_fence_state(content), start=1
+        ):
             stripped = line.strip()
             # Skip code fences (placeholders are expected inside code blocks
             # as examples). Track fence state so fenced body lines are
             # ignored, not just the fence markers themselves (Issue #257).
-            if CODE_FENCE_RE.match(stripped):
-                in_code = not in_code
+            if is_fence:
                 continue
             if in_code:
                 continue
@@ -804,6 +844,181 @@ def check_placeholder_patterns(
                     )
                     break  # one violation per line is enough
     return failures
+
+
+def resolve_target_dir(output_dir: Path, target_dir_name: str) -> Path:
+    """Resolve the directory that holds the chapter files.
+
+    1. Try ``output_dir / target_dir_name`` (e.g. ``.specback/final``).
+    2. If that does not exist, try ``target_dir_name`` as a standalone path
+       (e.g. ``.specback/drafts`` when ``--output-dir`` points elsewhere).
+    """
+    target_dir = output_dir / target_dir_name
+    if not target_dir.exists():
+        fallback = Path(target_dir_name)
+        if fallback.exists():
+            target_dir = fallback
+    return target_dir
+
+
+def compute_mention_coverage(
+    inventory: list[InventoryItem], chapters: dict[str, str]
+) -> list[InventoryItem]:
+    """Fill ``covered_by`` via mention detection and return the uncovered items.
+
+    Items that already carry ``covered_by`` values (set by the agent) are
+    left untouched. Mutates ``item.covered_by`` in place — the returned
+    report shares the same item objects (legacy behaviour).
+    """
+    uncovered: list[InventoryItem] = []
+    for item in inventory:
+        # Use any existing covered_by values (set by the agent if filled manually).
+        if not item.covered_by:
+            item.covered_by = detect_mentions(item, chapters)
+        if not item.covered_by:
+            uncovered.append(item)
+    return uncovered
+
+
+def compute_required_min_inventory(min_inventory: str | int, specback_dir: Path) -> int:
+    """Resolve the effective minimum inventory size.
+
+    ``"auto"`` derives it from source-map.json's file count via
+    ``max(50, files_scanned // 20)``; any other value is used verbatim.
+    """
+    if min_inventory == "auto":
+        file_count = load_source_map_count(specback_dir) or 0
+        return max(50, file_count // 20)
+    return int(min_inventory)
+
+
+def compute_macro_stats(inventory: list[InventoryItem]) -> tuple[int, float]:
+    """Return ``(macro_count, macro_ratio)`` for the inventory."""
+    macro_count = sum(1 for it in inventory if is_macro_type(it))
+    macro_ratio = (macro_count / len(inventory)) if inventory else 0.0
+    return macro_count, macro_ratio
+
+
+def compute_covered_by_fill_rate(inventory: list[InventoryItem]) -> float:
+    """Return the fraction of inventory items with a non-empty ``covered_by``."""
+    filled = sum(1 for it in inventory if it.covered_by)
+    return (filled / len(inventory)) if inventory else 0.0
+
+
+def compute_open_question_stats(questions: list[dict[str, Any]]) -> tuple[int, float]:
+    """Return ``(open_count, open_ratio)`` for the question bank."""
+    open_q = sum(1 for q in questions if q.get("status") == "open")
+    open_ratio = (open_q / len(questions)) if questions else 0.0
+    return open_q, open_ratio
+
+
+@dataclass
+class MeceStats:
+    """MECE statistics derived from trace.json (all-zero when absent)."""
+
+    total: int = 0
+    covered: int = 0
+    excluded: int = 0
+    uncovered: int = 0
+    passed_strict: bool = True
+    coverage_rate: float = 0.0
+
+
+def compute_mece_stats(trace: dict[str, Any] | None) -> MeceStats | None:
+    """Derive MECE stats from trace.json; None when the trace is missing."""
+    if trace is None:
+        return None
+    total = trace.get("source_units_total", 0)
+    covered = trace.get("source_units_covered", 0)
+    excluded = trace.get("source_units_excluded", 0)
+    uncovered = trace.get("source_units_uncovered", 0)
+    denom = max(total - excluded, 1)
+    return MeceStats(
+        total=total,
+        covered=covered,
+        excluded=excluded,
+        uncovered=uncovered,
+        passed_strict=uncovered == 0,
+        coverage_rate=covered / denom,
+    )
+
+
+def evaluate_gates(
+    *,
+    inventory_count: int,
+    required_min: int,
+    macro_ratio: float,
+    max_macro_ratio: float,
+    macro_count: int,
+    covered_by_fill_rate: float,
+    min_covered_by_fill: float,
+    questions_count: int,
+    min_questions: int,
+    open_ratio: float,
+    max_open_ratio: float,
+    mece: MeceStats | None,
+    min_mece_coverage: float,
+) -> list[str]:
+    """Return the aggregate gate-failure messages for the fixed thresholds."""
+    gate_failures: list[str] = []
+    if inventory_count < required_min:
+        gate_failures.append(
+            f"inventory.json size {inventory_count} < required {required_min} "
+            f"(may be under-granular for the codebase size)"
+        )
+    if macro_ratio > max_macro_ratio:
+        gate_failures.append(
+            f"macro-type INV ratio {macro_ratio:.1%} > cap {max_macro_ratio:.1%} "
+            f"({macro_count}/{inventory_count} are group/module-style — please subdivide)"
+        )
+    if covered_by_fill_rate < min_covered_by_fill:
+        gate_failures.append(
+            f"inventory.covered_by fill rate {covered_by_fill_rate:.1%} < {min_covered_by_fill:.1%}"
+        )
+    if questions_count < min_questions:
+        gate_failures.append(
+            f"questions.json size {questions_count} < required {min_questions} "
+            f"(raise more questions for Phase 5 dialogue)"
+        )
+    if questions_count and open_ratio > max_open_ratio:
+        gate_failures.append(
+            f"open-status ratio {open_ratio:.1%} > cap {max_open_ratio:.1%} "
+            f"(complete the Phase 5 three-stage dialogue)"
+        )
+    if mece is None:
+        gate_failures.append(
+            "trace.json missing. Run build-trace.py to enable the MECE check."
+        )
+    elif mece.coverage_rate < min_mece_coverage:
+        gate_failures.append(
+            f"MECE coverage {mece.coverage_rate:.1%} < {min_mece_coverage:.1%} "
+            f"(uncovered={mece.uncovered}/{mece.total - mece.excluded})"
+        )
+    return gate_failures
+
+
+def check_source_map_refs(
+    inventory: list[InventoryItem], source_map_ids: set[str]
+) -> list[str]:
+    """Return failures for ``related_source_ids`` entries missing from source-map.json."""
+    failures: list[str] = []
+    for item in inventory:
+        for ref in item.related_source_ids:
+            if ref not in source_map_ids:
+                failures.append(
+                    f"{item.id}.related_source_ids contains {ref!r} which is not in source-map.json"
+                )
+    return failures
+
+
+def count_confidence_labels(chapters: dict[str, str]) -> tuple[int, int, int]:
+    """Count 🟢 VERIFIED / 🟡 INFERRED / 🔴 ASSUMED labels across chapter bodies."""
+    verified = inferred = assumed = 0
+    for _, content in chapters.items():
+        verified += content.count("🟢") + content.count("VERIFIED")
+        inferred += content.count("🟡") + content.count("INFERRED")
+        assumed += content.count("🔴") + content.count("ASSUMED")
+    return verified, inferred, assumed
 
 
 def build_report(
@@ -833,11 +1048,7 @@ def build_report(
     # 1. Try output_dir / target_dir_name (e.g. .specback/final or specs/final)
     # 2. If that doesn't exist, try target_dir_name as a standalone path
     #    (e.g. .specback/drafts when --output-dir points elsewhere)
-    target_dir = output_dir / target_dir_name
-    if not target_dir.exists():
-        fallback = Path(target_dir_name)
-        if fallback.exists():
-            target_dir = fallback
+    target_dir = resolve_target_dir(output_dir, target_dir_name)
 
     inventory_path = specback_dir / "inventory.json"
     questions_path = specback_dir / "questions.json"
@@ -850,13 +1061,7 @@ def build_report(
     depth_mode = detect_depth_mode(specback_dir)
 
     # backward compatibility: mention detection
-    uncovered: list[InventoryItem] = []
-    for item in inventory:
-        # Use any existing covered_by values (set by the agent if filled manually).
-        if not item.covered_by:
-            item.covered_by = detect_mentions(item, chapters)
-        if not item.covered_by:
-            uncovered.append(item)
+    uncovered = compute_mention_coverage(inventory, chapters)
 
     integrity_issues, blocked_referenced = check_question_integrity(
         questions, inventory_ids, chapters
@@ -870,9 +1075,9 @@ def build_report(
     )
 
     # Chapter metrics
-    chapter_metrics: list[ChapterMetrics] = []
-    for name, content in chapters.items():
-        chapter_metrics.append(compute_chapter_metrics(name, content))
+    chapter_metrics: list[ChapterMetrics] = [
+        compute_chapter_metrics(name, content) for name, content in chapters.items()
+    ]
 
     # user_custom chapters are evaluated only by check 12 (existence + non-empty body).
     # The comprehensive per-chapter gates (200 lines / 10 REFs / code blocks / Mermaid /
@@ -898,96 +1103,57 @@ def build_report(
         )
 
     # inventory min auto
-    if min_inventory == "auto":
-        file_count = load_source_map_count(specback_dir) or 0
-        required_min = max(50, file_count // 20)
-    else:
-        required_min = int(min_inventory)
+    required_min = compute_required_min_inventory(min_inventory, specback_dir)
 
     # Macro ratio
-    macro_count = sum(1 for it in inventory if is_macro_type(it))
-    macro_ratio = (macro_count / len(inventory)) if inventory else 0.0
+    macro_count, macro_ratio = compute_macro_stats(inventory)
 
     # covered_by fill rate
-    covered_by_filled = sum(1 for it in inventory if it.covered_by)
-    covered_by_fill_rate = (covered_by_filled / len(inventory)) if inventory else 0.0
+    covered_by_fill_rate = compute_covered_by_fill_rate(inventory)
 
     # questions ratio
-    open_q = sum(1 for q in questions if q.get("status") == "open")
-    open_ratio = (open_q / len(questions)) if questions else 0.0
+    open_q, open_ratio = compute_open_question_stats(questions)
 
     # MECE
     trace = load_trace(specback_dir)
-    mece_total = mece_covered = mece_excluded = mece_uncovered = 0
-    mece_passed = True
-    mece_rate = 0.0
-    if trace is not None:
-        mece_total = trace.get("source_units_total", 0)
-        mece_covered = trace.get("source_units_covered", 0)
-        mece_excluded = trace.get("source_units_excluded", 0)
-        mece_uncovered = trace.get("source_units_uncovered", 0)
-        denom = max(mece_total - mece_excluded, 1)
-        mece_rate = mece_covered / denom
-        mece_passed = mece_uncovered == 0
+    mece = compute_mece_stats(trace)
 
     # Gate evaluation
-    gate_failures: list[str] = []
-    if len(inventory) < required_min:
-        gate_failures.append(
-            f"inventory.json size {len(inventory)} < required {required_min} "
-            f"(may be under-granular for the codebase size)"
-        )
-    if macro_ratio > max_macro_ratio:
-        gate_failures.append(
-            f"macro-type INV ratio {macro_ratio:.1%} > cap {max_macro_ratio:.1%} "
-            f"({macro_count}/{len(inventory)} are group/module-style — please subdivide)"
-        )
-    if covered_by_fill_rate < min_covered_by_fill:
-        gate_failures.append(
-            f"inventory.covered_by fill rate {covered_by_fill_rate:.1%} < {min_covered_by_fill:.1%}"
-        )
-    if len(questions) < min_questions:
-        gate_failures.append(
-            f"questions.json size {len(questions)} < required {min_questions} "
-            f"(raise more questions for Phase 5 dialogue)"
-        )
-    if questions and open_ratio > max_open_ratio:
-        gate_failures.append(
-            f"open-status ratio {open_ratio:.1%} > cap {max_open_ratio:.1%} "
-            f"(complete the Phase 5 three-stage dialogue)"
-        )
-    if trace is not None and mece_rate < min_mece_coverage:
-        gate_failures.append(
-            f"MECE coverage {mece_rate:.1%} < {min_mece_coverage:.1%} "
-            f"(uncovered={mece_uncovered}/{mece_total - mece_excluded})"
-        )
-    if trace is None:
-        gate_failures.append(
-            "trace.json missing. Run build-trace.py to enable the MECE check."
-        )
+    gate_failures = evaluate_gates(
+        inventory_count=len(inventory),
+        required_min=required_min,
+        macro_ratio=macro_ratio,
+        max_macro_ratio=max_macro_ratio,
+        macro_count=macro_count,
+        covered_by_fill_rate=covered_by_fill_rate,
+        min_covered_by_fill=min_covered_by_fill,
+        questions_count=len(questions),
+        min_questions=min_questions,
+        open_ratio=open_ratio,
+        max_open_ratio=max_open_ratio,
+        mece=mece,
+        min_mece_coverage=min_mece_coverage,
+    )
 
     # #158: reserved file body-line check
-    for f in check_reserved_body_lines(chapters, require_min_body_lines_for_reserved):
-        gate_failures.append(f)
+    gate_failures.extend(
+        check_reserved_body_lines(chapters, require_min_body_lines_for_reserved)
+    )
     # #158: Mermaid styling check
     if forbid_mermaid_styling:
-        for f in check_mermaid_styling(chapters):
-            gate_failures.append(f)
+        gate_failures.extend(check_mermaid_styling(chapters))
     # Mermaid static syntax check (unquoted edge-label parens, cylinder closure)
     if check_mermaid_syntax_flag:
-        for f in check_mermaid_syntax(chapters):
-            gate_failures.append(f)
+        gate_failures.extend(check_mermaid_syntax(chapters))
     # #158: placeholder pattern check
-    for f in check_placeholder_patterns(chapters, forbid_placeholder_pattern):
-        gate_failures.append(f)
+    gate_failures.extend(check_placeholder_patterns(chapters, forbid_placeholder_pattern))
 
     # Reflect per-chapter metric failures into the overall gate failures.
     # (user_custom chapters were excluded from evaluate_chapter_gates above; their
     # m.failures is empty even if 200-line / 10-REF gates would have failed.)
     for m in chapter_metrics:
-        if m.failures:
-            for f in m.failures:
-                gate_failures.append(f"chapter {m.file}: {f}")
+        for f in m.failures:
+            gate_failures.append(f"chapter {m.file}: {f}")
 
     # Reflect user-custom deliverable failures (Phase 6 intent-vs-delivery gate, check 12).
     for f in user_custom_failures:
@@ -995,30 +1161,17 @@ def build_report(
 
     # Source-map ↔ inventory cross-reference consistency (check 13).
     # Every `related_source_ids[*]` in inventory must match an `id` in source-map.json.
+    # Skipped when source-map.json is absent (early pipeline runs) or inventory is empty.
     source_map_ids = load_source_map_ids(specback_dir)
-    if not source_map_ids:
-        # source-map.json absent → skip the check (e.g. early pipeline runs).
-        pass
-    elif not inventory:
-        # No inventory items → nothing to check.
-        pass
-    else:
-        orphan_refs: list[str] = []
-        for item in inventory:
-            for ref in item.related_source_ids:
-                if ref not in source_map_ids:
-                    orphan_refs.append(f"{item.id}.related_source_ids contains {ref!r} which is not in source-map.json")
-        for ref in sorted(orphan_refs):
+    if source_map_ids and inventory:
+        for ref in check_source_map_refs(inventory, source_map_ids):
             gate_failures.append(f"source-map/inventory: {ref}")
 
     # Aggregate confidence labels for outline / interactive mode.
     # Count how many times 🟢 VERIFIED / 🟡 INFERRED / 🔴 ASSUMED appear in chapter bodies.
     verified = inferred = assumed = 0
     if depth_mode != "comprehensive":
-        for _, content in chapters.items():
-            verified += content.count("🟢") + content.count("VERIFIED")
-            inferred += content.count("🟡") + content.count("INFERRED")
-            assumed  += content.count("🔴") + content.count("ASSUMED")
+        verified, inferred, assumed = count_confidence_labels(chapters)
         # Warn if the ASSUMED ratio is too high.
         total_labels = verified + inferred + assumed
         if total_labels > 0:
@@ -1030,7 +1183,7 @@ def build_report(
                 )
 
     total = len(inventory)
-    rate = (len(inventory) - len(uncovered)) / total * 100 if total else 0.0
+    rate = (total - len(uncovered)) / total * 100 if total else 0.0
 
     return CoverageReport(
         total_inventory=total,
@@ -1051,12 +1204,12 @@ def build_report(
         macro_inventory_count=macro_count,
         covered_by_fill_rate=covered_by_fill_rate,
         open_question_ratio=open_ratio,
-        mece_total=mece_total,
-        mece_covered=mece_covered,
-        mece_excluded=mece_excluded,
-        mece_uncovered=mece_uncovered,
-        mece_passed_strict=mece_passed,
-        mece_coverage_rate=mece_rate,
+        mece_total=mece.total if mece else 0,
+        mece_covered=mece.covered if mece else 0,
+        mece_excluded=mece.excluded if mece else 0,
+        mece_uncovered=mece.uncovered if mece else 0,
+        mece_passed_strict=mece.passed_strict if mece else True,
+        mece_coverage_rate=mece.coverage_rate if mece else 0.0,
         gate_failures=gate_failures,
         depth_mode=depth_mode,
         confidence_verified=verified,
@@ -1195,7 +1348,8 @@ def render_json(report: CoverageReport) -> str:
 # main
 # ----------------------------------------------------------------------------
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Build the CLI parser and return the parsed arguments (Issue #284)."""
     p = argparse.ArgumentParser(description="specback Phase 4 verification (v2)")
     p.add_argument("--specback-dir", type=Path, default=Path.cwd() / ".specback")
     p.add_argument("--target-dir-for-required", default="final",
@@ -1250,7 +1404,11 @@ def main() -> int:
     p.add_argument("--fail-on-uncovered", action="store_true")
     p.add_argument("--strict", action="store_true")
 
-    args = p.parse_args()
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     args.output_dir = args.output_dir or args.specback_dir
 
     # Resolve template-aware defaults for thresholds
