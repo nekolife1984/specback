@@ -5,13 +5,16 @@ import sys
 from pathlib import Path
 
 # Ensure scripts/ (parent of tests/) is importable.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+if str(Path(__file__).resolve().parent.parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common import (  # noqa: E402
     utcnow_iso,
     utcnow_iso_z,
     reject_nonfinite,
+    sanitize_control,
     load_json_text,
     load_json_text_or,
+    atomic_write_text,
     atomic_write_json,
     sha256_file,
     sha256_bytes,
@@ -305,3 +308,59 @@ class TestAddSpecbackDirArg:
         add_specback_dir_arg(parser)
         args = parser.parse_args(["--specback-dir", "/tmp/custom"])
         assert args.specback_dir == Path("/tmp/custom")
+
+
+class TestSanitizeControl:
+    def test_replaces_esc_sequence(self) -> None:
+        out = sanitize_control("a\x1b[2Jb")
+        assert out == "a\\x1b[2Jb"
+        assert "\x1b" not in out
+
+    def test_replaces_bell_newline_tab(self) -> None:
+        out = sanitize_control("x\x07y\nz\t")
+        assert out == "x\\x07y\\x0az\\x09"
+
+    def test_passes_through_plain_text(self) -> None:
+        s = "plain /path/file.py §section"
+        assert sanitize_control(s) == s
+
+
+class TestLoadJsonTextOrDirectory:
+    def test_returns_default_when_path_is_directory(self, tmp_path: Path) -> None:
+        d = tmp_path / "state.json"
+        d.mkdir()
+        assert load_json_text_or(d, "fallback") == "fallback"
+
+
+class TestAtomicWriteText:
+    def test_writes_text(self, tmp_path: Path) -> None:
+        p = tmp_path / "out.md"
+        atomic_write_text(p, "# hello\n")
+        assert p.read_text(encoding="utf-8") == "# hello\n"
+
+    def test_no_temp_leftover(self, tmp_path: Path) -> None:
+        p = tmp_path / "out.md"
+        atomic_write_text(p, "x")
+        assert list(tmp_path.glob("out.md.*.tmp")) == []
+
+    def test_overwrites_existing(self, tmp_path: Path) -> None:
+        p = tmp_path / "out.md"
+        p.write_text("old")
+        atomic_write_text(p, "new")
+        assert p.read_text(encoding="utf-8") == "new"
+
+    def test_replaces_symlink_itself_not_target(self, tmp_path: Path) -> None:
+        target = tmp_path / "target.txt"
+        target.write_text("secret")
+        p = tmp_path / "out.md"
+        p.symlink_to(target)
+        atomic_write_text(p, "overwrite")
+        # os.replace swaps the symlink entry, never following it.
+        assert target.read_text(encoding="utf-8") == "secret"
+        assert not p.is_symlink()
+        assert p.read_text(encoding="utf-8") == "overwrite"
+
+    def test_missing_parent_raises(self, tmp_path: Path) -> None:
+        p = tmp_path / "no" / "such" / "dir" / "out.md"
+        with pytest.raises(FileNotFoundError):
+            atomic_write_text(p, "x")

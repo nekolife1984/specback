@@ -23,7 +23,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from common import add_specback_dir_arg, utcnow_iso
+from common import add_specback_dir_arg, atomic_write_text, utcnow_iso
 from pathlib import Path
 
 
@@ -178,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
         lines.append("")
 
-    output_path.write_text("\n".join(lines), encoding="utf-8")
+    atomic_write_text(output_path, "\n".join(lines))
     print(
         f"build-traceability.py: written to {output_path} "
         f"(mece_passed={mece_ok}, coverage={coverage_rate:.1f}%)"

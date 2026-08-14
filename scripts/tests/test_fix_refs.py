@@ -942,3 +942,24 @@ class TestRefUtilsShared:
         spec_file = tmp_path / "01-overview.md"
         spec_file.write_text(content, encoding="utf-8")
         assert mod.find_refs_in_file(spec_file) == refutils.find_refs_in_text(content)
+
+
+class TestSanitizeAndLoadShared:
+    """Common helpers shared in this wave: sanitize_control + load_source_map policy."""
+
+    def test_sanitize_control_is_common_singleton(self):
+        """fix-refs' report sanitizer is now common.sanitize_control."""
+        import common
+        mod = _import_fix_refs()
+        assert mod.sanitize_control is common.sanitize_control
+
+    def test_load_source_map_nonfinite_returns_empty(self, tmp_path):
+        """NaN in source-map.json → {} (never raises; reject_nonfinite policy)."""
+        specback = tmp_path / ".specback"
+        specback.mkdir()
+        (specback / "source-map.json").write_text(
+            '{"units": [{"id": "SRC-1", "path": "a.py", "line_range": [NaN, 5]}]}',
+            encoding="utf-8",
+        )
+        mod = _import_fix_refs()
+        assert mod.load_source_map(specback) == {}

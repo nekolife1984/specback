@@ -26,7 +26,13 @@ import argparse
 import json
 import os
 import sys
-from common import add_specback_dir_arg, hash_line_range, utcnow_iso
+from common import (
+    add_specback_dir_arg,
+    atomic_write_json,
+    hash_line_range,
+    load_json_text,
+    utcnow_iso,
+)
 from pathlib import Path
 from typing import Any
 
@@ -202,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     # Load source-map
-    sm = json.loads(source_map_path.read_text(encoding="utf-8"))
+    sm = load_json_text(source_map_path)
     units = sm.get("units", [])
     if not units:
         print(
@@ -229,10 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = Path(args.output_dir) if args.output_dir else specback_path
     output_path = args.output or str(output_dir / "source-hashes.json")
     output_dir.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(
-        json.dumps(output, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(output_path, output)
 
     ok_count = sum(
         1 for u in units_hashes.values() if u.get("status") == "OK"

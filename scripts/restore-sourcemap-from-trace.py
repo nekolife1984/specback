@@ -45,7 +45,7 @@ import shutil
 import subprocess
 import sys
 import artifact_io
-from common import utcnow_iso
+from common import atomic_write_json, utcnow_iso
 from pathlib import Path
 
 SRC_ID_RE = re.compile(r"^SRC-(\d+)$")
@@ -226,14 +226,18 @@ def main(argv: list[str] | None = None) -> int:
     # 4) Backup + atomic write (never truncate the only copy in place).
     backup_path = new_map_path.with_name("source-map.json.pre-restore")
     if new_map_path.exists() and not backup_path.exists():
+        if new_map_path.is_symlink():
+            print(
+                f"ERROR: refusing to back up symlink target: {new_map_path}",
+                file=sys.stderr,
+            )
+            return 1
         shutil.copy2(new_map_path, backup_path)
         print(f"backup: {backup_path}", file=sys.stderr)
-    tmp_path = new_map_path.with_name("source-map.json.tmp")
-    tmp_path.write_text(
-        json.dumps(result, ensure_ascii=False, indent=1) + "\n",
-        encoding="utf-8",
-    )
-    os.replace(tmp_path, new_map_path)
+    # atomic_write_json writes via mkstemp + os.replace: the temp name is
+    # unpredictable, so a pre-planted symlink at the fixed name cannot be
+    # followed (the fixed .tmp name was removed here for that reason).
+    atomic_write_json(new_map_path, result)
 
     print(
         f"Restored: {len(old_units)} old units + {len(added)} new = "

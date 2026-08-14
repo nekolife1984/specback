@@ -133,6 +133,18 @@ def test_invalid_json(tmp_path: Path):
     assert "invalid JSON" in result.stderr
 
 
+def test_nonfinite_json(tmp_path: Path):
+    """NaN in source-map.json → clean exit 2 (shared loader rejects non-finite)."""
+    sm = tmp_path / "nan.json"
+    sm.write_text(
+        '{"units": [{"id": "SRC-1", "line_range": [NaN, 5]}]}',
+        encoding="utf-8",
+    )
+    result = run_script(tmp_path, ["--source-map", str(sm)])
+    assert result.returncode == 2
+    assert "invalid JSON" in result.stderr
+
+
 def test_no_units_key(tmp_path: Path):
     sm = tmp_path / "no-units.json"
     sm.write_text(json.dumps({"foo": "bar"}), encoding="utf-8")

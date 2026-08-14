@@ -37,15 +37,15 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from collections import defaultdict
 import artifact_io
-from common import add_specback_dir_arg, sha256_file, utcnow_iso
+import git_utils
+from common import add_specback_dir_arg, load_json_text, sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
-from git_utils import resolve_ref
+from git_utils import parse_diff_name_status, run_git_diff
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ def load_source_hashes(path: Path) -> dict[str, Any]:
     """Load source-hashes.json or return empty."""
     if not path.exists():
         return {"units": {}, "target_root": "."}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return load_json_text(path)
 
 
 # ---------------------------------------------------------------------------
@@ -421,75 +421,10 @@ def cross_reference_sections(
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
-
-
-def run_git_unified_diff(
-    base: str,
-    cwd: str | Path | None = None,
-    context_lines: int = 5,
-) -> str:
-    """Run ``git diff -U<context_lines> <base>`` and return raw text."""
-    # Resolve base to a validated commit hash before building argv —
-    # prevents git option injection via --base / state.json (Issue #253).
-    base = resolve_ref(base, cwd)
-    cmd = ["git", "diff", f"-U{context_lines}", base]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        print(
-            f"ERROR: git diff failed:\n{result.stderr.strip()}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return result.stdout
-
-
-def run_git_diff_name_status(
-    base: str,
-    cwd: str | Path | None = None,
-) -> list[dict[str, str]]:
-    """Run ``git diff --name-status <base>`` and return parsed entries."""
-    # Resolve base to a validated commit hash before building argv —
-    # prevents git option injection via --base / state.json (Issue #253).
-    base = resolve_ref(base, cwd)
-    cmd = ["git", "diff", "--name-status", base]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        print(
-            f"ERROR: git diff --name-status failed:\n{result.stderr.strip()}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    entries: list[dict[str, str]] = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        status = parts[0][0]
-        if status == "R" and len(parts) >= 3:
-            entries.append({
-                "status": status,
-                "file": parts[2],
-                "old_file": parts[1],
-            })
-        else:
-            entries.append({"status": status, "file": parts[1]})
-    return entries
+#
+# Unified-diff and name-status running are delegated to
+# :mod:`git_utils` (``run_git_diff`` + ``parse_diff_name_status``, Issue
+# #282) so change-spec.py no longer carries private copies.
 
 
 # ---------------------------------------------------------------------------
@@ -592,15 +527,13 @@ def resolve_mode(args_mode: str | None, specback_path: Path) -> str:
 
 
 def resolve_base(args_base: str | None, specback_path: Path) -> str:
-    """Determine git ref to diff against."""
-    if args_base is not None:
-        return args_base
-    state = load_state(specback_path / "state.json")
-    if state is not None:
-        commit = state.get("generated_at_commit")
-        if commit:
-            return str(commit)
-    return "HEAD"
+    """Determine git ref to diff against.
+
+    Delegates to :func:`git_utils.resolve_base` (Issue #282) so the
+    state.json fallback logic has a single implementation.  Kept as a thin
+    wrapper for callers/tests that reference ``change_spec.resolve_base``.
+    """
+    return git_utils.resolve_base(args_base, specback_path)
 
 
 # ---------------------------------------------------------------------------
@@ -633,11 +566,17 @@ def build_change_spec(
             unified_diff_text = diff_text
         else:
             resolved_base = resolve_base(base, specback_path)
-            name_status_changes = run_git_diff_name_status(
-                resolved_base, cwd=str(specback_path.parent),
+            name_status_changes = parse_diff_name_status(
+                run_git_diff(
+                    resolved_base,
+                    "--name-status",
+                    cwd=str(specback_path.parent),
+                ),
             )
-            unified_diff_text = run_git_unified_diff(
-                resolved_base, cwd=str(specback_path.parent),
+            unified_diff_text = run_git_diff(
+                resolved_base,
+                "-U5",
+                cwd=str(specback_path.parent),
             )
     elif mode == MODE_HASH:
         source_hashes = load_source_hashes(specback_path / "source-hashes.json")

@@ -184,6 +184,59 @@ def test_json_written_on_no_changes(tmp_path):
     assert data["summary"]["changed_files"] == 0
 
 
+def test_git_mode_detects_modified_file(tmp_path):
+    """git mode CLI: a modified committed file surfaces in drift-report.md.
+
+    Covers the changed-files path (M) end-to-end: real git diff output →
+    parse_diff_name_status → analyze_impact → report.  The no-changes
+    path was already pinned; this pins the change-detection path that was
+    lost when the git helpers moved to git_utils.
+    """
+    specback = _init_repo(tmp_path)
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": commit}),
+        encoding="utf-8",
+    )
+    # Modify the committed file (uncommitted → git diff shows M)
+    (tmp_path / "sample.py").write_text("x = 2\n", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
+         "--mode", "git"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"detect-drift failed:\n{result.stderr}"
+    report = (specback / "drift-report.md").read_text(encoding="utf-8")
+    assert "sample.py" in report
+    assert "Modified" in report
+
+
+def test_git_mode_detects_deleted_file(tmp_path):
+    """git mode CLI: a deleted committed file surfaces as a D entry."""
+    specback = _init_repo(tmp_path)
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": commit}),
+        encoding="utf-8",
+    )
+    (tmp_path / "sample.py").unlink()
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
+         "--mode", "git"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"detect-drift failed:\n{result.stderr}"
+    report = (specback / "drift-report.md").read_text(encoding="utf-8")
+    assert "sample.py" in report
+    assert "Deleted" in report
+
+
 # ---------------------------------------------------------------------------
 # Core logic unit tests (Issue #258)
 # ---------------------------------------------------------------------------

@@ -53,10 +53,9 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
-import json
 import re
 import sys
-from common import utcnow_iso
+from common import atomic_write_json, utcnow_iso
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable
@@ -469,10 +468,7 @@ def main(argv: list[str] | None = None) -> int:
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(output_path, out)
 
     stats = out["stats"]
     print(

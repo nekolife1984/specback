@@ -50,14 +50,15 @@ def load_state(path: Path) -> dict[str, Any] | None:
     """Load state.json if it exists (silently return None otherwise).
 
     Matches the pre-#283 implementation shared byte-for-byte by
-    detect-drift.py and change-spec.py: missing file, unreadable file, and
-    malformed JSON all yield ``None``.
+    detect-drift.py and change-spec.py: missing file, unreadable file,
+    non-UTF-8 bytes, malformed JSON and non-finite constants (NaN /
+    Infinity — rejected by ``common.load_json_text``) all yield ``None``.
     """
     if not path.exists():
         return None
     try:
         return load_json_text(path)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError):
         return None
 
 

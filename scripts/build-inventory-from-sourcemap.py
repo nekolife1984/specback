@@ -35,6 +35,7 @@ import argparse
 import json
 import sys
 import artifact_io
+from common import atomic_write_json
 from pathlib import Path
 from typing import Any
 
@@ -134,7 +135,7 @@ def load_source_map(path: Path) -> dict[str, Any]:
         sys.exit(2)
     try:
         data = artifact_io.load_source_map(path)
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
         print(f"ERROR: invalid JSON in {path}: {e}", file=sys.stderr)
         sys.exit(2)
     if "units" not in data:
@@ -187,10 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     inventory = build_inventory(source_map, role_to_type)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(inventory, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(args.output, inventory)
 
     count = len(inventory["units"])
     schema = source_map.get("schema_version", "?")

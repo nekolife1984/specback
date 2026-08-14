@@ -73,6 +73,10 @@ def run_git_diff(
     output format and exit behaviour.  ``base`` goes through
     :func:`resolve_ref` first (argument-injection guard, Issue #253).
 
+    *args must be caller-supplied constants only — they are passed to git
+    verbatim, so user-controlled values here would reintroduce option
+    injection.
+
     Exits with status 1 (after printing an error to stderr) when git
     diff fails.
     """
@@ -96,9 +100,10 @@ def run_git_diff(
 def parse_diff_name_status(text: str) -> list[dict[str, str]]:
     """Parse ``git diff --name-status`` output text into entry dicts.
 
-    Handles all git status codes, including rename (R), which produces
-    three tab-separated fields: status, old_path, new_path.  Lines that
-    do not match the format are skipped.
+    Handles all git status codes, including rename (R) and copy (C), which
+    produce three tab-separated fields: status, old_path, new_path.  For
+    R/C entries the *new* path is reported as ``file`` and the old path as
+    ``old_file``.  Lines that do not match the format are skipped.
     """
     entries: list[dict[str, str]] = []
     for line in text.splitlines():
@@ -108,9 +113,9 @@ def parse_diff_name_status(text: str) -> list[dict[str, str]]:
         parts = line.split("\t")
         if len(parts) < 2:
             continue
-        status = parts[0][0]  # first char: A/M/D/R/...
-        if status == "R" and len(parts) >= 3:
-            # R<similarity>\told/path\tnew/path
+        status = parts[0][0]  # first char: A/M/D/R/C/...
+        if len(parts) >= 3:
+            # R<similarity>\told/path\tnew/path ; C<similarity>\told\tnew
             entries.append({
                 "status": status,
                 "file": parts[2],          # new path

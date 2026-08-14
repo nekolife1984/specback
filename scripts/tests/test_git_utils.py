@@ -157,6 +157,14 @@ def test_parse_diff_name_status_rename() -> None:
     ]
 
 
+def test_parse_diff_name_status_copy_uses_new_path() -> None:
+    """C(copy) entries have the same 3-field shape as R — file must be the new path."""
+    text = "C100\told/path.rb\tnew/path.rb\n"
+    assert git_utils.parse_diff_name_status(text) == [
+        {"status": "C", "file": "new/path.rb", "old_file": "old/path.rb"},
+    ]
+
+
 def test_parse_diff_name_status_ignores_garbage() -> None:
     text = "\nnot-a-diff\nM\tonly_file.rb\n"
     assert git_utils.parse_diff_name_status(text) == [

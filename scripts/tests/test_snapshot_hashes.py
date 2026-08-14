@@ -77,3 +77,24 @@ def test_no_units_warns_writes_empty(tmp_path):
     assert "writing an empty source-hashes.json" in result.stderr
     # the empty artifact is still written (downstream consumers can read it)
     assert (sb / "source-hashes.json").exists()
+
+
+def test_source_map_with_nan_fails(tmp_path):
+    """Non-finite JSON in source-map.json is rejected (shared loader policy).
+
+    snapshot-hashes.py reads the source map through common.load_json_text,
+    which rejects NaN/Infinity — malformed artifacts must not silently
+    produce hashes.
+    """
+    sb = tmp_path / "proj" / ".specback"
+    sb.mkdir(parents=True)
+    (sb / "source-map.json").write_text(
+        '{"units": [{"id": "SRC-1", "line_range": [NaN, 5]}], "target_root": "."}',
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(sb)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "non-finite" in result.stderr
