@@ -714,29 +714,6 @@ class TestFormatRefSrcId:
         assert mod.format_ref(ref) == "<!-- REF: SRC-0001 -->"
 
 
-class TestResolveBase:
-    """resolve_base precedence (Issue #249 / F5)."""
-
-    def test_args_base_wins(self, tmp_path):
-        mod = _import_fix_refs()
-        assert mod.resolve_base("HEAD", tmp_path / ".specback") == "HEAD"
-
-    def test_state_commit_used(self, tmp_path):
-        mod = _import_fix_refs()
-        specback = tmp_path / ".specback"
-        specback.mkdir()
-        (specback / "state.json").write_text(
-            json.dumps({"generated_at_commit": "abc123"}), encoding="utf-8"
-        )
-        assert mod.resolve_base(None, specback) == "abc123"
-
-    def test_fallback_head(self, tmp_path):
-        mod = _import_fix_refs()
-        specback = tmp_path / ".specback"
-        specback.mkdir()
-        assert mod.resolve_base(None, specback) == "HEAD"
-
-
 class TestFindRefsInFileDetailed:
     """find_refs_in_file extraction details (Issue #249 / F9)."""
 

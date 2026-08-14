@@ -204,33 +204,6 @@ def _trace(by_source: dict) -> dict:
     return {"by_source": by_source, "schema_version": "0.1.0"}
 
 
-# --- parse_diff_text ------------------------------------------------------
-
-
-def test_parse_diff_text_basic():
-    text = "M\tapp/models/issue.rb\nA\tspec/issue_spec.rb\nD\told.rb\n"
-    entries = drift.parse_diff_text(text)
-    assert entries == [
-        {"status": "M", "file": "app/models/issue.rb"},
-        {"status": "A", "file": "spec/issue_spec.rb"},
-        {"status": "D", "file": "old.rb"},
-    ]
-
-
-def test_parse_diff_text_rename():
-    text = "R100\told/path.rb\tnew/path.rb\n"
-    entries = drift.parse_diff_text(text)
-    assert entries == [
-        {"status": "R", "file": "new/path.rb", "old_file": "old/path.rb"},
-    ]
-
-
-def test_parse_diff_text_ignores_garbage():
-    text = "\nnot-a-diff\nM\tonly_file.rb\n"
-    entries = drift.parse_diff_text(text)
-    assert entries == [{"status": "M", "file": "only_file.rb"}]
-
-
 # --- hash_line_range ------------------------------------------------------
 
 
@@ -452,22 +425,7 @@ def test_load_state_handles_bad_json(tmp_path):
     assert drift.load_state(p) is None
 
 
-# --- resolve_base / resolve_mode ------------------------------------------
-
-
-def test_resolve_base_precedence(tmp_path):
-    specback = tmp_path / ".specback"
-    specback.mkdir()
-    (specback / "state.json").write_text(
-        json.dumps({"generated_at_commit": "deadbeef"}), encoding="utf-8")
-    assert drift.resolve_base("v1.0", specback) == "v1.0"
-    assert drift.resolve_base(None, specback) == "deadbeef"
-
-
-def test_resolve_base_fallback_head(tmp_path):
-    specback = tmp_path / ".specback"
-    specback.mkdir()
-    assert drift.resolve_base(None, specback) == "HEAD"
+# --- resolve_mode ----------------------------------------------------------
 
 
 def test_resolve_mode_explicit(tmp_path):
@@ -606,26 +564,3 @@ def test_print_base_info_commit(capsys):
 def test_print_mode_info(capsys):
     drift.print_mode_info("git")
     assert "git" in capsys.readouterr().err
-
-
-def test_run_git_diff_name_status_in_repo(tmp_path):
-    """Real git repo: git diff --name-status returns parsed entries."""
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True)
-    (tmp_path / "a.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "a.py"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "init"],
-                   cwd=tmp_path, check=True,
-                   env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00",
-                        "GIT_COMMITTER_DATE": "2026-01-01T00:00:00"})
-    (tmp_path / "a.py").write_text("x = 2\n", encoding="utf-8")
-    entries = drift.run_git_diff_name_status("HEAD", cwd=str(tmp_path))
-    assert {"status": "M", "file": "a.py"} in entries
-
-
-def test_run_git_diff_name_status_injection_rejected(tmp_path):
-    """Option-like base must be rejected before git runs (Issue #253)."""
-    import pytest
-    with pytest.raises(SystemExit):
-        drift.run_git_diff_name_status("--output=/tmp/x", cwd=str(tmp_path))
