@@ -235,9 +235,9 @@ def test_hash_line_range_crlf_normalized(tmp_path):
 
 
 def test_hash_line_range_missing_file(tmp_path):
-    digest, count = drift.hash_line_range(tmp_path / "nope.py", 1, 5)
-    assert digest == ""
-    assert count == 0
+    import pytest
+    with pytest.raises(FileNotFoundError):
+        drift.hash_line_range(tmp_path / "nope.py", 1, 5)
 
 
 # --- compute_hash_changes -------------------------------------------------

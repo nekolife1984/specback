@@ -9,6 +9,21 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / "snapshot-hashes.py"
 
 
+def test_specback_dir_parses_as_path():
+    """--specback-dir is parsed as a Path (common helper)."""
+    import importlib.util
+    sys.path.insert(0, str(SCRIPT.parent))
+    spec = importlib.util.spec_from_file_location("snapshot_hashes_core", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["snapshot_hashes_core"] = mod
+    spec.loader.exec_module(mod)
+    args = mod.parse_args(["--specback-dir", "custom-sb"])
+    assert args.specback_dir == Path("custom-sb")
+    args_default = mod.parse_args([])
+    assert args_default.specback_dir == Path(".specback")
+
+
 def test_help_includes_specback_dir():
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--help"],

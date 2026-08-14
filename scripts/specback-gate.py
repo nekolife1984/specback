@@ -50,6 +50,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from common import add_specback_dir_arg
 from git_utils import SAFE_REF_RE, resolve_ref
 
 SCHEMA_VERSION = "0.1.0"
@@ -205,8 +206,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="specback CI drift gate — merge-base -> detect-drift "
                     "-> fix-refs --check -> gates",
     )
-    p.add_argument("--specback-dir", default=".specback",
-                   help="Path to .specback/ directory (default: .specback)")
+    add_specback_dir_arg(p)
     p.add_argument("--output-dir", default=None,
                    help="Output directory for drift reports "
                         "(default: same as --specback-dir)")

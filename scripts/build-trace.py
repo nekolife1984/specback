@@ -49,7 +49,7 @@ import fnmatch
 import json
 import re
 import sys
-from common import utcnow_iso
+from common import add_specback_dir_arg, utcnow_iso
 from pathlib import Path
 from typing import Any
 from refutils import (
@@ -206,11 +206,7 @@ def resolve_refs_to_units(refs: list[dict], units: list[dict]) -> dict[str, list
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="specback trace builder")
-    parser.add_argument(
-        "--specback-dir",
-        default=".specback",
-        help="Path to .specback/ directory",
-    )
+    add_specback_dir_arg(parser)
     parser.add_argument(
         "--target-dir-for-required",
         default="final",

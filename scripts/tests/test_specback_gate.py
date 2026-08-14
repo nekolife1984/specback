@@ -132,7 +132,7 @@ def test_missing_specback_dir_is_usage_error(tmp_path):
 
 def test_parse_args_defaults():
     args = gate.parse_args([])
-    assert args.specback_dir == ".specback"
+    assert args.specback_dir == Path(".specback")
     assert args.base is None
     assert args.ci is False
     assert args.json is False
@@ -146,7 +146,7 @@ def test_parse_args_flags():
     assert args.json is True
     assert args.warn_only is True
     assert args.base == "main"
-    assert args.specback_dir == "sb"
+    assert args.specback_dir == Path("sb")
 
 
 def test_run_script_help(tmp_path):

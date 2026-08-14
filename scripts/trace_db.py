@@ -63,9 +63,10 @@ import argparse
 import json
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
+
+from common import utcnow_iso_z
 
 
 # ===================================================================
@@ -230,8 +231,8 @@ MIGRATIONS: list[tuple[str, str, str]] = [
 # ===================================================================
 
 def _now_iso() -> str:
-    """Return current UTC timestamp in ISO 8601 format."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Return current UTC timestamp in ISO 8601 format (second precision, Z)."""
+    return utcnow_iso_z()
 
 
 def _new_id(length: int = 8) -> str:
