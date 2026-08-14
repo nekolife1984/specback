@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- 共有マイクロヘルパー基盤 ([#279]): `scripts/common.py`（`utcnow_iso` / `load_json_text` / `atomic_write_json` / `sha256_file` / `add_specback_dir_arg`）。scripts/ 全体で別実装ごとにバラバラだった時刻（~22箇所）・JSON読み込み（~7実装）・SHA-256（~6実装）・`--specback-dir` ボイラープレート（~16箇所）を集約する基盤モジュール。堅牢化済み実装（バウンド読み・NaN/Infinity拒否・symlink拒否・アトミック書き込み、#267/#273 準拠）を踏襲し、`load_json_text` は sys.exit せず raise する（共有モジュールは import-safe 必須、#270）。**基盤の新設のみ**で、各スクリプトへの配線は後続 Issue で実施
 - ドリフト検出の CI 自動化 ([#266]): `scripts/specback-gate.py`（薄い CI ラッパー: merge-base 解決 → detect-drift → fix-refs --check → レポート健全性）、`specback-drift` GitHub Action（composite action + PR コメント投稿）、opt-in pre-push フック `scripts/install-drift-hooks.sh`（初期値 warn モード）、GitHub Actions / GitLab CI テンプレート（`templates/ci/`）、ローカル検証モード（`--ci`、`act` 不要）、specback 自身でのドッグフーディング導入
 - トークン見積り & バジェットゲート ([#267]): `scripts/specback-estimate.py`（Phase 2 完了時点の `inventory.json` / `goal.json` / `wbs.json` から Phase 3 の推定トークン消費量を出力。モデル非依存・料金は出力しない。`--json` / `--budget-limit` / `--record-actual` に対応し、実測3件以上で中央値比により校正）。Phase 2 → Phase 3 境界（`phase-2-wbs.md` ステップ 6.5）に組み込み
 - インクリメンタル仕様更新 ([#269]): `scripts/specback-incremental-update.py`（Phase 7 の `drift-report.json` から影響を受けた章だけを特定し、章単位の再調査プロンプトを生成する `plan`、SRC-ID 再採番トラップガード + 巻き込み変更ゼロ検証を行う `verify`、バックアップ + アトミック置換 + `build-trace.py` 再実行を行う `apply`。`--json` / `--skip-trace-refresh` 対応、state.json ベースラインで冪等）。Phase 7e として `skills/specback/phases/phase-7e-incremental-update.md` に組み込み、docs EN/JA 追加
@@ -242,3 +243,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 [#53]: https://github.com/nekolife1984/specback/pull/53
 [#55]: https://github.com/nekolife1984/specback/pull/55
 [#57]: https://github.com/nekolife1984/specback/pull/57
+[#279]: https://github.com/nekolife1984/specback/issues/279
