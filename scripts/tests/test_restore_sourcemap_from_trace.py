@@ -9,6 +9,7 @@ and clean error handling.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -17,6 +18,14 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "restore-sourcemap-from-trace.py"
+
+# Load the script as a module for unit tests (imports artifact_io / common).
+sys.path.insert(0, str(SCRIPT.parent))
+_spec = importlib.util.spec_from_file_location("restore_sourcemap_core", SCRIPT)
+assert _spec is not None and _spec.loader is not None
+mod = importlib.util.module_from_spec(_spec)
+sys.modules["restore_sourcemap_core"] = mod  # register before exec_module
+_spec.loader.exec_module(mod)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -345,3 +354,13 @@ def test_warns_on_missing_fingerprint(repo: Path) -> None:
     result = _run(repo, "--new-ids", "SRC-0003", "--apply")
     assert result.returncode == 0, result.stderr
     assert "without fingerprint" in result.stderr
+
+
+def test_main_accepts_argv() -> None:
+    """main(argv) accepts an argv list and exits with int codes (Issue #286)."""
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main([])  # --repo is required
+    assert excinfo.value.code == 2
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main(["--help"])
+    assert excinfo.value.code == 0

@@ -261,6 +261,15 @@ class TestCLI:
         except SystemExit:
             pass
 
+    def test_main_accepts_argv(self) -> None:
+        """main(argv) accepts an argv list and exits with int codes (Issue #286)."""
+        with pytest.raises(SystemExit) as excinfo:
+            gates.main([])  # --gate is required
+        assert excinfo.value.code == 2
+        with pytest.raises(SystemExit) as excinfo:
+            gates.main(["--help"])
+        assert excinfo.value.code == 0
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

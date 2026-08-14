@@ -85,6 +85,12 @@ def run_cli(specback_dir: Path, *extra: str) -> subprocess.CompletedProcess:
     )
 
 
+def test_main_returns_int_on_missing_input(tmp_path: Path) -> None:
+    """main(argv) returns an int exit code instead of None (Issue #286)."""
+    rc = mod.main(["--specback-dir", str(tmp_path)])
+    assert rc == 1
+
+
 # ---------------------------------------------------------------------------
 # 1. Basic estimation
 # ---------------------------------------------------------------------------

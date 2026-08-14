@@ -458,7 +458,7 @@ def run_gates(
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     import argparse
 
     p = argparse.ArgumentParser(
@@ -481,7 +481,7 @@ def main() -> None:
     p.add_argument("--text", action="store_true",
                    help="Output report as human-readable text")
 
-    args = p.parse_args()
+    args = p.parse_args(argv)
     fn = GATE_REGISTRY[args.gate]
 
     if args.gate == "coverage_mece":
@@ -503,8 +503,8 @@ def main() -> None:
     else:
         print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
 
-    sys.exit(0 if report.passed else 1)
+    return 0 if report.passed else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

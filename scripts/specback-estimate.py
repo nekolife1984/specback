@@ -246,7 +246,7 @@ def record_actual(history_path: Path, entry: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Estimate Phase 3 subagent token consumption (Issue #267).",
     )
@@ -267,7 +267,7 @@ def main() -> None:
         help="Append this run's estimate and the actual token count to "
              "estimate-history.json for post-hoc calibration",
     )
-    args = p.parse_args()
+    args = p.parse_args(argv)
 
     specback_dir = Path(args.specback_dir)
 
@@ -276,7 +276,7 @@ def main() -> None:
         path = specback_dir / name
         if not path.exists():
             print(f"error: required input missing: {path}", file=sys.stderr)
-            sys.exit(1)
+            return 1
 
     try:
         inventory = load_json(specback_dir / "inventory.json")
@@ -284,14 +284,14 @@ def main() -> None:
         wbs = load_json(specback_dir / "wbs.json")
     except (OSError, ValueError) as exc:
         print(f"error: failed to read {specback_dir}: {exc}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     try:
         n_units = num_units(inventory)
         n_chapters = num_chapters(wbs)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     depth_mode = goal.get("depth_mode", "") if isinstance(goal, dict) else ""
     tone = goal.get("tone", "") if isinstance(goal, dict) else ""
@@ -325,7 +325,7 @@ def main() -> None:
             record_actual(history_path, entry)
         except (OSError, ValueError) as exc:
             print(f"error: failed to record actuals: {exc}", file=sys.stderr)
-            sys.exit(1)
+            return 1
 
     # Output.
     if args.json:
@@ -357,10 +357,10 @@ def main() -> None:
             "re-run to bring the estimate under budget.",
             file=sys.stderr,
         )
-        sys.exit(2)
+        return 2
 
-    sys.exit(0)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

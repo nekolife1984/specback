@@ -16,6 +16,8 @@ Usage:
         --data-file .specback/goal.json
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -161,7 +163,7 @@ def validate(data, schema: dict, label: str = "root") -> list[str]:
 # CLI
 # ---------------------------------------------------------------------------
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Validate a JSON data file against a JSON Schema."
     )
@@ -180,7 +182,7 @@ def main() -> int:
         action="store_true",
         help="Print detailed validation output",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Resolve paths relative to script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))

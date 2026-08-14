@@ -3,6 +3,7 @@
 
 import json
 import os
+import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = SCRIPT_DIR.parent / "schemas"
 VALIDATE_SCRIPT = SCRIPT_DIR / "validate-schema.py"
 SPECBACK_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / ".specback"
+
+# Load the script as a module for unit tests (stdlib only, no extra imports).
+_spec = importlib.util.spec_from_file_location("validate_schema_core", VALIDATE_SCRIPT)
+assert _spec is not None and _spec.loader is not None
+mod = importlib.util.module_from_spec(_spec)
+sys.modules["validate_schema_core"] = mod  # register before exec_module
+_spec.loader.exec_module(mod)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -261,6 +269,12 @@ class TestErrorDetection:
             assert result.returncode == 0, f"valid questions rejected:\n{result.stderr}"
         finally:
             os.unlink(tmp)
+
+
+def test_main_returns_int_for_missing_schema() -> None:
+    """main(argv) returns an int exit code instead of None (Issue #286)."""
+    rc = mod.main(["--schema", "no-such-schema.json", "--data-file", "no-such-data.json"])
+    assert rc == 2
 
 
 if __name__ == "__main__":
