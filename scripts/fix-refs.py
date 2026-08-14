@@ -41,7 +41,12 @@ import re
 import sys
 from collections import defaultdict
 import artifact_io
-from common import add_specback_dir_arg, utcnow_iso, utcnow_iso_z
+from common import (
+    add_specback_dir_arg,
+    sanitize_control,
+    utcnow_iso,
+    utcnow_iso_z,
+)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -264,7 +269,7 @@ def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
         return {}
     try:
         data = artifact_io.load_source_map(sm_path)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError):
         return {}
     units = data.get("units", []) if isinstance(data, dict) else data
     return index_units_by_path(units or [])
@@ -354,11 +359,6 @@ def format_ref(
     if ref["ref_start"] == ref["ref_end"]:
         return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']} -->"
     return f"<!-- REF: {ref['ref_path']}:{ref['ref_start']}-{ref['ref_end']} -->"
-
-
-def _sanitize(s: str) -> str:
-    """Strip control characters from report output (terminal escape injection)."""
-    return re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\x{ord(m.group(0)):02x}", s)
 
 
 def replace_at(
@@ -502,7 +502,7 @@ def run_migrate_srcid(
         for m in migratable:
             lines.append(
                 f"- `{m['spec_file']}` (line {m['line_no'] + 1}): "
-                f"`{_sanitize(m['full_match'])}` → `{_sanitize(m['new_ref'])}`"
+                f"`{sanitize_control(m['full_match'])}` → `{sanitize_control(m['new_ref'])}`"
             )
         lines.append("")
 
@@ -523,7 +523,7 @@ def run_migrate_srcid(
             }.get(n["reason"], n["reason"])
             lines.append(
                 f"- `{n['spec_file']}` (line {n['line_no'] + 1}): "
-                f"`{_sanitize(n['full_match'])}` — {reason_label}"
+                f"`{sanitize_control(n['full_match'])}` — {reason_label}"
             )
         lines.append("")
 
@@ -796,7 +796,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             lines.append(
                 f"- `{c['spec_file']}`: "
-                f"`<!-- REF: {_sanitize(c['ref_path'])}:{old} -->` → `<!-- REF: {_sanitize(c['ref_path'])}:{new} -->`"
+                f"`<!-- REF: {sanitize_control(c['ref_path'])}:{old} -->` → `<!-- REF: {sanitize_control(c['ref_path'])}:{new} -->`"
                 f"  (line {c['line_no'] + 1})"
             )
         lines.append("")
@@ -815,7 +815,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             lines.append(
                 f"- `{o['spec_file']}`: "
-                f"`<!-- REF: {_sanitize(o['ref_path'])}:{old} -->` (line {o['line_no'] + 1})"
+                f"`<!-- REF: {sanitize_control(o['ref_path'])}:{old} -->` (line {o['line_no'] + 1})"
             )
         lines.append("")
 

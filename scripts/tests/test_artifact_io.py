@@ -122,6 +122,27 @@ def test_load_state_unreadable_returns_none(tmp_path: Path) -> None:
     assert _ref_load_state(d) is None
 
 
+def test_load_state_nonfinite_returns_none(tmp_path: Path) -> None:
+    """NaN / Infinity in state.json → None (reject_nonfinite policy).
+
+    The pre-#283 reference implementation accepted NaN (returning a dict);
+    the shared loader deliberately rejects non-finite constants, so this
+    pins the new contract: load_state never raises on bad content, it
+    returns None.
+    """
+    for content in ('{"generated_at_commit": NaN}', '{"x": Infinity}'):
+        p = tmp_path / "state.json"
+        p.write_text(content, encoding="utf-8")
+        assert artifact_io.load_state(p) is None
+
+
+def test_load_state_non_utf8_returns_none(tmp_path: Path) -> None:
+    """Non-UTF-8 bytes in state.json → None (unreadable-file policy)."""
+    p = tmp_path / "state.json"
+    p.write_bytes(b"\xff\xfe\x00{\"a\":1}")
+    assert artifact_io.load_state(p) is None
+
+
 # ---------------------------------------------------------------------------
 # load_source_map — output invariance vs detect-drift.py (indexed)
 # ---------------------------------------------------------------------------

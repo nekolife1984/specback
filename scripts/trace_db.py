@@ -66,7 +66,7 @@ import sys
 from pathlib import Path
 from typing import Any, Literal
 
-from common import utcnow_iso_z
+from common import atomic_write_json, utcnow_iso_z
 
 
 # ===================================================================
@@ -711,7 +711,7 @@ class TraceDB:
         # Write to file if path provided
         fpath = Path(state_json_path)
         _ensure_dir(fpath)
-        fpath.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+        atomic_write_json(fpath, state)
 
         return state
 

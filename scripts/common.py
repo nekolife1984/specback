@@ -16,20 +16,26 @@ Design notes
 * ``utcnow_iso`` / ``sha256_file`` are pure and stateless.
 * ``load_json_text`` lets the *caller* decide what a missing file means: it
   simply propagates ``FileNotFoundError`` (plus ``json.JSONDecodeError`` /
-  ``ValueError`` for malformed or non-finite content), so each script chooses
-  to fail, warn, or substitute a default.
-* ``atomic_write_json`` writes via a temp file + ``os.replace`` so a reader
-  never observes a partially-written file, and it refuses (``allow_nan=False``)
-  to emit non-finite constants, which JSON consumers elsewhere in this repo
-  already reject.
+  ``UnicodeDecodeError`` / ``ValueError`` for malformed, non-UTF-8 or
+  non-finite content), so each script chooses to fail, warn, or substitute
+  a default.
+* ``atomic_write_json`` / ``atomic_write_text`` write via a temp file +
+  ``os.replace`` so a reader never observes a partially-written file, and
+  the JSON writer refuses (``allow_nan=False``) to emit non-finite
+  constants, which JSON consumers elsewhere in this repo already reject.
+* ``sanitize_control`` replaces C0 control characters in repo-controlled
+  strings before they are interpolated into generated reports, preventing
+  ANSI/terminal-escape injection.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,7 +51,7 @@ def utcnow_iso_z() -> str:
     """Return the current UTC time as ``YYYY-MM-DDTHH:MM:SSZ`` (second precision).
 
     Used by human-readable reports / database columns that historically used
-    ``strftime(\"%Y-%m-%dT%H:%M:%SZ\")``.  Centralising it here removes the
+    ``strftime("%Y-%m-%dT%H:%M:%SZ")``.  Centralising it here removes the
     duplicated format strings.
     """
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -58,6 +64,23 @@ def reject_nonfinite(value: str) -> Any:
     with a size limit) can reuse the same guard instead of copying it.
     """
     raise ValueError(f"non-finite JSON constant not allowed: {value}")
+
+
+def sanitize_control(s: str) -> str:
+    """Replace C0 control characters with escaped ``\\xNN`` forms.
+
+    Repo-controlled strings (file names, section names, reasons, git refs)
+    may carry ANSI/terminal escape sequences (``\\x1b[2J``, ``\\x1b]0;...``
+    etc.).  When such strings are interpolated into generated Markdown
+    reports that are opened in a terminal or CI log, the escapes execute and
+    can spoof prompts or pollute scrollback.  Apply this helper at every
+    report interpolation point so an escape can never reach the output.
+    """
+    return re.sub(
+        r"[\x00-\x1f\x7f]",
+        lambda m: f"\\x{ord(m.group(0)):02x}",
+        s,
+    )
 
 
 def load_json_text(path: str | Path) -> Any:
@@ -79,25 +102,26 @@ def load_json_text_or(path: str | Path, default: Any) -> Any:
     """``load_json_text`` that returns *default* when *path* is missing/malformed.
 
     Convenience helper for callers whose "missing file" behaviour is simply to
-    substitute a fallback value (e.g. ``{}``).
+    substitute a fallback value (e.g. ``{}``).  Unreadable paths (e.g. a
+    directory where a file is expected, ``IsADirectoryError``) also yield the
+    default.
     """
     try:
         return load_json_text(path)
     except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError,
-            ValueError):
+            ValueError, OSError):
         return default
 
 
-def atomic_write_json(path: str | Path, obj: Any) -> None:
-    """Atomically write *obj* to *path* as JSON (``ensure_ascii=False, indent=2``).
+def atomic_write_text(path: str | Path, text: str, *,
+                      encoding: str = "utf-8") -> None:
+    """Atomically write *text* to *path*.
 
-    The JSON is written to a unique sibling temp file (created with
+    The text is written to a unique sibling temp file (created with
     ``tempfile.mkstemp`` so symlinks are never followed, matching the
     ``O_NOFOLLOW`` defence used elsewhere in this repo) and moved into place
     with ``os.replace`` so readers never see a partial write.  The temp file
-    is fsynced before the rename and removed on failure.  Non-finite JSON
-    constants are rejected (``allow_nan=False``) to match the reader-side
-    guard in :func:`load_json_text`.
+    is fsynced before the rename and removed on failure.
     """
     dest = Path(path)
     tmp_path: Path | None = None
@@ -106,9 +130,8 @@ def atomic_write_json(path: str | Path, obj: Any) -> None:
             prefix=dest.name + ".", suffix=".tmp", dir=str(dest.parent)
         )
         tmp_path = Path(tmp_name)
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            _dump_json(fh, obj)
-            fh.write("\n")
+        with os.fdopen(fd, "w", encoding=encoding) as fh:
+            fh.write(text)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp_path, dest)
@@ -119,6 +142,20 @@ def atomic_write_json(path: str | Path, obj: Any) -> None:
                 tmp_path.unlink()
             except FileNotFoundError:
                 pass
+
+
+def atomic_write_json(path: str | Path, obj: Any) -> None:
+    """Atomically write *obj* to *path* as JSON (``ensure_ascii=False, indent=2``).
+
+    Same guarantees as :func:`atomic_write_text` (symlink-safe temp file,
+    fsync, ``os.replace``).  Non-finite JSON constants are rejected
+    (``allow_nan=False``) to match the reader-side guard in
+    :func:`load_json_text`.
+    """
+    buffer = io.StringIO()
+    _dump_json(buffer, obj)
+    buffer.write("\n")
+    atomic_write_text(path, buffer.getvalue())
 
 
 def _dump_json(fh: TextIO, obj: Any) -> None:

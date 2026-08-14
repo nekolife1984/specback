@@ -466,6 +466,28 @@ class TestStateSync:
             if os.path.exists(state_path):
                 os.remove(state_path)
 
+    def test_export_state_json_symlink_not_followed(self, populated_db: TraceDB,
+                                                    tmp_db_path: str):
+        """atomic_write_json replaces the symlink itself, never the target."""
+        state_path = tmp_db_path + "_symlink_state.json"
+        victim = tmp_db_path + "_victim.json"
+        with open(victim, "w") as f:
+            f.write("secret")
+        try:
+            os.symlink(victim, state_path)
+            state = populated_db.export_to_state_json(state_path)
+            assert state["adw_id"] == "test_001"
+            with open(victim) as f:
+                assert f.read() == "secret"
+            assert not os.path.islink(state_path)
+            with open(state_path) as f:
+                assert json.load(f)["adw_id"] == "test_001"
+        finally:
+            if os.path.exists(state_path):
+                os.remove(state_path)
+            if os.path.exists(victim):
+                os.remove(victim)
+
     def test_import_from_state_json(self, populated_db: TraceDB,
                                      tmp_db_path: str):
         """Import should reconstruct session data from state.json."""

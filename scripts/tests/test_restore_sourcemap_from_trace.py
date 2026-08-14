@@ -186,6 +186,23 @@ def test_apply_creates_backup_before_overwrite(repo: Path) -> None:
     assert backup.read_text(encoding="utf-8") == original
 
 
+def test_apply_refuses_symlink_backup(repo: Path) -> None:
+    """A symlink planted at source-map.json is refused — its target stays intact.
+
+    The fixed-name temp write was replaced with atomic_write_json (mkstemp +
+    os.replace); this pins the extra guard: backup refuses to copy a symlink.
+    """
+    target = repo / "specs/.specback/pwned.json"
+    target.write_text("secret", encoding="utf-8")
+    map_path = repo / "specs/.specback/source-map.json"
+    map_path.unlink()
+    map_path.symlink_to(target)
+    result = _run(repo, "--new-ids", "SRC-0003", "--apply")
+    assert result.returncode != 0
+    assert "symlink" in result.stderr
+    assert target.read_text(encoding="utf-8") == "secret"
+
+
 def test_apply_marks_map_as_restored(repo: Path) -> None:
     """The written map carries restored_from: trace.json for the idempotency guard."""
     result = _run(repo, "--new-ids", "SRC-0003", "--apply")

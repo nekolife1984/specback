@@ -46,10 +46,9 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
-import json
 import re
 import sys
-from common import add_specback_dir_arg, utcnow_iso
+from common import add_specback_dir_arg, atomic_write_json, utcnow_iso
 from pathlib import Path
 from typing import Any
 from refutils import (
@@ -304,10 +303,7 @@ def main(argv: list[str] | None = None) -> int:
         "by_section": by_section,
         "uncovered_units": uncovered,
     }
-    output_path.write_text(
-        json.dumps(trace, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(output_path, trace)
 
     print(
         f"build-trace.py: total={total} covered={covered_count} "

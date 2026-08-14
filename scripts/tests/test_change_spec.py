@@ -699,6 +699,37 @@ class TestLoaderDelegation(unittest.TestCase):
         args_default = _cs.parse_args([])
         self.assertEqual(args_default.specback_dir, Path(".specback"))
 
+    def test_load_source_hashes_missing_returns_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            result = _cs.load_source_hashes(Path(td) / "nope.json")
+            self.assertEqual(result, {"units": {}, "target_root": "."})
+
+    def test_load_source_hashes_parses_via_shared_loader(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "source-hashes.json"
+            p.write_text(
+                json.dumps({"units": {"SRC-1": {"hash": "x"}}, "target_root": "."}),
+                encoding="utf-8",
+            )
+            result = _cs.load_source_hashes(p)
+            self.assertEqual(result["target_root"], ".")
+            self.assertIn("SRC-1", result["units"])
+
+    def test_read_current_file_reads_content(self):
+        with tempfile.TemporaryDirectory() as td:
+            Path(td, "a.py").write_text("x = 1\n", encoding="utf-8")
+            self.assertEqual(_cs.read_current_file(td, "a.py"), "x = 1\n")
+
+    def test_read_current_file_missing_returns_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(_cs.read_current_file(td, "nope.py"), "")
+
+    def test_analyze_current_structure_detects_symbols(self):
+        content = "import os\n\ndef foo():\n    pass\n"
+        info = _cs.analyze_current_structure("mod.py", content)
+        self.assertIn("foo", info["current_symbols"])
+        self.assertIn("os", info["current_imports"])
+
 
 # ---------------------------------------------------------------------------
 # Entry point

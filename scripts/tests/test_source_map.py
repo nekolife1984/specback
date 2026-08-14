@@ -154,6 +154,29 @@ def test_symlink_outside_target_ignored(tmp_path: Path) -> None:
     )
 
 
+def test_output_symlink_replaced_not_followed(tmp_path: Path) -> None:
+    """The output path is replaced atomically — a symlink at the output is
+    swapped, never followed, so the linked target file stays intact.
+
+    Pins the atomic_write_json wiring: before it, ``write_text`` followed
+    the symlink and overwrote the victim file.
+    """
+    (tmp_path / "src" / "main.py").parent.mkdir(parents=True)
+    (tmp_path / "src" / "main.py").write_text("def main():\n    pass\n", encoding="utf-8")
+    out = tmp_path / "out.json"
+    victim = tmp_path / "victim.json"
+    victim.write_text("secret", encoding="utf-8")
+    out.symlink_to(victim)
+
+    result = _run_source_map(tmp_path, out)
+    assert result.returncode == 0, f"source-map failed:\n{result.stderr}"
+
+    assert victim.read_text(encoding="utf-8") == "secret"
+    assert not out.is_symlink()
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert any(u.get("path") == "src/main.py" for u in data.get("units", []))
+
+
 def test_symlink_inside_target_ignored(tmp_path: Path) -> None:
     """target 内を指す symlink も追跡しない（通常ファイルとの二重登録防止）。"""
     import os
