@@ -183,6 +183,23 @@ class TestLoadSourceMap:
         (tmp_path / "source-map.json").write_text("{not json", encoding="utf-8")
         assert mod.load_source_map(tmp_path) == {}
 
+    def test_matches_artifact_io_raw_plus_index(self, tmp_path):
+        """fix-refs' by_path index == artifact_io raw load + index_units_by_path."""
+        import artifact_io
+        from refutils import index_units_by_path
+        mod = _import_fix_refs()
+        units = [
+            {"id": "SRC-0001", "path": "src/a.py", "line_range": [1, 10]},
+            {"id": "SRC-0002", "path": "src/b.py", "line_range": [5, 20]},
+            {"id": "SRC-0003", "line_range": [1, 5]},  # pathless → skipped by index
+        ]
+        (tmp_path / "source-map.json").write_text(json.dumps({"units": units}),
+                                                  encoding="utf-8")
+        expected = index_units_by_path(
+            artifact_io.load_source_map(tmp_path / "source-map.json")["units"]
+        )
+        assert mod.load_source_map(tmp_path) == expected
+
 
 class TestClassifyMigration:
     """classify_migration() decides which path:line REFs can be SRC-ID'd."""

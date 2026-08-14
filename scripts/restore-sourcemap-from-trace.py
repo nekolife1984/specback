@@ -44,6 +44,7 @@ import re
 import shutil
 import subprocess
 import sys
+import artifact_io
 from common import utcnow_iso
 from pathlib import Path
 
@@ -58,16 +59,20 @@ def _fail(msg: str) -> None:
 
 
 def _load_json_object(path: Path, what: str) -> dict:
-    """Load a JSON object, exiting with a clean error on any failure."""
+    """Load a JSON object, exiting with a clean error on any failure.
+
+    Delegates the validated read to :func:`artifact_io.load_json_object`
+    (Issue #283); error messages and exit behaviour are unchanged.
+    """
     if not path.exists():
         _fail(f"{what} not found: {path}")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        return artifact_io.load_json_object(path)
     except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
         _fail(f"cannot read {what} {path}: {exc}")
-    if not isinstance(data, dict):
+    except ValueError:
         _fail(f"{what} must be a JSON object: {path}")
-    return data
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 def _warn_if_dirty_trace(repo: Path, trace_rel: str) -> None:

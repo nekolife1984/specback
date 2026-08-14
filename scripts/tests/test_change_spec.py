@@ -38,6 +38,7 @@ compute_hash_changes = _cs.compute_hash_changes
 cross_reference_sections = _cs.cross_reference_sections
 extract_snippets = _cs.extract_snippets
 load_source_map = _cs.load_source_map
+load_state = _cs.load_state
 load_trace = _cs.load_trace
 parse_unified_diff = _cs.parse_unified_diff
 resolve_base = _cs.resolve_base
@@ -638,6 +639,59 @@ class TestResolveBase(unittest.TestCase):
             specback_path.mkdir(parents=True)
             result = resolve_base(None, specback_path)
             self.assertEqual(result, "HEAD")
+
+
+# ---------------------------------------------------------------------------
+# Loader delegation (Issue #283 — shared artifact_io.py)
+# ---------------------------------------------------------------------------
+
+
+class TestLoaderDelegation(unittest.TestCase):
+    """change-spec's loaders must match artifact_io's shared loaders."""
+
+    def test_load_source_map_matches_artifact_io(self):
+        import artifact_io
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "source-map.json"
+            p.write_text(json.dumps({
+                "units": [
+                    {"id": "SRC-0001", "path": "a.py"},
+                    {"id": "SRC-0002", "path": "b.py"},
+                ],
+                "stats": {"files_scanned": 2},
+                "target_root": "repo",
+            }), encoding="utf-8")
+            self.assertEqual(
+                load_source_map(p),
+                artifact_io.load_source_map(p, build_indexes=True),
+            )
+
+    def test_load_source_map_missing_returns_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                load_source_map(Path(td) / "nope.json"),
+                {"units": [], "by_path": {}, "by_id": {}, "stats": {}, "target_root": ""},
+            )
+
+    def test_load_trace_matches_artifact_io(self):
+        import artifact_io
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "trace.json"
+            p.write_text(json.dumps({"by_source": {"SRC-1": {"path": "a.py"}}}),
+                         encoding="utf-8")
+            self.assertEqual(load_trace(p), artifact_io.load_trace(p))
+
+    def test_load_trace_missing_returns_empty_by_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(load_trace(Path(td) / "nope.json"), {"by_source": {}})
+
+    def test_load_state_matches_artifact_io(self):
+        import artifact_io
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "state.json"
+            p.write_text(json.dumps({"generated_at_commit": "abc123"}), encoding="utf-8")
+            self.assertEqual(load_state(p), artifact_io.load_state(p))
+            self.assertIsNone(load_state(Path(td) / "missing.json"))
 
 
 # ---------------------------------------------------------------------------
