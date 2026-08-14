@@ -41,6 +41,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from common import utcnow_iso
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -669,7 +670,7 @@ def run_migrate_srcid(
     if args.json:
         json_report = {
             "schema_version": SCHEMA_VERSION,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": utcnow_iso(),
             "mode": f"migrate-srcid-{mode.lower()}",
             "summary": {
                 "spec_files_scanned": len(spec_files),
@@ -979,7 +980,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         json_report = {
             "schema_version": SCHEMA_VERSION,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": utcnow_iso(),
             "base": base,
             "mode": mode,
             "summary": {

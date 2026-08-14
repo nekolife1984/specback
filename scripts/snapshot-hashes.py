@@ -27,7 +27,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -176,7 +176,7 @@ def build_output(
     """Assemble the final source-hashes.json document."""
     return {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "target_root": target_root,
         "source_map_ref": source_map_ref,
         "units_total": len(units_hashes),

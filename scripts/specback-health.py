@@ -43,7 +43,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -566,7 +566,7 @@ def render_markdown(
     lines: list[str] = []
     lines.append("# Spec Health Report")
     lines.append("")
-    lines.append(f"Generated: {datetime.now(timezone.utc).isoformat()}")
+    lines.append(f"Generated: {utcnow_iso()}")
     lines.append(f"Specback dir: {specback_dir}")
     lines.append(f"Overall health score: **{overall:.0f} / 100 ({rating}: {rating_label})**")
     lines.append("")
@@ -642,7 +642,7 @@ def render_json(
     overall_assumed = assumed_total / labels_total if labels_total else 0.0
     doc: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "specback_dir": str(specback_dir),
         "overall_score": round(overall),
         "rating": rating,

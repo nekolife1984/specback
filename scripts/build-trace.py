@@ -49,7 +49,7 @@ import fnmatch
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from common import utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
 
     trace = {
         "schema_version": "0.2.0",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utcnow_iso(),
         "source_units_total": total,
         "source_units_covered": covered_count,
         "source_units_excluded": excluded_count,

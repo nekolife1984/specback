@@ -40,7 +40,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from common import sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -512,12 +512,10 @@ def compute_hash_changes(
     target_root: str,
 ) -> list[dict[str, str]]:
     """Detect changed files via hash comparison (reused from detect-drift.py)."""
-    import hashlib
 
     def _hash_file(path: Path) -> str:
         try:
-            with open(path, "rb") as f:
-                return hashlib.sha256(f.read()).hexdigest()
+            return sha256_file(path)
         except (FileNotFoundError, OSError):
             return ""
 
@@ -626,7 +624,7 @@ def build_change_spec(
     diff_text: str | None,
 ) -> dict[str, Any]:
     """Build the change-spec.json data structure."""
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = utcnow_iso()
 
     # Load shared artifacts
     source_map = load_source_map(specback_path / "source-map.json")
