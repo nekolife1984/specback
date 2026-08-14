@@ -52,6 +52,14 @@ import sys
 from common import utcnow_iso
 from pathlib import Path
 from typing import Any
+from refutils import (
+    REF_RE,
+    SRC_REF_RE,
+    find_refs_in_text,
+    index_units_by_path,
+    line_ranges_overlap,
+    units_for_path,
+)
 
 # YAML is optional (not in the stdlib; try/except fallback).
 try:
@@ -61,8 +69,6 @@ except ImportError:
     HAS_YAML = False
 
 
-REF_RE = re.compile(r"<!-- REF:\s*([^:\]]+):(\d+)(?:-(\d+))?\s*-->")
-SRC_REF_RE = re.compile(r"<!-- REF:\s*(SRC-\d+)\s*-->")
 SECTION_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
@@ -126,6 +132,10 @@ def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None =
     Supports two formats:
     - ``<!-- REF: path:start-end -->`` — direct path + line range reference
     - ``<!-- REF: SRC-NNNN -->`` — indirect source-unit ID (resolved via units_by_id)
+
+    The per-marker parsing is shared with fix-refs.py via
+    :func:`refutils.find_refs_in_text` (Issue #281); this function shapes the
+    raw scan into the trace schema (draft_file / section columns).
     """
     out: list[dict] = []
     if not drafts_dir.is_dir():
@@ -136,25 +146,21 @@ def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None =
         except UnicodeDecodeError:
             content = md_file.read_text(encoding="utf-8", errors="replace")
         lines = content.splitlines()
-        for line_no_0idx, line in enumerate(lines):
-            # Collect all SRC-ID refs on this line first
-            for src_m in SRC_REF_RE.finditer(line):
-                src_id = src_m.group(1).strip()
+        for ref in find_refs_in_text(content):
+            section = parse_section_at(lines, ref["line_no"])
+            if ref["is_src_id"]:
+                src_id = ref["ref_path"]
                 if units_by_id and src_id in units_by_id:
                     unit = units_by_id[src_id]
-                    unit_path: str = unit["path"]
-                    unit_range: list[int] = unit["line_range"]
-                    section = parse_section_at(lines, line_no_0idx)
                     out.append({
                         "draft_file": md_file.name,
                         "section": section,
-                        "ref_path": unit_path,
-                        "ref_start": unit_range[0],
-                        "ref_end": unit_range[1],
+                        "ref_path": unit["path"],
+                        "ref_start": unit["line_range"][0],
+                        "ref_end": unit["line_range"][1],
                     })
                 else:
                     # SRC-ID not found in source-map — still record with null range
-                    section = parse_section_at(lines, line_no_0idx)
                     out.append({
                         "draft_file": md_file.name,
                         "section": section,
@@ -162,18 +168,13 @@ def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None =
                         "ref_start": 0,
                         "ref_end": 0,
                     })
-            # Also collect any path:line refs on the same line
-            for m in REF_RE.finditer(line):
-                ref_path = m.group(1).strip()
-                start = int(m.group(2))
-                end = int(m.group(3)) if m.group(3) else start
-                section = parse_section_at(lines, line_no_0idx)
+            else:
                 out.append({
                     "draft_file": md_file.name,
                     "section": section,
-                    "ref_path": ref_path,
-                    "ref_start": start,
-                    "ref_end": end,
+                    "ref_path": ref["ref_path"],
+                    "ref_start": ref["ref_start"],
+                    "ref_end": ref["ref_end"],
                 })
     return out
 
@@ -182,31 +183,18 @@ def resolve_refs_to_units(refs: list[dict], units: list[dict]) -> dict[str, list
     """For each SRC unit ID, return the list of REFs that hit the unit."""
     coverage: dict[str, list[dict]] = {u["id"]: [] for u in units}
 
-    # Index by path for fast lookup.
-    units_by_path: dict[str, list[dict]] = {}
-    for u in units:
-        units_by_path.setdefault(u["path"], []).append(u)
+    # Index by path for fast lookup (shared helper, Issue #281).
+    units_by_path = index_units_by_path(units)
 
     for ref in refs:
         # Look for an exact or suffix match on the path.
-        ref_path = ref["ref_path"]
-        candidates: list[dict] = []
-        # Exact match
-        if ref_path in units_by_path:
-            candidates.extend(units_by_path[ref_path])
-        else:
-            # Suffix match (e.g. the agent writes `app/models/issue.rb`
-            # while source-map records `app/models/issue.rb` — the
-            # common shape).
-            for path, ulist in units_by_path.items():
-                if path.endswith("/" + ref_path) or ref_path.endswith("/" + path):
-                    candidates.extend(ulist)
+        candidates = units_for_path(ref["ref_path"], units_by_path)
 
         # Hit units whose line range overlaps the REF range.
         for unit in candidates:
             u_start, u_end = unit["line_range"]
             r_start, r_end = ref["ref_start"], ref["ref_end"]
-            if not (r_end < u_start or r_start > u_end):
+            if line_ranges_overlap(r_start, r_end, u_start, u_end):
                 coverage[unit["id"]].append({
                     "file": ref["draft_file"],
                     "section": ref["section"],

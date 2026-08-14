@@ -15,6 +15,12 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "fix-refs.py"
 
+# Ensure scripts/ is importable — fix-refs.py now shares REF parsing/resolver
+# logic with scripts/refutils.py (Issue #281).
+SCRIPTS = SCRIPT.parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
 # Import the regex patterns from the script for unit testing
 # We re-import the module each time to get fresh constants
 def _import_fix_refs():
@@ -884,3 +890,26 @@ class TestMainlineCli:
         )
         assert result.returncode == 0
         assert "No changes detected" in result.stdout
+
+
+class TestRefUtilsShared:
+    """REF parsing/resolver now lives in scripts/refutils.py (Issue #281)."""
+
+    def test_regexes_are_the_refutils_singletons(self):
+        """fix-refs.py must re-export the shared REF_RE / SRC_REF_RE objects."""
+        import refutils
+        mod = _import_fix_refs()
+        assert mod.REF_RE is refutils.REF_RE
+        assert mod.SRC_REF_RE is refutils.SRC_REF_RE
+
+    def test_find_refs_in_file_matches_refutils_scan(self, tmp_path):
+        """find_refs_in_file output is identical to refutils.find_refs_in_text."""
+        import refutils
+        mod = _import_fix_refs()
+        content = (
+            "<!-- REF: src/app.py:10-42 -->\n"
+            "<!-- REF: SRC-0142 --> and <!-- REF: README.md:3 -->\n"
+        )
+        spec_file = tmp_path / "01-overview.md"
+        spec_file.write_text(content, encoding="utf-8")
+        assert mod.find_refs_in_file(spec_file) == refutils.find_refs_in_text(content)

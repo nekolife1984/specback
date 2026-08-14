@@ -75,6 +75,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
+from refutils import count_refs
+
 
 # ----------------------------------------------------------------------------
 # Chapter-file naming convention
@@ -85,9 +87,7 @@ USER_CUSTOM_NAMING_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*\.md$")
 NAMING_EXEMPT = {"traceability.md", "README.md"}
 REQUIRED_FILES = ("00-metadata.md", "99-unresolved.md", "traceability.md")
 
-# Regexes used in chapter bodies
-REF_RE = re.compile(r"<!-- REF:\s*([^:\]]+):(\d+)(?:-(\d+))?\s*-->")
-SRC_REF_RE = re.compile(r"<!-- REF:\s*(SRC-\d+)\s*-->")
+# Regexes used in chapter bodies (REF markers live in scripts/refutils.py)
 CODE_FENCE_RE = re.compile(r"^```([a-zA-Z0-9_-]+)?")
 MERMAID_FENCE_RE = re.compile(r"^```mermaid\b")
 SOURCES_READ_RE = re.compile(r"^##+\s*Sources\s*Read\b", re.IGNORECASE)
@@ -306,16 +306,6 @@ def iter_fence_state(content: str) -> Iterator[tuple[str, bool, bool]]:
         yield line, in_code, is_fence
         if is_fence:
             in_code = not in_code
-
-
-def count_refs(line: str) -> int:
-    """Count REF markers on one line (``path:line`` and ``SRC-ID`` forms).
-
-    Kept as a single entry point so a future shared refutils module
-    (Issue #281) can swap the parsing logic without touching the metric
-    computation.
-    """
-    return len(REF_RE.findall(line)) + len(SRC_REF_RE.findall(line))
 
 
 def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
