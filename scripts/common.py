@@ -101,7 +101,8 @@ def sha256_file(path: str | Path) -> str:
     return h.hexdigest()
 
 
-def add_specback_dir_arg(parser: Any, *, default: str | Path = ".specback") -> None:
+def add_specback_dir_arg(parser: Any, *,
+                         default: str | Path | None = ".specback") -> None:
     """Add a ``--specback-dir`` argument to *parser*.
 
     The original scripts used inconsistent defaults (``".specback"``,
