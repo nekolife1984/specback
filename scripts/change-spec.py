@@ -41,7 +41,7 @@ import subprocess
 import sys
 from collections import defaultdict
 import artifact_io
-from common import sha256_file, utcnow_iso
+from common import add_specback_dir_arg, sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -795,11 +795,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="specback ChangeSpec: mechanically extract structured change data",
     )
-    parser.add_argument(
-        "--specback-dir",
-        default=".specback",
-        help="Path to .specback/ directory (default: .specback)",
-    )
+    add_specback_dir_arg(parser)
     parser.add_argument(
         "--mode",
         default=None,

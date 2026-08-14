@@ -565,5 +565,13 @@ def test_record_actual_refuses_symlink_direct(tmp_path: Path) -> None:
     assert victim.read_text(encoding="utf-8") == "{}"
 
 
+def test_reject_nonfinite_via_common(tmp_path: Path) -> None:
+    """load_json rejects NaN via the shared common.reject_nonfinite hook."""
+    p = tmp_path / "bad.json"
+    p.write_text('{"v": NaN}', encoding="utf-8")
+    with pytest.raises(ValueError, match="non-finite"):
+        mod.load_json(p)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

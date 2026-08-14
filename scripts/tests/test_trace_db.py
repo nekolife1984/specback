@@ -26,6 +26,20 @@ import trace_db  # noqa: E402
 # ===================================================================
 
 
+def test_now_iso_z_format():
+    """_now_iso returns a UTC timestamp in YYYY-MM-DDTHH:MM:SSZ format."""
+    from datetime import datetime
+    s = _now_iso()
+    parsed = datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+    assert parsed is not None
+    assert s.endswith("Z")
+
+
+def test_new_id_length():
+    assert len(_new_id()) == 8
+    assert len(_new_id(16)) == 16
+
+
 @pytest.fixture
 def tmp_db_path() -> Iterator[str]:
     """Return a temporary database path that will be cleaned up."""

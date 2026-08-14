@@ -693,6 +693,12 @@ class TestLoaderDelegation(unittest.TestCase):
             self.assertEqual(load_state(p), artifact_io.load_state(p))
             self.assertIsNone(load_state(Path(td) / "missing.json"))
 
+    def test_parse_args_specback_dir_is_path(self):
+        args = _cs.parse_args(["--specback-dir", "custom-sb"])
+        self.assertEqual(args.specback_dir, Path("custom-sb"))
+        args_default = _cs.parse_args([])
+        self.assertEqual(args_default.specback_dir, Path(".specback"))
+
 
 # ---------------------------------------------------------------------------
 # Entry point

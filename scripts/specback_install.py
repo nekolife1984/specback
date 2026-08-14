@@ -82,11 +82,6 @@ def _find_project_root() -> Path:
     sys.exit(1)
 
 
-def _sha256_file(path: Path) -> str:
-    """Compute SHA-256 hex digest of a file."""
-    return sha256_file(path)
-
-
 def _sha256_dir_sorted(root: Path) -> dict[str, str]:
     """Recursively compute SHA-256 hashes for all files under *root*.
 
@@ -102,7 +97,7 @@ def _sha256_dir_sorted(root: Path) -> dict[str, str]:
         if "__pycache__" in fpath.parts:
             continue
         rel = fpath.relative_to(root)
-        hashes[str(rel)] = _sha256_file(fpath)
+        hashes[str(rel)] = sha256_file(fpath)
     return hashes
 
 

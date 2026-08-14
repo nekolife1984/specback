@@ -636,3 +636,10 @@ def test_cli_reserved_files_excluded(tmp_path: Path) -> None:
     names = [c["file"] for c in doc["chapters"]]
     assert "00-metadata.md" not in names
     assert "traceability.md" not in names
+
+
+def test_parse_args_specback_dir_is_path() -> None:
+    args = mod.parse_args(["--specback-dir", "custom-sb"])
+    assert args.specback_dir == Path("custom-sb")
+    args_default = mod.parse_args([])
+    assert args_default.specback_dir == Path(".specback")

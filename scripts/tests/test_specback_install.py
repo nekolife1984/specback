@@ -50,6 +50,14 @@ def _sha256(path: Path) -> str:
 # ─── Tests ──────────────────────────────────────────────────────────────
 
 
+def test_sha256_uses_common_helper(tmp_path: Path) -> None:
+    """sha256 hashing delegates to common.sha256_file (single home)."""
+    from common import sha256_file
+    f = tmp_path / "sample.txt"
+    f.write_text("hello specback", encoding="utf-8")
+    assert mod._sha256_dir_sorted(tmp_path) == {"sample.txt": sha256_file(f)}
+
+
 class TestSmoke:
     """Basic sanity checks."""
 

@@ -23,11 +23,10 @@ Dependencies
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
-from common import utcnow_iso
+from common import add_specback_dir_arg, hash_line_range, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -35,42 +34,6 @@ from typing import Any
 SCHEMA_VERSION = "0.1.0"
 HASH_ALGORITHM = "sha256"
 LINE_HASH_BYTES = 4096  # read up to 4KB per line for hash stability
-
-
-def hash_line_range(
-    file_path: str | Path,
-    line_start: int,
-    line_end: int,
-) -> tuple[str, int]:
-    """Compute SHA256 of lines [line_start, line_end] (1-indexed inclusive).
-
-    Returns (hex_digest, actual_line_count).
-    Normalizes text encoding to eliminate nondeterminism:
-    - Reads as UTF-8 (strips BOM if present)
-    - Treats CRLF and LF as equivalent (rstrip trailing newline chars)
-    - Line-level trailing content (whitespace) is *preserved* — only
-      the line-ending character (\\n, \\r\\n) is stripped for hashing.
-    """
-    hasher = hashlib.sha256()
-    line_count = 0
-
-    try:
-        with open(file_path, "r", encoding="utf-8-sig", errors="replace") as f:
-            for current_lineno, line in enumerate(f, start=1):
-                if current_lineno > line_end:
-                    break
-                if current_lineno >= line_start:
-                    # Strip trailing newline for deterministic hashing
-                    normalized = line.rstrip("\n\r")
-                    hasher.update(normalized.encode("utf-8"))
-                    line_count += 1
-    except FileNotFoundError:
-        raise  # Let caller handle
-    except OSError as e:
-        print(f"WARNING: cannot read {file_path}: {e}", file=sys.stderr)
-        return ("", 0)
-
-    return hasher.hexdigest(), line_count
 
 
 def compute_hashes(
@@ -97,6 +60,21 @@ def compute_hashes(
         except FileNotFoundError:
             print(
                 f"WARNING: file not found for {uid} ({file_path_rel}), "
+                f"marking as MISSING",
+                file=sys.stderr,
+            )
+            result[uid] = {
+                "id": uid,
+                "path": file_path_rel,
+                "line_range": line_range,
+                "line_count": 0,
+                "hash": "",
+                "status": "MISSING",
+            }
+            continue
+        except OSError as e:
+            print(
+                f"WARNING: cannot read {file_path_rel}: {e}, "
                 f"marking as MISSING",
                 file=sys.stderr,
             )
@@ -189,11 +167,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="specback: snapshot SHA256 hashes of source-map units for drift detection",
     )
-    parser.add_argument(
-        "--specback-dir",
-        default=".specback",
-        help="Path to .specback/ directory (default: .specback)",
-    )
+    add_specback_dir_arg(parser)
     parser.add_argument(
         "--output-dir",
         default=None,

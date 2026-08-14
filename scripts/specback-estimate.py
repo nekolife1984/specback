@@ -41,7 +41,7 @@ import math
 import os
 import statistics
 import sys
-from common import utcnow_iso
+from common import reject_nonfinite, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -83,11 +83,6 @@ def positive_int(raw: str) -> int:
     return value
 
 
-def _reject_nonfinite(name: str) -> Any:
-    """json.loads parse_constant hook — reject NaN/Infinity as invalid JSON."""
-    raise ValueError(f"non-finite JSON constant: {name}")
-
-
 def load_json(path: Path) -> Any:
     """Read and parse ``path``; raises OSError / ValueError on failure.
 
@@ -101,7 +96,7 @@ def load_json(path: Path) -> Any:
         )
     return json.loads(
         path.read_text(encoding="utf-8"),
-        parse_constant=_reject_nonfinite,
+        parse_constant=reject_nonfinite,
     )
 
 

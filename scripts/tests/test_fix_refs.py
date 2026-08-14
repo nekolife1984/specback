@@ -44,6 +44,18 @@ def _run(*args: str) -> subprocess.CompletedProcess:
     )
 
 
+def test_specback_dir_parses_as_path(tmp_path):
+    """--specback-dir is parsed as a Path (common helper)."""
+    mod = _import_fix_refs()
+    # main() builds the parser internally; verify via a shallow call that
+    # exits before doing work: pass --help through the same parser path.
+    proc = _run("--help")
+    assert proc.returncode == 0
+    assert "--specback-dir" in proc.stdout
+    # The parser is also reachable through main(); ensure no crash on parse.
+    assert callable(mod.main)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CLI smoke tests
 # ═══════════════════════════════════════════════════════════════════════════

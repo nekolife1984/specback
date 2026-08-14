@@ -43,7 +43,7 @@ import os
 import re
 import subprocess
 import sys
-from common import utcnow_iso
+from common import reject_nonfinite, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -148,11 +148,6 @@ class ChapterMetric:
 # ---------------------------------------------------------------------------
 
 
-def _reject_nonfinite(name: str) -> Any:
-    """json.loads parse_constant hook — reject NaN/Infinity as invalid JSON."""
-    raise ValueError(f"non-finite JSON constant: {name}")
-
-
 def _as_finite_number(value: Any) -> float | None:
     """Coerce a JSON value to a finite float; None for bool/non-number/NaN."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -192,7 +187,7 @@ def load_json(path: Path) -> Any:
     """
     return json.loads(
         read_text_bounded(path, max_bytes=MAX_JSON_BYTES),
-        parse_constant=_reject_nonfinite,
+        parse_constant=reject_nonfinite,
     )
 
 
@@ -417,7 +412,7 @@ def load_coverage(specback_dir: Path, output_dir: Path) -> dict[str, Any]:
                 "gate_failures": None,
                 "available": False,
             }
-        data = json.loads(proc.stdout, parse_constant=_reject_nonfinite)
+        data = json.loads(proc.stdout, parse_constant=reject_nonfinite)
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return {
             "coverage_rate": None,

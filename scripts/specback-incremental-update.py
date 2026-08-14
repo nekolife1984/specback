@@ -56,14 +56,19 @@ Security posture (matches #253/#267/#273 hardening):
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-from common import sha256_file, utcnow_iso
+from common import (
+    add_specback_dir_arg,
+    reject_nonfinite,
+    sha256_bytes,
+    sha256_file,
+    utcnow_iso,
+)
 from pathlib import Path
 from typing import Any
 
@@ -87,10 +92,6 @@ def _fail(msg: str, code: int = 1) -> None:
     sys.exit(code)
 
 
-def _reject_nonfinite(value: str) -> Any:
-    raise ValueError(f"non-finite JSON constant not allowed: {value}")
-
-
 def _load_json_object(path: Path, what: str) -> dict:
     """Load a JSON object, guarding against size, malformed JSON, and non-dicts."""
     if not path.exists():
@@ -101,7 +102,7 @@ def _load_json_object(path: Path, what: str) -> dict:
             if os.fstat(fh.fileno()).st_size > MAX_INPUT_BYTES:
                 _fail(f"{what} exceeds {MAX_INPUT_BYTES} bytes: {path}")
             data = json.loads(fh.read().decode("utf-8"),
-                              parse_constant=_reject_nonfinite)
+                              parse_constant=reject_nonfinite)
     except (json.JSONDecodeError, UnicodeDecodeError, OSError, ValueError) as exc:
         _fail(f"cannot read {what}: {path}: {exc}")
     if not isinstance(data, dict):
@@ -116,10 +117,6 @@ def _as_list(value: Any, what: str) -> list:
     if not isinstance(value, list):
         _fail(f"{what} must be a list, got {type(value).__name__}")
     return value
-
-
-def _sha256(path: Path) -> str:
-    return sha256_file(path)
 
 
 def _is_chapter_file(name: str) -> bool:
@@ -344,12 +341,12 @@ def cmd_plan(args: argparse.Namespace) -> int:
                     if isinstance(c, dict) and isinstance(c.get("filename"), str)}
     for path in sorted(output_dir.iterdir()) if output_dir.exists() else []:
         if path.is_file() and (path.name in wbs_chapters or _is_chapter_file(path.name)):
-            state["chapter_hashes"][path.name] = _sha256(path)
+            state["chapter_hashes"][path.name] = sha256_file(path)
     for chapter_file in affected:
         if chapter_file not in state["chapter_hashes"]:
             chapter_path = output_dir / chapter_file
             state["chapter_hashes"][chapter_file] = (
-                _sha256(chapter_path) if chapter_path.exists() else None
+                sha256_file(chapter_path) if chapter_path.exists() else None
             )
 
     for chapter_file in affected:
@@ -463,7 +460,7 @@ def _collateral_changes(output_dir: Path, state: dict, target: str,
         if expected is None:
             changed.append(f"{path.name} (baseline missing)")
             continue
-        if _sha256(path) != expected:
+        if sha256_file(path) != expected:
             changed.append(path.name)
     return changed
 
@@ -505,7 +502,7 @@ def _run_verify_checks(
     if target_ok:
         collateral = _collateral_changes(output_dir, state, target, wbs_chapters_set)
         baseline = state.get("chapter_hashes", {}).get(target)
-        if baseline is not None and hashlib.sha256(updated_bytes).hexdigest() == baseline:
+        if baseline is not None and sha256_bytes(updated_bytes) == baseline:
             unchanged_target = True
 
     warnings: list[str] = []
@@ -670,8 +667,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--specback-dir", default=".specback",
-                   help="Directory holding wbs.json / source-map.json / trace.json")
+    add_specback_dir_arg(p)
     p.add_argument("--output-dir", default=".",
                    help="Where final spec chapters live (default: .)")
     p.add_argument("--drift-report", default=None,

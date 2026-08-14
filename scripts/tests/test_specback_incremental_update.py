@@ -811,3 +811,15 @@ def test_apply_trace_refresh_real_build_trace(tmp_path):
     assert (fx["specback"] / "trace.json").exists()
     trace = json.loads((fx["specback"] / "trace.json").read_text())
     assert "by_source" in trace
+
+
+def test_plan_specback_dir_parses_as_path(tmp_path):
+    """--specback-dir is parsed as a Path (common helper, F2)."""
+    import argparse
+    from common import add_specback_dir_arg
+    parser = argparse.ArgumentParser()
+    add_specback_dir_arg(parser)
+    args = parser.parse_args(["--specback-dir", "custom-sb"])
+    assert args.specback_dir == Path("custom-sb")
+    args_default = parser.parse_args([])
+    assert args_default.specback_dir == Path(".specback")

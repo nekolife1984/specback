@@ -23,13 +23,13 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from common import utcnow_iso
+from common import add_specback_dir_arg, utcnow_iso
 from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="specback traceability.md generator")
-    parser.add_argument("--specback-dir", default=".specback")
+    add_specback_dir_arg(parser)
     parser.add_argument("--output-dir", type=Path, default=None, help="Output directory (default: same as --specback-dir)")
     parser.add_argument(
         "--stage",
