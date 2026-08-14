@@ -40,7 +40,6 @@ import argparse
 import hashlib
 import json
 import os
-import subprocess
 import sys
 from collections import defaultdict
 from common import utcnow_iso
@@ -48,7 +47,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from git_utils import resolve_ref
+from git_utils import parse_diff_name_status, resolve_base, run_git_diff
 
 
 # ---------------------------------------------------------------------------
@@ -69,86 +68,6 @@ IMPACT_HIGH = "high"     # DELETE of a file that has spec refs / ADD of new sour
 IMPACT_MODERATE = "moderate"  # MODIFY of a file with spec refs
 IMPACT_LOW = "low"       # MODIFY of a file with no spec refs but source-map entry
 IMPACT_NONE = "none"     # Change that maps to nothing
-
-
-# ---------------------------------------------------------------------------
-# Git helpers
-# ---------------------------------------------------------------------------
-
-def run_git_diff_name_status(
-    base: str,
-    cwd: str | Path | None = None,
-) -> list[dict[str, str]]:
-    """Run ``git diff --name-status <base>`` and return parsed entries.
-
-    Returns a list of ``{"status": "M", "file": "path/to/file"}``.
-    """
-    # Resolve base to a validated commit hash before building argv —
-    # prevents git option injection via --base / state.json (Issue #253).
-    base = resolve_ref(base, cwd)
-    cmd = ["git", "diff", "--name-status", base]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        print(
-            f"ERROR: git diff failed:\n{result.stderr.strip()}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    entries: list[dict[str, str]] = []
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        status = parts[0][0]  # first char: A/M/D/R/...
-        if status == "R" and len(parts) >= 3:
-            # R<similarity>\told/path\tnew/path
-            entries.append({
-                "status": status,
-                "file": parts[2],          # new path
-                "old_file": parts[1],       # old path
-            })
-        else:
-            file_path = parts[1]
-            entries.append({"status": status, "file": file_path})
-    return entries
-
-
-def parse_diff_text(text: str) -> list[dict[str, str]]:
-    """Parse ``--name-status`` format text passed inline.
-
-    Handles all git status codes, including rename (R) which produces
-    three tab-separated fields: status, old_path, new_path.
-    """
-    entries: list[dict[str, str]] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 2:
-            continue
-        status = parts[0][0]
-        if status == "R" and len(parts) >= 3:
-            # R<similarity>\told/path\tnew/path
-            entries.append({
-                "status": status,
-                "file": parts[2],          # new path for source-map lookup
-                "old_file": parts[1],       # old path for orphaned-REF detection
-            })
-        else:
-            file_path = parts[1]
-            entries.append({"status": status, "file": file_path})
-    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +185,7 @@ def compute_hash_changes(
 ) -> list[dict[str, str]]:
     """Compare current file content against stored SRC-ID hashes.
 
-    Returns a list of changes in the same format as parse_diff_text/git diff:
+    Returns a list of changes in the same format as parse_diff_name_status/git diff:
     ``[{"status": "M"|"D"|"A", "file": "..."}]``
     """
     changes: list[dict[str, str]] = []
@@ -810,26 +729,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_base(args_base: str | None, specback_path: Path) -> str:
-    """Determine the git ref to diff against.
-
-    Priority:
-    1. Explicit ``--base`` CLI argument
-    2. ``state.json.generated_at_commit`` (Phase 6 recorded this)
-    3. ``HEAD`` (fallback)
-    """
-    if args_base is not None:
-        return args_base
-
-    state = load_state(specback_path / "state.json")
-    if state is not None:
-        commit = state.get("generated_at_commit")
-        if commit:
-            return str(commit)
-
-    return "HEAD"
-
-
 def print_base_info(base: str) -> None:
     """Print info about the base ref being used."""
     if base == "HEAD":
@@ -931,13 +830,15 @@ def main(argv: list[str] | None = None) -> int:
         base = f"hash-snapshot ({source_hashes.get('generated_at', '?')[:19]})"
     elif args.diff is not None:
         # Explicit diff text passed
-        changes = parse_diff_text(args.diff)
+        changes = parse_diff_name_status(args.diff)
         base = "stdin"
     else:
         # Git mode
         base = resolve_base(args.base, specback_path)
         print_base_info(base)
-        changes = run_git_diff_name_status(base, cwd=str(specback_path.parent))
+        changes = parse_diff_name_status(
+            run_git_diff(base, "--name-status", cwd=str(specback_path.parent))
+        )
 
     if not changes:
         print("detect-drift.py: No changes detected. Spec is up to date.")

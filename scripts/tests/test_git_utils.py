@@ -8,6 +8,7 @@ a commit hash.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -84,6 +85,121 @@ def test_resolve_ref_rejects_unresolvable_ref(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     with pytest.raises(SystemExit):
         git_utils.resolve_ref("no-such-ref-xyz", cwd=repo)
+
+
+# ---------------------------------------------------------------------------
+# run_git_diff — shared git diff subprocess wrapper (Issue #282)
+# ---------------------------------------------------------------------------
+
+
+def test_run_git_diff_name_status_matches_raw_git(tmp_path: Path) -> None:
+    """Output must be byte-identical to a raw ``git diff --name-status``."""
+    repo = _init_repo(tmp_path)
+    (repo / "sample.py").write_text("x = 2\n", encoding="utf-8")
+    actual = git_utils.run_git_diff("HEAD", "--name-status", cwd=repo)
+    expected = subprocess.run(
+        ["git", "diff", "--name-status", "HEAD"],
+        capture_output=True, text=True, cwd=repo,
+    ).stdout
+    assert actual == expected
+    assert "M\tsample.py" in actual
+
+
+def test_run_git_diff_unified_zero_context_matches_raw_git(tmp_path: Path) -> None:
+    """``-U0`` mode (fix-refs.py contract) must match the raw git output."""
+    repo = _init_repo(tmp_path)
+    (repo / "sample.py").write_text("x = 2\n", encoding="utf-8")
+    actual = git_utils.run_git_diff("HEAD", "-U0", cwd=repo)
+    expected = subprocess.run(
+        ["git", "diff", "-U0", "HEAD"],
+        capture_output=True, text=True, cwd=repo,
+    ).stdout
+    assert actual == expected
+    assert actual.startswith("diff --git a/sample.py b/sample.py")
+
+
+def test_run_git_diff_rejects_option_like_base(tmp_path: Path) -> None:
+    """Option-like base must be rejected before git runs (Issue #253)."""
+    repo = _init_repo(tmp_path)
+    with pytest.raises(SystemExit):
+        git_utils.run_git_diff("--output=/tmp/x", "--name-status", cwd=repo)
+
+
+def test_run_git_diff_failure_exits_with_error(capsys, tmp_path: Path) -> None:
+    """Non-zero git diff exit → ``ERROR: git diff failed:`` + SystemExit."""
+    repo = _init_repo(tmp_path)
+    (repo / "sample.py").write_text("x = 2\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        # --exit-code makes git exit 1 when the tree differs
+        git_utils.run_git_diff("HEAD", "--exit-code", cwd=repo)
+    err = capsys.readouterr().err
+    assert "ERROR: git diff failed:" in err
+
+
+# ---------------------------------------------------------------------------
+# parse_diff_name_status — --name-status text parser (Issue #282)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_diff_name_status_basic() -> None:
+    text = "M\tapp/models/issue.rb\nA\tspec/issue_spec.rb\nD\told.rb\n"
+    assert git_utils.parse_diff_name_status(text) == [
+        {"status": "M", "file": "app/models/issue.rb"},
+        {"status": "A", "file": "spec/issue_spec.rb"},
+        {"status": "D", "file": "old.rb"},
+    ]
+
+
+def test_parse_diff_name_status_rename() -> None:
+    text = "R100\told/path.rb\tnew/path.rb\n"
+    assert git_utils.parse_diff_name_status(text) == [
+        {"status": "R", "file": "new/path.rb", "old_file": "old/path.rb"},
+    ]
+
+
+def test_parse_diff_name_status_ignores_garbage() -> None:
+    text = "\nnot-a-diff\nM\tonly_file.rb\n"
+    assert git_utils.parse_diff_name_status(text) == [
+        {"status": "M", "file": "only_file.rb"},
+    ]
+
+
+def test_parse_diff_name_status_roundtrip(tmp_path: Path) -> None:
+    """run_git_diff --name-status output parses back to entries (detect-drift wiring)."""
+    repo = _init_repo(tmp_path)
+    (repo / "sample.py").write_text("x = 2\n", encoding="utf-8")
+    text = git_utils.run_git_diff("HEAD", "--name-status", cwd=repo)
+    entries = git_utils.parse_diff_name_status(text)
+    assert {"status": "M", "file": "sample.py"} in entries
+
+
+# ---------------------------------------------------------------------------
+# resolve_base — shared base-ref resolution (Issue #282)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_base_explicit_arg_wins(tmp_path: Path) -> None:
+    assert git_utils.resolve_base("v1.0", tmp_path) == "v1.0"
+    assert git_utils.resolve_base("HEAD", tmp_path / ".specback") == "HEAD"
+
+
+def test_resolve_base_uses_state_generated_at_commit(tmp_path: Path) -> None:
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    (specback / "state.json").write_text(
+        json.dumps({"generated_at_commit": "deadbeef"}), encoding="utf-8"
+    )
+    assert git_utils.resolve_base(None, specback) == "deadbeef"
+
+
+def test_resolve_base_falls_back_to_head(tmp_path: Path) -> None:
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    assert git_utils.resolve_base(None, specback) == "HEAD"
+
+
+def test_resolve_base_missing_state_dir_falls_back_to_head(tmp_path: Path) -> None:
+    assert git_utils.resolve_base(None, tmp_path / "no-such-dir") == "HEAD"
 
 
 # ---------------------------------------------------------------------------

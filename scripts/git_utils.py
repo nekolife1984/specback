@@ -12,6 +12,11 @@ overwrite (Issue #253).
 Rule: any git command that accepts a ref-like value MUST resolve it through
 :func:`resolve_ref` before building the argv. The resolved value is always a
 commit hash, which is safe to pass as a positional argument.
+
+Beyond :func:`resolve_ref`, this module hosts the shared git diff runner
+(:func:`run_git_diff`), the ``--name-status`` parser (:func:`parse_diff_name_status`)
+and the common base-ref resolution (:func:`resolve_base`) that used to be
+duplicated between detect-drift.py and fix-refs.py (Issue #282).
 """
 
 from __future__ import annotations
@@ -20,6 +25,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+from common import load_json_text_or
 
 # Characters allowed in a git ref. Deliberately restrictive: rejects
 # option-like values (``-`` prefix is also checked explicitly) and anything
@@ -52,3 +59,81 @@ def resolve_ref(base: str, cwd: str | Path | None = None) -> str:
         print(f"ERROR: cannot resolve git ref: {base}", file=sys.stderr)
         sys.exit(1)
     return resolved.stdout.strip()
+
+
+def run_git_diff(
+    base: str,
+    *args: str,
+    cwd: str | Path | None = None,
+) -> str:
+    """Run ``git diff <extra args> <base>`` and return the diff text.
+
+    *args (e.g. ``--name-status``, ``-U0``) are inserted between ``git
+    diff`` and the resolved commit hash so each caller keeps its exact
+    output format and exit behaviour.  ``base`` goes through
+    :func:`resolve_ref` first (argument-injection guard, Issue #253).
+
+    Exits with status 1 (after printing an error to stderr) when git
+    diff fails.
+    """
+    resolved = resolve_ref(base, cwd)
+    result = subprocess.run(
+        ["git", "diff", *args, resolved],
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        print(
+            f"ERROR: git diff failed:\n{result.stderr.strip()}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return result.stdout
+
+
+def parse_diff_name_status(text: str) -> list[dict[str, str]]:
+    """Parse ``git diff --name-status`` output text into entry dicts.
+
+    Handles all git status codes, including rename (R), which produces
+    three tab-separated fields: status, old_path, new_path.  Lines that
+    do not match the format are skipped.
+    """
+    entries: list[dict[str, str]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status = parts[0][0]  # first char: A/M/D/R/...
+        if status == "R" and len(parts) >= 3:
+            # R<similarity>\told/path\tnew/path
+            entries.append({
+                "status": status,
+                "file": parts[2],          # new path
+                "old_file": parts[1],       # old path
+            })
+        else:
+            entries.append({"status": status, "file": parts[1]})
+    return entries
+
+
+def resolve_base(args_base: str | None, specback_path: Path) -> str:
+    """Determine the git ref to diff against.
+
+    Priority:
+    1. Explicit ``--base`` CLI argument
+    2. ``state.json.generated_at_commit`` (Phase 6 recorded this)
+    3. ``HEAD`` (fallback)
+    """
+    if args_base is not None:
+        return args_base
+    state = load_json_text_or(specback_path / "state.json", None)
+    if state is not None:
+        commit = state.get("generated_at_commit")
+        if commit:
+            return str(commit)
+    return "HEAD"

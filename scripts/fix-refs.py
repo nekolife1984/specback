@@ -38,7 +38,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from collections import defaultdict
 from common import utcnow_iso
@@ -46,7 +45,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from git_utils import resolve_ref
+from git_utils import resolve_base, run_git_diff
 
 
 # ---------------------------------------------------------------------------
@@ -218,44 +217,6 @@ def apply_line_shift(
 
 
 # ---------------------------------------------------------------------------
-# Git diff helper
-# ---------------------------------------------------------------------------
-
-
-def _resolve_ref(base: str, cwd: str | Path | None) -> str:
-    """Resolve a git ref to a commit hash (shared implementation).
-
-    Delegates to :func:`git_utils.resolve_ref` — validates that ``base``
-    does not start with ``-`` (argument injection guard, Issue #253) and
-    resolves it to a commit hash before ``git diff`` runs against it.
-    """
-    return resolve_ref(base, cwd)
-
-
-def get_git_diff(
-    base: str,
-    cwd: str | Path | None = None,
-) -> str:
-    """Run ``git diff -U0 <base>`` and return the diff text."""
-    resolved = _resolve_ref(base, cwd)
-    cmd = ["git", "diff", "-U0", resolved]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        print(
-            f"ERROR: git diff failed:\n{result.stderr.strip()}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return result.stdout
-
-
-# ---------------------------------------------------------------------------
 # Spec file scanning
 # ---------------------------------------------------------------------------
 
@@ -315,16 +276,6 @@ def find_refs_in_file(
                 "full_match": m.group(0),
             })
     return refs
-
-
-def load_state(path: Path) -> dict[str, Any] | None:
-    """Load state.json if it exists."""
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
 
 
 def load_source_map(specback_path: Path) -> dict[str, list[dict[str, Any]]]:
@@ -408,18 +359,6 @@ def find_unit_for_ref(
         )
         sys.exit(1)
     return matches[0] if matches else None
-
-
-def resolve_base(args_base: str | None, specback_path: Path) -> str:
-    """Determine the git ref to diff against (same logic as detect-drift.py)."""
-    if args_base is not None:
-        return args_base
-    state = load_state(specback_path / "state.json")
-    if state is not None:
-        commit = state.get("generated_at_commit")
-        if commit:
-            return str(commit)
-    return "HEAD"
 
 
 # ---------------------------------------------------------------------------
@@ -777,7 +716,7 @@ def main(argv: list[str] | None = None) -> int:
         base = resolve_base(args.base, specback_path)
         print(f"fix-refs.py: diffing against --base {base[:12]}",
               file=sys.stderr)
-        diff_text = get_git_diff(base, cwd=str(specback_path.parent))
+        diff_text = run_git_diff(base, "-U0", cwd=str(specback_path.parent))
 
     if not diff_text.strip():
         print("fix-refs.py: No changes detected. Nothing to fix.")
