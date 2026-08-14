@@ -51,10 +51,8 @@ All paths are relative to the repo root.
 | Path | Contents |
 |------|----------|
 | `scripts/gates.py` | GateReport + 4 gates (coverage_mece, schema_valid, traceability_full, drift_detected) |
-| `scripts/data_types.py` | Typed envelopes for phase output |
 | `references/gates.md` | Gate reference (EN) |
 | `references/gates.ja.md` | Gate reference (JA) |
-| `references/data_types.md` | Typed envelopes reference |
 | `references/template-catalog.md` | Template catalog |
 | `references/inventory-units.md` | Inventory units per language |
 | `references/verification-checklists.md` | Verification checklists |
