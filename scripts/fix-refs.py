@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import Any
 
 from git_utils import resolve_base, run_git_diff
-from refutils import REF_RE, SRC_REF_RE, find_refs_in_text, index_units_by_path
+from refutils import REF_RE, SRC_REF_RE, find_refs_in_text, index_units_by_path  # noqa: F401  (re-export; tests assert module attributes)
 
 
 # ---------------------------------------------------------------------------
@@ -806,8 +806,8 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "## Summary",
         "",
-        f"| Metric | Count |",
-        f"|--------|------:|",
+        "| Metric | Count |",
+        "|--------|------:|",
         f"| Files with hunks | {len(hunks_by_file)} |",
         f"| <!-- REF: ... --> markers scanned | {len(all_refs)} |",
         f"| — Path:line format | {len(corrections) + len(orphaned) + len(unchanged)} |",

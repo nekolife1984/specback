@@ -9,7 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "build-inventory-from-sourcemap.py"
 

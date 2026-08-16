@@ -13,7 +13,7 @@ import pytest
 from source_map_v2 import SCHEMA_VERSION, build_source_map
 from source_map_v2 import extractors, taxonomy
 from source_map_v2.extractors import tshelpers
-from source_map_v2.model import IdFactory, SourceMap, SourceUnit
+from source_map_v2.model import SourceMap, SourceUnit
 
 
 def _ts_available(language: str) -> bool:

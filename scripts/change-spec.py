@@ -678,15 +678,6 @@ def build_change_spec(
     for entry in files_output:
         by_type[entry["status"]] += 1
 
-    # Classify by change type (simple heuristic based on status)
-    type_labels: dict[str, str] = {
-        "A": "feature",
-        "M": "modification",
-        "D": "delete",
-        "R": "rename",
-        "C": "copy",
-    }
-
     result: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "mode": mode,

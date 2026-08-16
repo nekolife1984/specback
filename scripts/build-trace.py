@@ -52,8 +52,8 @@ from common import add_specback_dir_arg, atomic_write_json, utcnow_iso
 from pathlib import Path
 from typing import Any
 from refutils import (
-    REF_RE,
-    SRC_REF_RE,
+    REF_RE,  # noqa: F401  (re-export; tests assert module attributes)
+    SRC_REF_RE,  # noqa: F401  (re-export; tests assert module attributes)
     find_refs_in_text,
     index_units_by_path,
     line_ranges_overlap,

@@ -6,7 +6,6 @@ import os
 import sqlite3
 import sys
 import tempfile
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -493,7 +492,7 @@ class TestStateSync:
         """Import should reconstruct session data from state.json."""
         state_path = tmp_db_path + "_import.json"
         try:
-            state = populated_db.export_to_state_json(state_path)
+            populated_db.export_to_state_json(state_path)
             db2 = TraceDB(tmp_db_path + "_new.db")
             count = db2.import_from_state_json(state_path)
             assert count > 0
@@ -649,7 +648,6 @@ class TestEdgeCases:
             db.session_start("s_ctx")
             assert db.get_session("s_ctx") is not None
         # Connection should be closed after context exit
-        import sqlite3
         with pytest.raises(sqlite3.ProgrammingError):
             db.conn.execute("SELECT 1")
 
@@ -659,7 +657,9 @@ class TestEdgeCases:
 
     def test_import_empty_json_object(self, tmp_db_path: str):
         """Import from an empty JSON object should return 0."""
-        import json, os, tempfile
+        import json
+        import os
+        import tempfile
         fd, state_path = tempfile.mkstemp(suffix=".json")
         os.close(fd)
         with open(state_path, "w") as f:
@@ -677,7 +677,8 @@ class TestEdgeCases:
     def test_import_nonfinite_json_returns_zero(self, tmp_db_path: str):
         """state.json containing NaN must be rejected (reject_nonfinite) and
         return 0 instead of propagating a ValueError (Issue #314)."""
-        import os, tempfile
+        import os
+        import tempfile
         fd, state_path = tempfile.mkstemp(suffix=".json")
         os.close(fd)
         with open(state_path, "w") as f:
@@ -693,7 +694,7 @@ class TestEdgeCases:
 
     def test_export_import_roundtrip(self, tmp_db_path: str):
         """Export→Import round-trip should preserve all question data."""
-        import json, os, tempfile
+        import os
         # Create source DB with a resolved question
         db1 = TraceDB(tmp_db_path + "_src.db")
         db1.session_start("rt_001")
@@ -771,7 +772,6 @@ class TestSSSFTables:
 
     def test_agent_session_upsert(self, db: TraceDB):
         """agent_sessions uses PRIMARY KEY (adw_id, agent)."""
-        import time
         ts = "2026-01-01T00:00:00Z"
         db.conn.execute(
             "INSERT OR REPLACE INTO agent_sessions (adw_id, agent, coding_agent, model, session_id, created_at, last_used_at) "

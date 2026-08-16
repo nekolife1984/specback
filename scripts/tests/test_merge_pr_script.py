@@ -9,7 +9,6 @@ The mock gh is a shell script placed on PATH; MOCK_MODE controls its behavior:
 """
 
 import os
-import shutil
 import subprocess
 from pathlib import Path
 

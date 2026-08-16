@@ -122,7 +122,6 @@ def test_symlink_outside_target_ignored(tmp_path: Path) -> None:
     保存される脆弱性の再現テスト。シンボル名・クラス名が成果物に
     漏れないことを検証する。
     """
-    import os
 
     secret = tmp_path.parent / "outside-secret.py"
     secret.write_text(
@@ -179,7 +178,6 @@ def test_output_symlink_replaced_not_followed(tmp_path: Path) -> None:
 
 def test_symlink_inside_target_ignored(tmp_path: Path) -> None:
     """target 内を指す symlink も追跡しない（通常ファイルとの二重登録防止）。"""
-    import os
 
     (tmp_path / "real.py").write_text("def real():\n    pass\n", encoding="utf-8")
     try:

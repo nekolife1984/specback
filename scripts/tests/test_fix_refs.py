@@ -6,7 +6,6 @@ refs are correctly detected and skipped by the auto-fix logic.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
