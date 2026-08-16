@@ -180,6 +180,17 @@ class TestCheck:
         assert result.returncode == 1
         assert "No lockfile found" in result.stdout
 
+    def test_load_lockfile_rejects_nonfinite(self, tmp_path: Path) -> None:
+        """A lockfile containing NaN must yield None (reject_nonfinite,
+        Issue #314) instead of propagating a ValueError."""
+        sb_data = tmp_path / ".specback_data"
+        sb_data.mkdir()
+        lockfile = sb_data / "llockfile"
+        lockfile.write_text(
+            '{"specback_version": "1.2.0", "bad": NaN}', encoding="utf-8"
+        )
+        assert mod._load_lockfile(tmp_path) is None
+
     def test_no_drift(self, tmp_path: Path) -> None:
         """Fresh install should show no drift."""
         _run(str(tmp_path))

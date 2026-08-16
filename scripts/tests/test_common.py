@@ -121,6 +121,16 @@ class TestLoadJsonTextOr:
         p.write_bytes(b'{"v": "\xff\xfe"}')
         assert load_json_text_or(p, {"fallback": True}) == {"fallback": True}
 
+    def test_returns_default_when_directory_in_place_of_file(
+        self, tmp_path: Path
+    ) -> None:
+        """A directory at the path (IsADirectoryError) must yield the default,
+        not propagate the OSError (git_utils.resolve_base / snapshot-hashes
+        rely on this fallback contract)."""
+        d = tmp_path / "state.json"
+        d.mkdir()
+        assert load_json_text_or(d, {"fallback": True}) == {"fallback": True}
+
 
 class TestAtomicWriteJson:
     def test_writes_json(self, tmp_path: Path) -> None:

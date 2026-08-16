@@ -28,7 +28,7 @@ import json
 import os
 import shutil
 import sys
-from common import sha256_file, utcnow_iso
+from common import reject_nonfinite, sha256_file, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -149,8 +149,11 @@ def _load_lockfile(target: Path) -> dict[str, Any] | None:
     if not lockfile.exists():
         return None
     try:
-        return json.loads(lockfile.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        return json.loads(
+            lockfile.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (json.JSONDecodeError, ValueError, OSError):
         return None
 
 

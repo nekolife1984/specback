@@ -23,7 +23,12 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from common import add_specback_dir_arg, atomic_write_text, utcnow_iso
+from common import (
+    add_specback_dir_arg,
+    atomic_write_text,
+    reject_nonfinite,
+    utcnow_iso,
+)
 from pathlib import Path
 
 
@@ -48,16 +53,33 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    try:
+        trace = json.loads(
+            trace_path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (json.JSONDecodeError, ValueError) as e:
+        print(
+            f"ERROR: trace.json is not valid JSON: {trace_path}: {e}",
+            file=sys.stderr,
+        )
+        return 2
     output_dir = args.output_dir or Path(args.specback_dir)
     output_path = output_dir / args.stage / "traceability.md"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    total = trace["source_units_total"]
-    covered = trace["source_units_covered"]
-    excluded = trace["source_units_excluded"]
-    uncovered = trace["source_units_uncovered"]
-    mece_ok = trace["mece_passed"]
+    try:
+        total = trace["source_units_total"]
+        covered = trace["source_units_covered"]
+        excluded = trace["source_units_excluded"]
+        uncovered = trace["source_units_uncovered"]
+        mece_ok = trace["mece_passed"]
+    except KeyError as e:
+        print(
+            f"ERROR: trace.json is missing required key {e}: {trace_path}",
+            file=sys.stderr,
+        )
+        return 2
     coverage_rate = (covered / total * 100) if total else 0.0
 
     lines: list[str] = []

@@ -674,6 +674,23 @@ class TestEdgeCases:
         finally:
             os.remove(state_path)
 
+    def test_import_nonfinite_json_returns_zero(self, tmp_db_path: str):
+        """state.json containing NaN must be rejected (reject_nonfinite) and
+        return 0 instead of propagating a ValueError (Issue #314)."""
+        import os, tempfile
+        fd, state_path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        with open(state_path, "w") as f:
+            f.write('{"current_phase": 1, "bad": NaN}')
+        try:
+            db = TraceDB(tmp_db_path)
+            count = db.import_from_state_json(state_path)
+            assert count == 0
+            assert len(db.list_sessions()) == 0
+            db.close()
+        finally:
+            os.remove(state_path)
+
     def test_export_import_roundtrip(self, tmp_db_path: str):
         """Export→Import round-trip should preserve all question data."""
         import json, os, tempfile

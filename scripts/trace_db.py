@@ -66,7 +66,7 @@ import sys
 from pathlib import Path
 from typing import Any, Literal
 
-from common import atomic_write_json, utcnow_iso_z
+from common import atomic_write_json, reject_nonfinite, utcnow_iso_z
 
 
 # ===================================================================
@@ -725,7 +725,14 @@ class TraceDB:
         if not fpath.exists():
             return 0
 
-        state = json.loads(fpath.read_text(encoding="utf-8"))
+        try:
+            state = json.loads(
+                fpath.read_text(encoding="utf-8"),
+                parse_constant=reject_nonfinite,
+            )
+        except (json.JSONDecodeError, ValueError, OSError) as exc:
+            print(f"ERROR: cannot parse {fpath}: {exc}", file=sys.stderr)
+            return 0
         if not state or not isinstance(state, dict) or "current_phase" not in state:
             return 0
 

@@ -49,7 +49,7 @@ import argparse
 import json
 import re
 import sys
-from common import utcnow_iso
+from common import atomic_write_json, reject_nonfinite, utcnow_iso
 from pathlib import Path
 from typing import Any
 
@@ -92,8 +92,11 @@ def _load_json(path: Path, label: str) -> dict[str, Any]:
         )
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (json.JSONDecodeError, ValueError) as e:
         print(f"ERROR: invalid JSON in {path}: {e}", file=sys.stderr)
         return {}
 
@@ -333,10 +336,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Write output
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(graph, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(args.output, graph)
 
     stats = graph["ccrsg:stats"]
     print(

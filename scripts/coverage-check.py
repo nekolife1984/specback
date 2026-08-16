@@ -74,6 +74,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 import artifact_io
+from common import reject_nonfinite
 from refutils import count_refs
 
 
@@ -167,27 +168,48 @@ class CoverageReport:
 def load_inventory(path: Path) -> list[InventoryItem]:
     if not path.exists():
         raise FileNotFoundError(f"inventory.json not found: {path}")
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except json.JSONDecodeError as e:
+        raise ValueError(f"inventory.json is not valid JSON: {path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"inventory.json must be a JSON object: {path}")
     items: list[InventoryItem] = []
     for entry in data.get("units", []):
-        items.append(
-            InventoryItem(
-                id=entry["id"],
-                type=entry.get("type", ""),
-                name=entry["name"],
-                file=entry.get("file", ""),
-                line=entry.get("line"),
-                covered_by=list(entry.get("covered_by", [])),
-                related_source_ids=list(entry.get("related_source_ids", [])),
+        if not isinstance(entry, dict):
+            raise ValueError(f"inventory.json unit entry must be an object: {path}")
+        try:
+            items.append(
+                InventoryItem(
+                    id=entry["id"],
+                    type=entry.get("type", ""),
+                    name=entry["name"],
+                    file=entry.get("file", ""),
+                    line=entry.get("line"),
+                    covered_by=list(entry.get("covered_by", [])),
+                    related_source_ids=list(entry.get("related_source_ids", [])),
+                )
             )
-        )
+        except KeyError as e:
+            raise ValueError(
+                f"inventory.json unit is missing required key {e}: {path}"
+            ) from e
     return items
 
 
 def load_questions(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (json.JSONDecodeError, ValueError):
+        return []
     if isinstance(data, dict):
         return list(data.get("questions", []))
     if isinstance(data, list):
@@ -201,9 +223,12 @@ def load_source_map_ids(specback_dir: Path) -> set[str]:
     if not sm.exists():
         return set()
     try:
-        data = json.loads(sm.read_text(encoding="utf-8"))
+        data = json.loads(
+            sm.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
         return {u["id"] for u in data.get("units", []) if "id" in u}
-    except (json.JSONDecodeError, OSError, KeyError):
+    except (json.JSONDecodeError, OSError, KeyError, ValueError):
         return set()
 
 
@@ -213,7 +238,10 @@ def load_source_map_count(specback_dir: Path) -> int | None:
     if not sm.exists():
         return None
     try:
-        data = json.loads(sm.read_text(encoding="utf-8"))
+        data = json.loads(
+            sm.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
         return int(data.get("stats", {}).get("files_scanned", 0))
     except Exception:
         return None
@@ -976,12 +1004,19 @@ def check_source_map_refs(
 
 
 def count_confidence_labels(chapters: dict[str, str]) -> tuple[int, int, int]:
-    """Count 🟢 VERIFIED / 🟡 INFERRED / 🔴 ASSUMED labels across chapter bodies."""
+    """Count 🟢 VERIFIED / 🟡 INFERRED / 🔴 ASSUMED labels across chapter bodies.
+
+    Word-boundary regexes avoid false positives from negated words such as
+    UNVERIFIED / UNASSUMED / DISINFERRED (same pattern as specback-health.py).
+    """
+    word_verified = re.compile(r"\bVERIFIED\b")
+    word_inferred = re.compile(r"\bINFERRED\b")
+    word_assumed = re.compile(r"\bASSUMED\b")
     verified = inferred = assumed = 0
     for _, content in chapters.items():
-        verified += content.count("🟢") + content.count("VERIFIED")
-        inferred += content.count("🟡") + content.count("INFERRED")
-        assumed += content.count("🔴") + content.count("ASSUMED")
+        verified += content.count("🟢") + len(word_verified.findall(content))
+        inferred += content.count("🟡") + len(word_inferred.findall(content))
+        assumed += content.count("🔴") + len(word_assumed.findall(content))
     return verified, inferred, assumed
 
 
@@ -1397,7 +1432,7 @@ def main(argv: list[str] | None = None) -> int:
             forbid_placeholder_pattern=args.forbid_placeholder_pattern,
             check_mermaid_syntax_flag=args.check_mermaid_syntax_flag,
         )
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 

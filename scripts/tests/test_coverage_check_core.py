@@ -294,6 +294,30 @@ def test_load_inventory_missing_raises(tmp_path):
         cov.load_inventory(tmp_path / "nope.json")
 
 
+def test_load_inventory_malformed_json_raises_valueerror(tmp_path):
+    import pytest
+    p = tmp_path / "inventory.json"
+    p.write_text("{not json", encoding="utf-8")
+    with pytest.raises(ValueError, match="not valid JSON"):
+        cov.load_inventory(p)
+
+
+def test_load_inventory_bare_list_raises_valueerror(tmp_path):
+    import pytest
+    p = tmp_path / "inventory.json"
+    p.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        cov.load_inventory(p)
+
+
+def test_load_inventory_missing_key_raises_valueerror(tmp_path):
+    import pytest
+    p = tmp_path / "inventory.json"
+    p.write_text(json.dumps({"units": [{"name": "X"}]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="missing required key"):
+        cov.load_inventory(p)
+
+
 def test_load_questions_dict_and_list(tmp_path):
     d = tmp_path / "q.json"
     d.write_text(json.dumps({"questions": [{"id": "Q1"}]}), encoding="utf-8")
@@ -635,6 +659,29 @@ def test_count_confidence_labels():
     assert inferred == 2  # 🟡 (1) + "INFERRED" (1)
     assert assumed == 2  # 🔴 (1) + "ASSUMED" (1)
     assert cov.count_confidence_labels({}) == (0, 0, 0)
+
+
+def test_count_confidence_labels_ignores_negated_words():
+    # UNVERIFIED / UNASSUMED / DISINFERRED must NOT count as real labels.
+    chapters = {
+        "01.md": (
+            "UNVERIFIED claim (not a label); still UNVERIFIED twice\n"
+            "UNASSUMED and DISINFERRED wording\n"
+        ),
+        "02.md": "just mentioning UNVERIFIED in prose",
+    }
+    verified, inferred, assumed = cov.count_confidence_labels(chapters)
+    assert verified == 0
+    assert inferred == 0
+    assert assumed == 0
+
+
+def test_count_confidence_labels_word_boundary():
+    chapters = {"01.md": "VERIFIED and re-VERIFIED, but not UNVERIFIED"}
+    verified, inferred, assumed = cov.count_confidence_labels(chapters)
+    assert verified == 2
+    assert inferred == 0
+    assert assumed == 0
 
 
 def test_parse_args_defaults_and_overrides():

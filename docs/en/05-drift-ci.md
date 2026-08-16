@@ -73,6 +73,15 @@ A project that has not run specback yet has no `source-map.json` /
 gate only applies once a spec has been generated, so enabling the workflow on
 a fresh repo does not break CI.
 
+### fix-refs failure handling
+
+The `fix-refs.py --check --json` step is warning-only, but its output
+contract is enforced: if fix-refs exits non-zero or its stdout is not the
+expected JSON (e.g. a future contract change), the gate does **not** silently
+report "0 orphaned / ok". Instead it records a warning and sets
+`fix_refs.ok = false` in the JSON output so a broken integration is visible
+rather than a false pass (Issue #313).
+
 ## GitHub Action
 
 ### Using in your project

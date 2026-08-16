@@ -58,6 +58,10 @@ CI では diff の base に **merge-base**（PR ブランチと base ブラン�
 
 specback をまだ実行していないプロジェクトには `source-map.json` / `trace.json` がありません。この場合、ゲートは **warn**（exit 0）を返し「spec artifacts missing — run specback to generate the spec first」と報告します。仕様書が生成されて初めてドリフトゲートが適用されるため、新規リポジトリでワークフローを有効化しても CI は壊れません。
 
+### fix-refs 失敗時のハンドリング
+
+`fix-refs.py --check --json` ステップは警告のみですが、その出力契約は強制されます: fix-refs が非ゼロで終了した場合、または stdout が期待される JSON でない場合（将来の契約変更など）、ゲートは「0 orphaned / ok」と黙って報告**しません**。代わりに warning を記録し、JSON 出力で `fix_refs.ok = false` を設定します。壊れた統合が誤合格ではなく可視化されるためです（Issue #313）。
+
 ## GitHub Action
 
 ### 対象プロジェクトでの利用
