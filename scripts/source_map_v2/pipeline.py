@@ -12,6 +12,8 @@ and each unhandled language raises one warning (deduplicated).
 from __future__ import annotations
 
 import fnmatch
+import os
+import stat
 from pathlib import Path
 
 from . import detect, extractors
@@ -32,9 +34,22 @@ def _matches_any(rel: str, globs: list[str]) -> bool:
 
 def _iter_files(target: Path, exclude_globs: list[str]):
     base = target.parent
+    target_resolved = target.resolve()
     for p in sorted(target.rglob("*")):
-        if not p.is_file():
+        try:
+            st = os.lstat(p)
+        except OSError:
             continue
+        if stat.S_ISLNK(st.st_mode):  # never follow symlinks
+            continue
+        if not stat.S_ISREG(st.st_mode):
+            continue
+        try:
+            p.resolve().relative_to(target_resolved)
+        except OSError:
+            continue
+        except ValueError:
+            continue  # resolved outside target — skip
         rel = str(p.relative_to(base))
         if _matches_any(rel, exclude_globs):
             continue
