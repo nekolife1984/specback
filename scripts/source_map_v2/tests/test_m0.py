@@ -268,3 +268,29 @@ def test_unimplemented_language_keeps_legacy_warning(tmp_path, monkeypatch):
     assert "no v2 extractor yet" in sql_warns[0]
     assert "pip install" not in sql_warns[0]
     assert any(u["language"] == "sql" for u in payload["units"])
+
+
+def test_iter_files_does_not_follow_symlink_outside_target(tmp_path):
+    """Regression guard for #317: symlinks must never be followed, so a link
+    inside the target that points OUTSIDE it is not read into the source map."""
+    # Hostile file outside the scanned tree
+    outside = tmp_path / "secret.txt"
+    outside.write_text("TOPSECRET", encoding="utf-8")
+    src = tmp_path / "src"
+    src.mkdir()
+    # A symlink inside the tree pointing outside it
+    leak = src / "leak.txt"
+    try:
+        leak.symlink_to(outside)
+    except OSError:
+        pytest.skip("symlink not supported on this platform")
+
+    smap = build_source_map(src, exclude_globs=[])
+    payload = smap.to_dict()
+    # The secret must NOT appear anywhere in the payload.
+    assert "TOPSECRET" not in json.dumps(payload)
+    # No unit should have been created from the symlink (it is skipped).
+    rel = str(leak.relative_to(src.parent))  # pipeline rel is relative to src.parent
+    for u in payload["units"]:
+        assert u.get("path") != rel
+
