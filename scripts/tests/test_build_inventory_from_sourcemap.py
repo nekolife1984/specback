@@ -18,6 +18,20 @@ SCRIPT = Path(__file__).resolve().parent.parent / "build-inventory-from-sourcema
 if str(SCRIPT.parent) not in sys.path:
     sys.path.insert(0, str(SCRIPT.parent))
 
+# Load the script module once via importlib so the pure conversion functions can
+# be exercised directly (Issue #325) rather than only through the subprocess CLI.
+import importlib.util
+
+_inv_spec = importlib.util.spec_from_file_location("build_inventory_src", SCRIPT)
+assert _inv_spec is not None and _inv_spec.loader is not None
+_inv_mod = importlib.util.module_from_spec(_inv_spec)
+_inv_spec.loader.exec_module(_inv_mod)
+
+resolve_type = _inv_mod.resolve_type
+build_inventory = _inv_mod.build_inventory
+DEFAULT_ROLE_TO_TYPE = _inv_mod.DEFAULT_ROLE_TO_TYPE
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -165,18 +179,10 @@ def test_invalid_role_to_type(tmp_path: Path):
 
 def test_load_source_map_matches_artifact_io(tmp_path: Path):
     """load_source_map returns the raw dict artifact_io parses (Issue #283)."""
-    import importlib.util
     import artifact_io
 
-    spec = importlib.util.spec_from_file_location(
-        "build_inventory_src", SCRIPT,
-    )
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-
     sm = write_source_map(tmp_path, V2_SOURCE_MAP)
-    assert mod.load_source_map(sm) == artifact_io.load_source_map(sm)
+    assert _inv_mod.load_source_map(sm) == artifact_io.load_source_map(sm)
 
 
 # ---------------------------------------------------------------------------
@@ -305,3 +311,81 @@ def test_v1_line_range_start(tmp_path: Path):
     assert lines["INV-0001"] == 1   # line_range [1, 30]
     assert lines["INV-0002"] == 5   # line_range [5, 10]
     assert lines["INV-0003"] == 1   # line_range [1, 3]
+
+
+# ---------------------------------------------------------------------------
+# Direct function-level tests (Issue #325 — importlib, not subprocess)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveTypeDirect:
+    def test_role_lookup_priority(self):
+        unit = {"role": "endpoint", "kind": "fastapi_endpoint"}
+        assert resolve_type(unit, {"endpoint": "api_endpoint"}) == "api_endpoint"
+
+    def test_missing_role_falls_back_to_kind(self):
+        unit = {"kind": "rails_route"}
+        assert resolve_type(unit, DEFAULT_ROLE_TO_TYPE) == "rails_route"
+
+    def test_empty_role_falls_back_to_kind(self):
+        unit = {"role": "", "kind": "py_class"}
+        assert resolve_type(unit, {}) == "py_class"
+
+    def test_unknown_returns_unknown(self):
+        unit = {"role": "mystery", "kind": ""}
+        assert resolve_type(unit, {}) == "unknown"
+
+    def test_role_not_in_mapping_falls_back_to_kind(self):
+        unit = {"role": "custom", "kind": "custom_kind"}
+        assert resolve_type(unit, {}) == "custom_kind"
+
+
+class TestBuildInventoryDirect:
+    def test_empty_units(self):
+        out = build_inventory({"units": []}, DEFAULT_ROLE_TO_TYPE)
+        assert out == {"units": []}
+
+    def test_item_shape(self):
+        out = build_inventory(V2_SOURCE_MAP, DEFAULT_ROLE_TO_TYPE)
+        items = out["units"]
+        assert len(items) == 4
+        item = items[0]
+        assert item["id"] == "INV-0001"
+        assert item["type"] == "api_endpoint"
+        assert item["name"] == "create_item"
+        assert item["file"] == "app/main.py"
+        assert item["line"] == 10
+        assert item["covered_by"] == []
+        assert item["related_source_ids"] == ["SRC-0001"]
+
+    def test_role_to_type_override(self):
+        # A partial override dict leaves other roles to fall back to their kind.
+        out = build_inventory(
+            V2_SOURCE_MAP, {"endpoint": "api", "model": "entity"},
+        )
+        types = {u["id"]: u["type"] for u in out["units"]}
+        assert types["INV-0001"] == "api"
+        assert types["INV-0002"] == "pydantic_schema"  # not overridden → kind
+        assert types["INV-0003"] == "entity"
+        assert types["INV-0004"] == "django_migration"  # not overridden → kind
+
+    def test_type_falls_back_to_kind(self):
+        out = build_inventory(V1_SOURCE_MAP, DEFAULT_ROLE_TO_TYPE)
+        types = {u["id"]: u["type"] for u in out["units"]}
+        assert types["INV-0001"] == "py_class"
+        assert types["INV-0002"] == "py_function"
+        assert types["INV-0003"] == "rails_route"
+
+    def test_line_parsing_int_like_list(self):
+        sm = {"units": [
+            {"id": "SRC-1", "path": "a.py", "line_range": [10, 20], "kind": ""},
+            {"id": "SRC-2", "path": "b.py", "line_range": 7, "kind": ""},
+            {"id": "SRC-3", "path": "c.py", "line_range": "bad", "kind": ""},
+        ]}
+        out = build_inventory(sm, {})
+        assert [u["line"] for u in out["units"]] == [10, 7, None]
+
+    def test_missing_src_id_generated(self):
+        sm = {"units": [{"path": "a.py", "kind": ""}]}
+        item = build_inventory(sm, {})["units"][0]
+        assert item["related_source_ids"] == ["SRC-0001"]

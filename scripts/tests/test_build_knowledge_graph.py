@@ -14,6 +14,29 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "build-knowledge-graph.py"
 
+# Ensure scripts/ is importable — build-knowledge-graph.py imports shared
+# helpers (common.py) from its own directory.
+if str(SCRIPT.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT.parent))
+
+# Load the script module once via importlib so the node-builder / helper
+# functions can be exercised directly (Issue #325) rather than only through the
+# subprocess CLI.
+import importlib.util
+
+_kg_spec = importlib.util.spec_from_file_location("build_kg_src", SCRIPT)
+assert _kg_spec is not None and _kg_spec.loader is not None
+_kg_mod = importlib.util.module_from_spec(_kg_spec)
+_kg_spec.loader.exec_module(_kg_mod)
+
+_slugify = _kg_mod._slugify
+_line_range_str = _kg_mod._line_range_str
+build_source_unit_node = _kg_mod.build_source_unit_node
+build_inventory_node = _kg_mod.build_inventory_node
+build_spec_chapter_node = _kg_mod.build_spec_chapter_node
+build_question_node = _kg_mod.build_question_node
+build_knowledge_graph = _kg_mod.build_knowledge_graph
+
 # ---------------------------------------------------------------------------
 # Fixture data
 # ---------------------------------------------------------------------------
@@ -421,3 +444,150 @@ def test_nonfinite_input_is_rejected_cleanly(tmp_path: Path):
     assert result.returncode == 2
     assert "Traceback" not in result.stderr
     assert "missing or has no 'units' key" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Direct function-level tests (Issue #325 — importlib, not subprocess)
+# ---------------------------------------------------------------------------
+
+
+class TestSlugifyDirect:
+    def test_basic(self):
+        assert _slugify("3.1 REST Endpoints") == "3-1-rest-endpoints"
+
+    def test_collapses_runs_of_separators(self):
+        assert _slugify("  Foo :: Bar?? ") == "foo-bar"
+
+    def test_already_slug_lower(self):
+        assert _slugify("api-endpoints") == "api-endpoints"
+
+    def test_empty_and_special_only(self):
+        assert _slugify("") == ""
+        assert _slugify("!!!") == ""
+
+
+class TestLineRangeStrDirect:
+    def test_two_element_list(self):
+        assert _line_range_str([10, 30]) == "10-30"
+
+    def test_none_and_single_element(self):
+        assert _line_range_str(None) is None
+        assert _line_range_str([10]) is None
+
+    def test_empty_list(self):
+        assert _line_range_str([]) is None
+
+
+class TestBuildSourceUnitNodeDirect:
+    def test_endpoint_unit(self):
+        unit = SAMPLE_SOURCE_MAP["units"][0]
+        node = build_source_unit_node(unit)
+        assert node["@id"] == "ccrsg:unit/SRC-0001"
+        assert node["@type"] == "ccrsg:SourceUnit"
+        assert node["ccrsg:sourceId"] == "SRC-0001"
+        assert node["ccrsg:lineRange"] == "10-30"
+        assert node["ccrsg:httpMethod"] == "POST"
+        assert node["ccrsg:urlPath"] == "/items"
+        assert node["ccrsg:role"] == "endpoint"
+
+    def test_non_endpoint_unit(self):
+        unit = SAMPLE_SOURCE_MAP["units"][1]
+        node = build_source_unit_node(unit)
+        assert "ccrsg:httpMethod" not in node
+        assert "ccrsg:urlPath" not in node
+        assert node["ccrsg:role"] == "schema"
+
+    def test_no_line_range(self):
+        node = build_source_unit_node({"id": "SRC-X", "name": "n"})
+        assert "ccrsg:lineRange" not in node
+
+
+class TestBuildInventoryNodeDirect:
+    def test_with_source_ids(self):
+        item = SAMPLE_INVENTORY["units"][0]
+        node = build_inventory_node(item, item["related_source_ids"])
+        assert node["@id"] == "ccrsg:inv/INV-0001"
+        assert node["@type"] == "ccrsg:InventoryItem"
+        assert node["schema:name"] == "create_item"
+        derived = [r["@id"] for r in node["ccrsg:derivedFrom"]]
+        assert "ccrsg:unit/SRC-0001" in derived
+
+    def test_without_source_ids(self):
+        node = build_inventory_node({"id": "INV-9", "name": "x"}, [])
+        assert "ccrsg:derivedFrom" not in node
+
+
+class TestBuildSpecChapterNodeDirect:
+    def test_basic(self):
+        key = "04-queries.md::4.2 Search Queries"
+        node = build_spec_chapter_node(key, ["SRC-0001", "SRC-0003"])
+        assert node["@type"] == "ccrsg:SpecChapter"
+        assert node["schema:name"] == key
+        assert node["@id"] == f"ccrsg:chapter/{_slugify(key)}"
+        covered = [r["@id"] for r in node["ccrsg:coversUnit"]]
+        assert covered == ["ccrsg:unit/SRC-0001", "ccrsg:unit/SRC-0003"]
+
+    def test_no_source_ids(self):
+        node = build_spec_chapter_node("a.md::B", [])
+        assert "ccrsg:coversUnit" not in node
+
+
+class TestBuildQuestionNodeDirect:
+    def test_basic(self):
+        q = SAMPLE_QUESTIONS["questions"][0]
+        node = build_question_node(q, 0, q["related_source_ids"])
+        assert node["@id"] == "ccrsg:question/Q-0001"
+        assert node["@type"] == "ccrsg:Question"
+        assert node["schema:name"] == "What is the auth strategy?"
+        assert node["ccrsg:category"] == "architecture"
+        assert node["ccrsg:severity"] == "high"
+        assert node["ccrsg:status"] == "open"
+        raises = [r["@id"] for r in node["ccrsg:raisesForUnit"]]
+        assert "ccrsg:unit/SRC-0001" in raises
+
+    def test_generated_id_and_default_status(self):
+        node = build_question_node({"question": "T? 中文", "category": "x"}, 3, [])
+        assert node["@id"] == "ccrsg:question/Q-0004"
+        assert node["ccrsg:status"] == "open"
+        assert "ccrsg:raisesForUnit" not in node
+
+
+class TestBuildKnowledgeGraphDirect:
+    def test_aggregates_all_node_types(self):
+        kg = build_knowledge_graph(
+            SAMPLE_SOURCE_MAP,
+            SAMPLE_INVENTORY,
+            SAMPLE_TRACE,
+            SAMPLE_QUESTIONS["questions"],
+        )
+        graph = kg["@graph"]
+        types = {}
+        for n in graph:
+            types.setdefault(n["@type"], 0)
+            types[n["@type"]] += 1
+        assert types["ccrsg:SourceUnit"] == 4
+        assert types["ccrsg:InventoryItem"] == 3
+        assert types["ccrsg:SpecChapter"] == 2
+        assert types["ccrsg:Question"] == 2
+
+        stats = kg["ccrsg:stats"]
+        assert stats["sourceUnits"] == 4
+        assert stats["inventoryItems"] == 3
+        assert stats["specChapters"] == 2
+        assert stats["questions"] == 2
+        assert stats["totalNodes"] == len(graph)
+        assert kg["ccrsg:schemaVersion"] == "0.1.0"
+
+    def test_empty_inputs(self):
+        kg = build_knowledge_graph({"units": []}, {"units": []}, {}, None)
+        assert kg["@graph"] == []
+        assert kg["ccrsg:stats"]["totalNodes"] == 0
+
+    def test_inventory_node_links_to_related_source(self):
+        kg = build_knowledge_graph(SAMPLE_SOURCE_MAP, SAMPLE_INVENTORY, {}, None)
+        inv = next(
+            n for n in kg["@graph"]
+            if n.get("@type") == "ccrsg:InventoryItem" and n["schema:name"] == "Product"
+        )
+        derived = [r["@id"] for r in inv["ccrsg:derivedFrom"]]
+        assert "ccrsg:unit/SRC-0003" in derived

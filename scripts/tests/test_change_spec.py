@@ -634,6 +634,59 @@ class TestResolveMode(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 resolve_mode(None, specback_path)
 
+    def test_auto_git_from_git_and_generated_commit(self):
+        """Git repo + state.json generated_at_commit → git mode (auto)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / ".git").mkdir(parents=True)
+            specback_path = root / ".specback"
+            specback_path.mkdir(parents=True)
+            (specback_path / "state.json").write_text(
+                json.dumps({"generated_at_commit": "abc123"}), encoding="utf-8",
+            )
+            self.assertEqual(resolve_mode(None, specback_path), MODE_GIT)
+
+    def test_auto_hash_from_source_hashes(self):
+        """source-hashes.json present (no git) → hash mode (auto)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            specback_path = root / ".specback"
+            specback_path.mkdir(parents=True)
+            (specback_path / "source-hashes.json").write_text(
+                json.dumps({"units": {}}), encoding="utf-8",
+            )
+            self.assertEqual(resolve_mode(None, specback_path), MODE_HASH)
+
+    def test_auto_git_without_generated_commit(self):
+        """Git repo but no state.json generated_at_commit → git mode (auto)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / ".git").mkdir(parents=True)
+            specback_path = root / ".specback"
+            specback_path.mkdir(parents=True)
+            self.assertEqual(resolve_mode(None, specback_path), MODE_GIT)
+
+
+class TestExtFromPath(unittest.TestCase):
+    """Tests for _ext_from_path()"""
+
+    def test_common_extensions(self):
+        self.assertEqual(_cs._ext_from_path("app/models/issue.rb"), "rb")
+        self.assertEqual(_cs._ext_from_path("src/handler.py"), "py")
+        self.assertEqual(_cs._ext_from_path("cmd/server/main.go"), "go")
+        self.assertEqual(_cs._ext_from_path("app.ts"), "ts")
+
+    def test_upper_case_extension_lowered(self):
+        self.assertEqual(_cs._ext_from_path("app.dockerfile"), "dockerfile")
+        self.assertEqual(_cs._ext_from_path("Makefile.PL"), "pl")
+
+    def test_no_extension(self):
+        self.assertEqual(_cs._ext_from_path("Makefile"), "")
+        self.assertEqual(_cs._ext_from_path("foo/bar"), "")
+
+    def test_dotted_name(self):
+        self.assertEqual(_cs._ext_from_path("package.v1.min.js"), "js")
+
 
 class TestResolveBase(unittest.TestCase):
     """Tests for resolve_base()"""
