@@ -387,6 +387,28 @@ def test_iter_target_files_skips_dirs_and_globs(tmp_path: Path) -> None:
     assert files == ["main.py"]
 
 
+def test_iter_target_files_single_lstat_yields_files_skips_symlinks(
+    tmp_path: Path,
+) -> None:
+    """iter_target_files uses one lstat: normal files are yielded while both a
+    regular symlink and a symlink pointing outside target are skipped (#321)."""
+    import os
+
+    mod = _load_source_map_module()
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("def m():\n    pass\n", encoding="utf-8")
+    (tmp_path / "src" / "alias.py").symlink_to(tmp_path / "src" / "main.py")
+    secret = tmp_path / "secret.env"
+    secret.write_text("SECRET=1\n", encoding="utf-8")
+    (tmp_path / "src" / "leak.py").symlink_to(secret)
+
+    rels = []
+    for p in mod.iter_target_files(tmp_path / "src", []):
+        assert not os.path.islink(p), f"symlink yielded: {p}"
+        rels.append(p.name)
+    assert rels == ["main.py"]
+
+
 def test_build_source_map_end_to_end(tmp_path: Path) -> None:
     """build_source_map returns units + stats over a tiny project."""
     mod = _load_source_map_module()

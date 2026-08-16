@@ -53,7 +53,9 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
+import os
 import re
+import stat
 import sys
 from common import atomic_write_json, utcnow_iso
 from dataclasses import dataclass, asdict
@@ -324,9 +326,15 @@ def iter_target_files(target: Path, exclude_globs: list[str]) -> Iterable[Path]:
         # Symlinks are not followed: a symlink inside target may point
         # OUTSIDE target (e.g. .env / secret keys), and reading it would
         # leak external file contents into source-map.json (Issue #254).
-        if p.is_symlink():
+        # Use a single lstat + mode check so the symlink/regular-file
+        # decision is not split across two system calls (TOCTOU, #321).
+        try:
+            st = os.lstat(p)
+        except OSError:
             continue
-        if not p.is_file():
+        if stat.S_ISLNK(st.st_mode):
+            continue
+        if not stat.S_ISREG(st.st_mode):
             continue
         # Defense in depth: after resolving, the file must still live
         # inside target (protects against any path that escapes it).
