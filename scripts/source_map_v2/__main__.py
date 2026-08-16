@@ -38,8 +38,16 @@ def main(argv: list[str] | None = None) -> int:
     text = json.dumps(payload, ensure_ascii=False, indent=2)
 
     if args.output:
+        if args.output.is_symlink():
+            print(f"ERROR: output path cannot be a symlink: {args.output}", file=sys.stderr)
+            return 2
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text, encoding="utf-8")
+        import tempfile
+        import os
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=args.output.parent, prefix=".tmp_smap_")
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp_path, args.output)
         stats = payload["stats"]
         print(
             f"source-map v2: {stats['units_total']} units from {stats['files_scanned']} files "
