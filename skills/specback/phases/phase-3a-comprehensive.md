@@ -10,7 +10,7 @@ Full prose per chapter with `comprehensive` depth mode — applies STEP A throug
 
 For every INV in that chapter's `wbs.json.chapters[*].assigned_inventory_ids`, **use the Read tool on the corresponding real source files**.
 
-Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section is optional; if present, its bullet lines count toward body_lines, so prefer omitting it.)
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript

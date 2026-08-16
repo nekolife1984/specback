@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - `specback-estimate.py` の堅牢化 (agency review 事後対応): `--record-actual` / `--budget-limit` の正値検証（0・負値拒否）、`estimate-history.json` のアトミック書き込み + symlink 拒否（任意ファイル上書き防止）、非有限 JSON 定数（NaN/Infinity）と破損履歴の拒否・`.bak` 隔離、履歴の最大50件キャップと不正エントリ除外、`depth_mode` / `tone` の型ガードと制御文字サニタイズ、入力ファイルのサイズ上限（50 MiB）。テストを 20 → 35 件に拡充
+- **`## Sources Read` セクションを撤廃** ([#305], [#306], **breaking**): `coverage-check.py` から `--min-sources-read-per-chapter` フラグ・`sources_read_count` メトリクス・`SOURCES_READ_RE`/`SOURCES_READ_ITEM_RE` を削除。読了ソースの記録は `<!-- REF: ... -->` マーカー + `traceability.md` に一本化。phase ドキュメント・エージェントプロンプトから Sources Read 強制を除去し、既存 specs のセクションは任意（残置時は body_lines に加算される）。既存仕様書のセクションは削除推奨（ai-chat PR #37 で全削除済み）
 
 ## [v1.1.0] - 2026-08-01
 
