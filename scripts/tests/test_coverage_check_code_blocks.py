@@ -55,7 +55,6 @@ def _run_check(specback_dir: Path, **overrides) -> dict:
         "--min-lines-per-chapter": "200",
         "--min-code-blocks-per-chapter": "0",
         "--min-mermaid-per-chapter": "0",
-        "--min-sources-read-per-chapter": "0",
     }
     defaults.update(overrides)
 

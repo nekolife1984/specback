@@ -6,35 +6,11 @@ Full prose per chapter with `comprehensive` depth mode — applies STEP A throug
 
 ### Procedure (comprehensive mode)
 
-#### STEP A: Sources Read (mandatory; skipping causes Phase 4 failure)
+#### STEP A: Read the sources (mandatory; skipping causes Phase 4 failure)
 
 For every INV in that chapter's `wbs.json.chapters[*].assigned_inventory_ids`, **use the Read tool on the corresponding real source files**.
 
-List the viewed file paths at the **end of the chapter under a `## Sources Read` section** (after the chapter body):
-
-```markdown
-# Chapter 5: Data Model
-
-... (chapter body with `<!-- REF: ... -->` citations)
-
-## Sources Read
-- `app/models/issue.rb`
-- `app/models/project.rb`
-- `app/models/user.rb`
-- `db/migrate/0042_create_orders.rb`
-- `app/models/concerns/soft_delete.rb`
-```
-
-**Minimum 5 files** under Sources Read. `coverage-check.py` enforces this count. Writing `<!-- REF: ... -->` citations for files that are not listed is forbidden.
-
-**Sources Read format** (`coverage-check.py` parses these lines with `SOURCES_READ_ITEM_RE = ^\s*[-*]\s+\`?([^\`\n]+?)\`?(?:\s*\([^)]*\))?\s*$`):
-
-- **Path-only bullets are recommended**: ``- `path` ``. The line range `(start-end)` is optional informational context for readers and is NOT validated by coverage-check — it goes stale whenever the code shifts, so prefer omitting it.
-- ✅ OK: ``- `app/models/issue.rb` `` / ``- `app/models/issue.rb` (1-440) ``
-- ❌ **Absolute paths are forbidden**: ``- `/Users/me/proj/app/models/issue.rb` `` (use workspace-relative `app/models/issue.rb`).
-- ❌ **Trailing descriptions are forbidden**: ``- `app/models/issue.rb` (1-440) — モデル定義 `` (anything after the closing paren breaks the regex `$` anchor, so the item is NOT counted).
-- ❌ **Full-width / CJK annotations are forbidden**: ``- `app/models/issue.rb`（モデル定義） `` (the parser only accepts ASCII `(...)`; full-width parens fail the match).
-- ❌ Do NOT write ``(lines 1-440)`` in the parens; write ``(1-440)`` (the `lines` prefix is not required and can confuse the parser).
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript
@@ -102,7 +78,6 @@ Incorporate the citations into the body. **Per-chapter mandatory requirements**:
 | `<!-- REF: ... -->` count | >= 10 | coverage-check.py |
 | fenced code block | >= 3 | coverage-check.py |
 | Mermaid diagrams | >= 1 | coverage-check.py |
-| Sources Read items | >= 5 | coverage-check.py |
 
 Body length is guided by `goal.tone`: `concise` -> compact prose (facts + citations); `thorough` -> include background, rationale, alternatives. No fixed line-count minimum.
 
@@ -169,20 +144,18 @@ Quality bar:
 - <!-- REF: SRC-NNNN --> (or <!-- REF: path:start-end -->) >= 10
 - fenced code blocks >= 3
 - Mermaid diagrams >= 1 (ER diagram)
-- >= 5 files under ## Sources Read
 - Body guided by tone: concise -> compact; thorough -> detailed
 
 Format rules (coverage-check.py enforces these; violations loop back):
 - Write `<!-- REF: ... -->` citations BARE — never wrap them in （） or (). A wrapped citation renders as a visible empty `（）`.
-- Sources Read bullets MUST be ``- `path` `` (path-only recommended) or ``- `path` (start-end) `` with workspace-relative paths. NO absolute paths, NO trailing descriptions (`— 説明`), NO full-width parens (（...）). Line ranges are optional and go stale on code changes — prefer path-only.
+- Every read file you cite must be workspace-relative. NO absolute paths. A `## Sources Read` section is optional; if present, keep bullets to ``- `path` `` with workspace-relative paths only.
 
 When done, return the chapter's key points + a list of detail questions raised.
 The detail questions are material for the main agent to append into questions.json.
 
 NOTE: If goal.output_language == "ja", render the chapter body, headings,
 prose, and detail-question text in Japanese. Keep code blocks, file paths,
-JSON keys, <!-- REF: ... --> markers, and the literal heading "## Sources Read"
-in English.
+JSON keys, and <!-- REF: ... --> markers in English.
 """,
   subagent_type="chapter-investigator"
 )
@@ -231,9 +204,9 @@ in English.
 **When the `task` tool is unavailable**, the main agent performs STEP A-F itself per chapter.
 
 ### Phase-specific cautions
-- Writing a chapter without reading the code is forbidden. You may cite only files listed in Sources Read.
+- Writing a chapter without reading the code is forbidden. You may cite only files you actually read (via `<!-- REF: ... -->` markers).
 - Body length follows `tone`: concise -> compact; thorough -> detailed.
-- >= 10 REFs / >= 5 Sources Read must be satisfied.
+- >= 10 REFs must be satisfied.
 - Cross-chapter consistency is checked in Phase 4.
 - Do not hide uncertainty markers; keep them explicit in the draft.
 - Do NOT declare Phase 3 complete unless **every** chapter in `wbs.json.chapters[]` has a non-empty body in `{output_dir}/.specback/drafts/` (at least 10 non-blank lines outside of code fences). Verify before updating `state.json`.

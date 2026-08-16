@@ -30,7 +30,6 @@ Quality bar:
 - <!-- REF: SRC-NNNN --> ≥ 10
 - fenced code blocks ≥ 3
 - Mermaid diagrams ≥ 1 (ER diagram)
-- ≥ 5 files under ## Sources Read
 
 [mode B IMPORTANT] In the task return text, include **only the path and a
 summary** — do NOT paste the chapter body. Save the detail questions to
@@ -39,8 +38,7 @@ drafts/05-data-model.md, and list only the top 5 in the return value.
 
 NOTE: If goal.output_language == "ja", render the chapter body, headings,
 prose, and detail-question text in Japanese. Keep code blocks, file
-paths, JSON keys, <!-- REF: ... --> markers, and the literal heading
-"## Sources Read" in English.
+paths, JSON keys, and <!-- REF: ... --> markers in English.
 """,
   subagent_type="chapter-investigator"
 )

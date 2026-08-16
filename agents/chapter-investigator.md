@@ -24,8 +24,8 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 > **Language handling**: render the chapter body, headings, prose, and
 > detail-question text in `goal.output_language` (`"en"` by default,
 > `"ja"` only when explicitly chosen in Phase 0). Code blocks, file
-> paths, JSON keys, `<!-- REF: ... -->` markers, `<!-- CONFIDENCE: ... -->` labels,
-> and the literal heading `## Sources Read` stay English regardless.
+> paths, JSON keys, `<!-- REF: ... -->` markers, and `<!-- CONFIDENCE: ... -->` labels
+> stay English regardless.
 
 ---
 
@@ -37,7 +37,6 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 | `<!-- REF: SRC-NNNN -->` citations | **≥ 10** (SRC-ID refs are stable across refactors) |
 | fenced code blocks | **≥ 3** |
 | Mermaid diagrams (` ```mermaid `) | **≥ 1** |
-| `## Sources Read` section at the end of the chapter | **≥ 5** viewed source files listed |
 
 Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase 4 loopback in which the main agent re-invokes you.
 
@@ -45,23 +44,11 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 ## Procedure (STEP A through STEP F)
 
-### STEP A: Sources Read (mandatory)
+### STEP A: Read the sources (mandatory)
 
 For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
-List the read files at the **end of the chapter** (after the chapter body):
-
-```markdown
-## Chapter Title
-...(main body with `<!-- REF: ... -->` citations)
-
-## Sources Read
-- `app/models/issue.rb`
-- `app/models/project.rb`
-- `app/models/user.rb`
-- `db/migrate/0042_create_orders.rb`
-- `app/models/concerns/soft_delete.rb`
-```
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript
@@ -144,28 +131,17 @@ The main agent reads this and appends the questions to `questions.json`.
 
 ---
 
-### 💡 Sources Read format (mandatory)
+### 💡 Sources Read section (optional)
 
-The `## Sources Read` section MUST use **bullet-list format** — one file per line starting with `-`. Coverage-check.py parses this format mechanically.
+A `## Sources Read` section at the end of the chapter is **optional** — the REF markers are the authoritative read-source record, and coverage-check no longer requires or validates the section. If you include one, use **bullet-list format** — one file per line starting with `-`:
 
-**Path-only is recommended** — line ranges `(N-M)` are optional and go stale whenever the code shifts; they are NOT validated by coverage-check, only counted.
-
-✅ Correct:
 ```markdown
 ## Sources Read
 - `path/to/file.py`
 - `path/to/other.py`
 ```
 
-❌ NOT recognised:
-```markdown
-## Sources Read
-| # | File | Lines |
-|---|------|-------|
-| 1 | path/to/file.py | 1-100 |
-```
-
-テーブル形式やコードブロック形式は coverage-check.py が認識しません。必ず箇条書き形式で記述してください。
+Path-only bullets are recommended (line ranges go stale whenever the code shifts).
 
 ---
 
@@ -263,7 +239,7 @@ Add `architecture_decision` and `spec_missing` questions for 🔴 entries. Minim
 - **Generating multiple files in one script**
 - **Writing files via shell `>` redirection or heredoc** (always use Write / Edit)
 - **Embedding absolute paths (`/home/...` etc.) in the deliverable** (always use workspace-relative paths)
-- **Citing files that are not in Sources Read**
+- **Citing files you did not read**
 - **内部ファイルパスの露出**: 生成ドキュメント本文内で `.specback/` 配下のファイルパス（`{output_dir}/.specback/drafts/`, `inventory.json`, `wbs.json`, `questions.json`, `source-map.json`, `trace.json`, `goal.json` など）を一切参照しないこと。テーブル列の説明はユーザー向け表現（例：「該当機能を実装するソースコードの単位を示す」）にし、内部データファイル名で説明しない。`inventory_ids` は内部管理用の識別子であり、出力テキストでその出自を説明してはならない。
 
 ---

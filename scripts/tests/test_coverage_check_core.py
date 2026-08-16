@@ -46,7 +46,6 @@ def _metrics(**overrides) -> cov.ChapterMetrics:
         refs=8,
         code_blocks=2,
         mermaid_blocks=0,
-        sources_read_count=3,
     )
     defaults.update(overrides)
     return cov.ChapterMetrics(**defaults)
@@ -56,16 +55,16 @@ def test_evaluate_chapter_gates_fails_below_threshold():
     m = _metrics(refs=5)
     cov.evaluate_chapter_gates(
         [m], min_refs=10, min_lines=50, min_code_blocks=1,
-        min_mermaid=0, min_sources_read=2,
+        min_mermaid=0,
     )
     assert any("REF" in f and "10" in f for f in m.failures), m.failures
 
 
 def test_evaluate_chapter_gates_passes_at_threshold():
-    m = _metrics(refs=10, body_lines=60, code_blocks=1, sources_read_count=2)
+    m = _metrics(refs=10, body_lines=60, code_blocks=1)
     cov.evaluate_chapter_gates(
         [m], min_refs=10, min_lines=50, min_code_blocks=1,
-        min_mermaid=0, min_sources_read=2,
+        min_mermaid=0,
     )
     assert m.failures == [], m.failures
 
@@ -73,11 +72,11 @@ def test_evaluate_chapter_gates_passes_at_threshold():
 def test_evaluate_chapter_gates_skips_reserved_files():
     m = cov.ChapterMetrics(
         file="00-metadata.md", total_lines=3, body_lines=1, refs=0,
-        code_blocks=0, mermaid_blocks=0, sources_read_count=0,
+        code_blocks=0, mermaid_blocks=0,
     )
     cov.evaluate_chapter_gates(
         [m], min_refs=10, min_lines=50, min_code_blocks=1,
-        min_mermaid=1, min_sources_read=5,
+        min_mermaid=1,
     )
     assert m.failures == []
 
@@ -87,7 +86,7 @@ def test_evaluate_chapter_gates_weighted_body_lines():
     m = _metrics(body_lines=40, code_block_lines=20)  # 40 + 20*0.5 = 50
     cov.evaluate_chapter_gates(
         [m], min_refs=0, min_lines=50, min_code_blocks=0,
-        min_mermaid=0, min_sources_read=0, code_block_line_weight=0.5,
+        min_mermaid=0, code_block_line_weight=0.5,
     )
     assert m.failures == [], m.failures
 
@@ -194,16 +193,13 @@ def test_compute_chapter_metrics_counts():
         "```python\n"
         "def f():\n"
         "    pass\n"
-        "```\n\n"
-        "## Sources Read\n"
-        "- app/a.py\n"
+        "```\n"
     )
     m = cov.compute_chapter_metrics("01-overview.md", content)
     assert m.file == "01-overview.md"
     assert m.refs >= 1
     assert m.code_blocks >= 1
     assert m.code_block_lines >= 1
-    assert m.sources_read_count >= 1
 
 
 def test_check_reserved_body_lines_fails():
@@ -437,7 +433,6 @@ def test_build_report_success_path(tmp_path):
         min_lines_per_chapter=0,
         min_code_blocks_per_chapter=0,
         min_mermaid_per_chapter=0,
-        min_sources_read_per_chapter=0,
         min_mece_coverage=0.0,
     )
     assert isinstance(report, cov.CoverageReport)
@@ -462,7 +457,6 @@ def test_build_report_gate_failures_when_uncovered(tmp_path):
         min_lines_per_chapter=0,
         min_code_blocks_per_chapter=0,
         min_mermaid_per_chapter=0,
-        min_sources_read_per_chapter=0,
         min_mece_coverage=0.0,
     )
     chapter = next(m for m in report.chapter_metrics if m.file == "01-overview.md")

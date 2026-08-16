@@ -69,7 +69,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    1. The `<!-- meta: ... -->` comment line described above.
    2. One blank line.
    3. The chapter title `#` heading, rendered in `goal.json.output_language`.
-   4. (Optional, for `standard` chapters only) a placeholder line `(to be filled in Phase 3)` at the end — Phase 3 will populate the body and add `## Sources Read` with actual file references.
+   4. (Optional, for `standard` chapters only) a placeholder line `(to be filled in Phase 3)` at the end — Phase 3 will populate the body with `<!-- REF: ... -->` citations.
 
    Total body length per skeleton MUST be **≤ 5 non-blank lines** outside of code fences. This cap is the structural enforcement of "Phase 2 ≠ Phase 3".
 
@@ -105,7 +105,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    (Phase 3 で記入予定)
    ```
 
-   Note that the meta comment stays English in BOTH variants (it is a structural marker the chapter pipeline matches on). Only the chapter title (`# Chapter 2: Entities` / `# 第2章: エンティティ`) and the placeholder phrase switch by `output_language`. The `## Sources Read` section is omitted here because Phase 2 has not read any source code yet — Phase 3 adds it with actual file references after reading the codebase.
+   Note that the meta comment stays English in BOTH variants (it is a structural marker the chapter pipeline matches on). Only the chapter title (`# Chapter 2: Entities` / `# 第2章: エンティティ`) and the placeholder phrase switch by `output_language`.
 
    That is the entire file. No table. No entity names. No `belongs_to` notes. No diagrams. Phase 3 fills the rest after reading the real source.
 
@@ -130,7 +130,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
 2. **Create the WBS**
    - Define sub-tasks that fill each chapter. The model is "1 sub-task = 1 sub-agent".
    - Sub-task granularity: split each sub-task to "a size that preserves accuracy". Too big → coarse output; too small → overhead.
-   - **Include every user-custom deliverable** from `goal.json.user_custom_deliverables` as a `chapters[]` entry with `kind: "user_custom"`. These chapters share the existence/non-empty gate (check 12) but are exempt from comprehensive per-chapter gates (200 lines / 10 REFs / Mermaid / Sources Read); their quality bar is defined by the user's intent (`source_intent`) confirmed via Phase 5 dialogue.
+   - **Include every user-custom deliverable** from `goal.json.user_custom_deliverables` as a `chapters[]` entry with `kind: "user_custom"`. These chapters share the existence/non-empty gate (check 12) but are exempt from comprehensive per-chapter gates (200 lines / 10 REFs / Mermaid); their quality bar is defined by the user's intent (`source_intent`) confirmed via Phase 5 dialogue.
    - Save the WBS to `wbs.json`. Schema:
 
    ```json
@@ -281,7 +281,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
 - WBS granularity directly drives sub-agent precision. When in doubt, split finer.
 - Skipping the user review causes large rework in Phase 3.
 - **Strictly observe the chapter file naming convention**. Free-form names like `chapter2_architecture.md` or `第3章_認証.md` are NOT allowed. Violations are flagged by `scripts/coverage-check.py`.
-- **Skeleton size cap (mandatory)**: every file under `{output_dir}/.specback/drafts/` produced in Phase 2 has **≤ 5 non-blank lines** of body outside code fences. Verify this immediately after writing each skeleton (`wc -l {output_dir}/.specback/drafts/*.md` for a sanity check); a skeleton that is already long has body content that belongs in Phase 3 — delete the body and keep only meta comment + title + (optional) Sources Read placeholder.
+- **Skeleton size cap (mandatory)**: every file under `{output_dir}/.specback/drafts/` produced in Phase 2 has **≤ 5 non-blank lines** of body outside code fences. Verify this immediately after writing each skeleton (`wc -l {output_dir}/.specback/drafts/*.md` for a sanity check); a skeleton that is already long has body content that belongs in Phase 3 — delete the body and keep only meta comment + title.
 - **Phase 2 does NOT read code**: the only allowed source reads in Phase 2 are (a) for inventory extraction via `source-map.py`, (b) for deciding the depth_mode chapter structure. Reading individual class / model / controller files to write their description is **Phase 3's job**, not Phase 2's. If you catch yourself opening `app/models/issue.rb` to write what `Issue` does, you've crossed into Phase 3 — stop and finish Phase 2 first.
 
 ---
