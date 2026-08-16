@@ -87,7 +87,10 @@ MD034: false
 # Prefer `---` for horizontal rules.
 
 # MD036 — Emphasis used instead of a heading
-# Catch bold/italic used as section titles (should be proper headings).
+# Per-feature processing definitions use `**Label**` as the field-label style
+# (`**Overview**`, `**Priority**`, `**Edge cases**`, ...). This is the
+# intentional template style (Issue #298), not a heading mistake.
+MD036: false
 
 # MD041 — First line in file is a top-level heading
 # Every spec chapter must start with `# 第N章: ...`.

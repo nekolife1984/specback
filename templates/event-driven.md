@@ -224,7 +224,7 @@ For each feature listed in the catalogue above, describe the processing flow str
 - Which user / system role uses it
 
 **Priority**
-- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P3 = auxiliary). Determined from code evidence. <!-- REF: SRC-NNNN -->
+- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P2 = important but not core, P3 = auxiliary). Determined from code evidence (call volume, criticality of the path, blast radius). REF optional.
 
 **Trigger**
 - Event / schedule / external call that initiates this feature (see 2.2 flow diagram)
@@ -248,6 +248,7 @@ For each feature listed in the catalogue above, describe the processing flow str
 - e.g. empty payload, out-of-order events, duplicate delivery, consumer lag
 
 **Acceptance scenarios**
+- Write 2–5 scenarios per feature, each with an `<!-- REF: SRC-NNNN -->` citation to the code branch it validates.
 - Scenario 1: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
 - Scenario 2: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
 
@@ -260,7 +261,7 @@ For each feature listed in the catalogue above, describe the processing flow str
 - State of the system after successful execution
 
 **Related business rules**
-- → Ch? (Domain rules section) cross-reference
+- → Ch? (Event catalogue Ch4 / schema evolution rules Ch7) cross-reference
 
 **Related chapters**
 - → Ch? (Event catalogue / Producers / Consumers) cross-reference

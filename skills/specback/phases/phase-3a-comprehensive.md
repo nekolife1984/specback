@@ -101,10 +101,10 @@ Chapters that fail these are rejected in Phase 4 and loop back to Phase 3 for co
 Around each `<!-- REF: ... -->`, add prose explaining "what is happening". Writing only what Rails/Laravel-style frameworks "typically do" is forbidden — write what the **actual code** does after reading it.
 
 **Feature specifications chapter (Ch2)** — in addition to the general bar, each per-feature processing definition (2.2 / 2.3) must include the four spec-kit aligned sections (Issue #298):
-- **Priority** — P1/P2/P3 importance for the product (P1 = core value proposition, P3 = auxiliary), derived from code evidence.
-- **Acceptance scenarios** — Given/When/Then derived from actual code behaviour; each scenario carries an `<!-- REF: ... -->` citation. Do not write scenarios for unimplemented features.
+- **Priority** — P1/P2/P3 importance for the product (P1 = core value proposition, P2 = important but not core, P3 = auxiliary). Derive from code evidence: call volume, criticality of the path, blast radius. REF optional (priority is a judgment, not a code claim).
+- **Acceptance scenarios** — Given/When/Then derived from actual code behaviour; write 2–5 scenarios per feature, each carrying an `<!-- REF: ... -->` citation. Do not write scenarios for unimplemented features.
 - **Independent test** — how to verify the feature in isolation (test file reference, or manual procedure).
-- **Edge cases** — boundary values / exceptional inputs, kept separate from Error handling.
+- **Edge cases** — boundary values / exceptional inputs, kept separate from Error handling (Error handling = behaviour on failure (exceptions, error paths); Edge cases = boundary values / unusual inputs (empty, max length, duplicates, concurrency)).
 
 Block ordering: `Overview` → `Priority` → `Trigger` → `Pre-conditions` → `Main flow` → `Alternative flows` → `Error handling` → `Edge cases` → `Acceptance scenarios` → `Independent test` → `Post-conditions` → `Related business rules` → `Related chapters` → `Confidence`.
 

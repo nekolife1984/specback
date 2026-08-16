@@ -190,8 +190,8 @@ For the most critical or complex features, write structured processing definitio
 
 Additionally, for every feature written in STEP J, include the following sections (Issue #298 — spec-kit alignment):
 
-1. **Priority** — P1/P2/P3 importance for the product. P1 = core value proposition (must be implemented for the product to work), P3 = auxiliary. Derive from code evidence (call volume, criticality of the path, blast radius). `<!-- REF: ... -->` optional.
-2. **Acceptance scenarios** — Given/When/Then style, derived from actual code behaviour (handler / controller / service branches). Each scenario MUST carry an `<!-- REF: SRC-NNNN -->` citation. Do NOT write scenarios for unimplemented features (specback = code → spec).
+1. **Priority** — P1/P2/P3 importance for the product. P1 = core value proposition (must be implemented for the product to work), P2 = important but not core, P3 = auxiliary. Derive from code evidence (call volume, criticality of the path, blast radius). `<!-- REF: ... -->` optional (priority is a judgment, not a code claim).
+2. **Acceptance scenarios** — Given/When/Then style, derived from actual code behaviour (handler / controller / service branches). Write 2–5 scenarios per feature; each scenario MUST carry an `<!-- REF: SRC-NNNN -->` citation. Do NOT write scenarios for unimplemented features (specback = code → spec).
 3. **Independent test** — how to verify this feature in isolation. If test code exists, reference the test file (e.g. `tests/test_<feature>.py`); otherwise give a manual verification procedure.
 4. **Edge cases** — boundary conditions / exceptional inputs. Kept separate from Error handling: Error handling = behaviour on failure (exceptions, error paths), Edge cases = boundary values / unusual inputs (empty, max length, duplicates, concurrency).
 
