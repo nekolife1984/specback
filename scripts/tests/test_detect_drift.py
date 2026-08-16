@@ -632,3 +632,19 @@ def test_load_trace_matches_artifact_io(tmp_path):
     p = tmp_path / "trace.json"
     p.write_text(json.dumps({"by_source": {"SRC-0001": {"path": "a.py"}}}), encoding="utf-8")
     assert drift.load_trace(p) == artifact_io.load_trace(p)
+
+
+def test_print_base_info_head_message(capsys):
+    """print_base_info emits the HEAD fallback message exactly once to stderr (#322)."""
+    drift.print_base_info("HEAD")
+    captured = capsys.readouterr()
+    assert "detect-drift.py: using --base HEAD" in captured.err
+    assert "(no generated_at_commit in state.json)" in captured.err
+
+
+def test_print_base_info_commit_message(capsys):
+    """print_base_info shows the short base hash for a real ref (#322)."""
+    drift.print_base_info("0123456789abcdef")
+    captured = capsys.readouterr()
+    assert "detect-drift.py: using --base 0123456789ab" in captured.err
+    assert "from state.json.generated_at_commit" in captured.err
