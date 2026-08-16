@@ -207,6 +207,24 @@ def _spawn() -> subprocess.Popen:
     )
 
 
+def _cleanup_proc(proc: subprocess.Popen) -> None:
+    """Close all three PIPE streams and reap the server subprocess.
+
+    Closing stdin signals EOF (triggering a clean server exit), then stdout
+    and stderr are closed too so no pipe file object is left open. Without
+    closing stdout/stderr the suite emits ResourceWarnings and leaks file
+    descriptors under -W error::ResourceWarning.
+    """
+    for name in ("stdin", "stdout", "stderr"):
+        stream = getattr(proc, name)
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
+    assert proc.wait(timeout=15) == 0
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # handle_message: protocol level
 # ═══════════════════════════════════════════════════════════════════════════
@@ -575,9 +593,7 @@ def test_transport_initialize_and_list():
         names = [t["name"] for t in resp["result"]["tools"]]
         assert names == ["specback_search", "specback_uncovered", "specback_drift", "specback_questions"]
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 
 def test_transport_call_tool_end_to_end(specback_dir: Path):
@@ -605,9 +621,7 @@ def test_transport_call_tool_end_to_end(specback_dir: Path):
         assert "SRC-0002" in text
         assert "app/models/user.py" in text
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 
 def test_transport_malformed_json():
@@ -629,9 +643,7 @@ def test_transport_malformed_json():
         resp = json.loads(proc.stdout.readline())
         assert resp["result"]["serverInfo"]["name"] == "specback-search"
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Regression tests — agency review findings (deleg_3bf8da25, 2026-08-11)
@@ -684,9 +696,7 @@ def test_corrupt_artifact_transport_survives(tmp_path: Path):
         resp = json.loads(proc.stdout.readline())
         assert resp["result"] == {}
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 
 def test_transport_invalid_utf8_survives():
@@ -714,9 +724,7 @@ def test_transport_invalid_utf8_survives():
         resp = json.loads(proc.stdout.readline().decode("utf-8"))
         assert resp["result"] == {}
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 
 def test_transport_deep_nesting_survives():
@@ -743,9 +751,7 @@ def test_transport_deep_nesting_survives():
         resp = json.loads(proc.stdout.readline().decode("utf-8"))
         assert resp["result"] == {}
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
 
 
 def test_fifo_artifact_rejected(tmp_path: Path):
@@ -849,6 +855,4 @@ def test_transport_stdout_purity(specback_dir: Path):
             resp = json.loads(line)
             assert resp["jsonrpc"] == "2.0"
     finally:
-        if proc.stdin is not None:
-            proc.stdin.close()
-        assert proc.wait(timeout=15) == 0
+        _cleanup_proc(proc)
