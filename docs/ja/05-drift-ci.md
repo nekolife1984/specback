@@ -98,6 +98,8 @@ Action は `specback-gate.py --ci` を実行し、次のようなコメントを
 
 コメント本文は `.github/actions/specback-drift/post-comment.py` が生成します。報告すべき内容が無い場合（変更なし・pass）はコメントをスキップします。コメントは提供された token で `gh pr comment` により投稿されます。
 
+**フォークPRの場合**: フォークからのPRではコメント投稿をスキップします。フォークPRのデフォルト `GITHUB_TOKEN` は `pull-requests: read` のみのため、`gh pr comment` は `Resource not accessible by integration (addComment)` で失敗します。アクションはフォーク判定（`head.repo.full_name != github.repository`）を行い、ジョブを失敗させる代わりにコメントステップをスキップします（#339）。
+
 ## ローカル検証モード（`--ci`）
 
 `act` を使わずに同一動作をローカルで再現できます:

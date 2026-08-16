@@ -81,4 +81,12 @@ runs:
           exit 0
         fi
         PR_NUMBER="${{ github.event.pull_request.number }}"
+        # Fork PRs cannot post comments: the default GITHUB_TOKEN only has
+        # pull-requests: read, so gh pr comment fails with addComment denied
+        # (GraphQL: Resource not accessible by integration). Skip instead of
+        # failing the whole job (#339).
+        if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "Fork PR — skipping PR comment (token lacks write permission)."
+          exit 0
+        fi
         gh pr comment "$PR_NUMBER" --body-file "$COMMENT_MD"
