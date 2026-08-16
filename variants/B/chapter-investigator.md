@@ -59,18 +59,18 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
-List the read files at the **end of the chapter** (after the chapter body):
+List the read files at the **end of the chapter** (after the chapter body). **Path-only is recommended** — line ranges `(N-M)` are optional and go stale when the code shifts; coverage-check only counts the items:
 
 ```markdown
 ## Chapter Title
 ...(main body with `<!-- REF: ... -->` citations)
 
 ## Sources Read
-- `app/models/issue.rb` (lines 1-440)
-- `app/models/project.rb` (lines 1-690)
-- `app/models/user.rb` (lines 1-220)
-- `db/migrate/0042_create_orders.rb` (lines 1-50)
-- `app/models/concerns/soft_delete.rb` (lines 1-95)
+- `app/models/issue.rb`
+- `app/models/project.rb`
+- `app/models/user.rb`
+- `db/migrate/0042_create_orders.rb`
+- `app/models/concerns/soft_delete.rb`
 ```
 
 ### STEP B: Citation extraction (mandatory)

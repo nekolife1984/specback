@@ -10,7 +10,7 @@ Full prose per chapter with `comprehensive` depth mode — applies STEP A throug
 
 For every INV in that chapter's `wbs.json.chapters[*].assigned_inventory_ids`, **use the Read tool on the corresponding real source files**.
 
-List the viewed file paths and line ranges at the **end of the chapter under a `## Sources Read` section** (after the chapter body):
+List the viewed file paths at the **end of the chapter under a `## Sources Read` section** (after the chapter body):
 
 ```markdown
 # Chapter 5: Data Model
@@ -18,19 +18,19 @@ List the viewed file paths and line ranges at the **end of the chapter under a `
 ... (chapter body with `<!-- REF: ... -->` citations)
 
 ## Sources Read
-- `app/models/issue.rb` (lines 1-440)
-- `app/models/project.rb` (lines 1-690)
-- `app/models/user.rb` (lines 1-120)
-- `db/migrate/0042_create_orders.rb` (lines 1-50)
-- `app/models/concerns/soft_delete.rb` (lines 1-95)
+- `app/models/issue.rb`
+- `app/models/project.rb`
+- `app/models/user.rb`
+- `db/migrate/0042_create_orders.rb`
+- `app/models/concerns/soft_delete.rb`
 ```
 
 **Minimum 5 files** under Sources Read. `coverage-check.py` enforces this count. Writing `<!-- REF: ... -->` citations for files that are not listed is forbidden.
 
-**Strict Sources Read format** (`coverage-check.py` parses these lines with `SOURCES_READ_ITEM_RE = ^\s*[-*]\s+\`?([^\`\n]+?)\`?(?:\s*\([^)]*\))?\s*$`):
+**Sources Read format** (`coverage-check.py` parses these lines with `SOURCES_READ_ITEM_RE = ^\s*[-*]\s+\`?([^\`\n]+?)\`?(?:\s*\([^)]*\))?\s*$`):
 
-- Each bullet MUST be exactly one of: ``- `path` `` or ``- `path` (start-end) ``. No other decoration is allowed on the line.
-- ✅ OK: ``- `app/models/issue.rb` (1-440) `` / ``- `app/models/issue.rb` ``
+- **Path-only bullets are recommended**: ``- `path` ``. The line range `(start-end)` is optional informational context for readers and is NOT validated by coverage-check — it goes stale whenever the code shifts, so prefer omitting it.
+- ✅ OK: ``- `app/models/issue.rb` `` / ``- `app/models/issue.rb` (1-440) ``
 - ❌ **Absolute paths are forbidden**: ``- `/Users/me/proj/app/models/issue.rb` `` (use workspace-relative `app/models/issue.rb`).
 - ❌ **Trailing descriptions are forbidden**: ``- `app/models/issue.rb` (1-440) — モデル定義 `` (anything after the closing paren breaks the regex `$` anchor, so the item is NOT counted).
 - ❌ **Full-width / CJK annotations are forbidden**: ``- `app/models/issue.rb`（モデル定義） `` (the parser only accepts ASCII `(...)`; full-width parens fail the match).
@@ -174,7 +174,7 @@ Quality bar:
 
 Format rules (coverage-check.py enforces these; violations loop back):
 - Write `<!-- REF: ... -->` citations BARE — never wrap them in （） or (). A wrapped citation renders as a visible empty `（）`.
-- Sources Read bullets MUST be ``- `path` `` or ``- `path` (start-end) `` with workspace-relative paths. NO absolute paths, NO trailing descriptions (`— 説明`), NO full-width parens (（...）).
+- Sources Read bullets MUST be ``- `path` `` (path-only recommended) or ``- `path` (start-end) `` with workspace-relative paths. NO absolute paths, NO trailing descriptions (`— 説明`), NO full-width parens (（...）). Line ranges are optional and go stale on code changes — prefer path-only.
 
 When done, return the chapter's key points + a list of detail questions raised.
 The detail questions are material for the main agent to append into questions.json.
