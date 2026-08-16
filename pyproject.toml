@@ -34,3 +34,15 @@ follow_imports = "skip"
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["scripts/tests", "scripts/source_map_v2/tests", "skills/specback-search/scripts/tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["scripts"]
+
+[tool.coverage.report]
+# Coverage gate threshold — real branch coverage of the combined suite is ~70%.
+# Keep it a few points below the measured value so the gate tracks regressions
+# without failing the existing green suite on run-to-run flakiness.
+fail_under = 68
+show_missing = true
+skip_covered = true
