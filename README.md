@@ -19,7 +19,7 @@ In the LLM era, asking an AI to "make a spec from this code" produces visually p
 `specback` prioritizes:
 
 - **Honesty**: Don't hide guesses — mark them explicitly. Show "unresolved items" as a dedicated chapter
-- **Traceability**: Every statement has a source code reference with line numbers
+- **Traceability**: Every statement carries a source-code reference (`<!-- REF: -->`) — SRC-ID into source-map.json, or path:line
 - **Completeness**: Enumerate all extractable units from the code, mechanically verify coverage
 - **Progressive elaboration**: Recon → skeleton → chapter drafts → verify → dialog refine
 - **Resumability**: Long sessions can be paused and resumed
@@ -38,7 +38,7 @@ In the LLM era, asking an AI to "make a spec from this code" produces visually p
 
 **The output is machine-queryable.** Alongside the documents, specback emits a JSON-LD knowledge graph, `trace.json`, and `source-map.json` — searchable via the `specback-search` CLI or MCP server, turning the spec into a data asset, not just prose.
 
-**Ready for real projects.** v1.0.0 stable with API stability guarantees, MIT-licensed, and open to new languages, frameworks, and templates on request.
+**Ready for real projects.** v1.2.0 stable with API stability guarantees, MIT-licensed, and open to new languages, frameworks, and templates on request.
 
 **For teams that need a specification they can trust, verify, and keep in sync — not a polished document that drifts from reality.**
 
@@ -210,6 +210,8 @@ Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Ste
 
 See [`skills/specback/SKILL.md`](skills/specback/SKILL.md) for details.
 
+Phases 7b–7e extend Phase 7: REF Auto-Fix (`phase-7b-ref-autofix.md`), ChangeSpec (`phase-7c-changespec.md`), Config Refresh (`phase-7d-config-refresh.md`), and Incremental Update (`phase-7e-incremental-update.md`).
+
 ---
 
 ## Depth Modes
@@ -266,12 +268,17 @@ Unsupported languages or frameworks can be added on request via GitHub Issues.
 
 ## Templates
 
-Initial set of 4 templates included:
+All 9 built-in templates:
 
 - **Web Application Spec** (`templates/web-app.md`)
 - **Batch System Spec** (`templates/batch-system.md`)
 - **API Service Spec** (`templates/api-service.md`)
 - **Library/SDK Spec** (`templates/library-sdk.md`)
+- **CLI Tool Spec** (`templates/cli-tool.md`)
+- **Infrastructure Spec** (`templates/infrastructure.md`)
+- **Mobile App Spec** (`templates/mobile-app.md`)
+- **Desktop App Spec** (`templates/desktop-app.md`)
+- **Event-Driven / Streaming Spec** (`templates/event-driven.md`)
 
 Users can also bring their own templates.
 
@@ -317,55 +324,71 @@ specback/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-└── skills/
-    └── specback/
-        ├── SKILL.md                         # Lightweight index (~90 lines)
-        ├── phase-0-setup.md                 # Phase 0: Setup & Goal
-        ├── phase-1-recon.md                 # Phase 1: Recon & Template
-        ├── phase-2-wbs.md                   # Phase 2: Plan & WBS
-        ├── phase-3-investigate.md           # Phase 3: Investigate
-        ├── phase-4-verify.md                # Phase 4: Verify
-        ├── phase-5-dialogue.md              # Phase 5: Refine via Dialogue
-        ├── phase-6-deliver.md               # Phase 6: Deliver
-        ├── phase-6-5-deepdive.md            # Phase 6.5: Interactive Deep-Dive
-        ├── phase-7-drift.md                 # Phase 7: Drift Detection
-        ├── phase-7b-ref-autofix.md          # Phase 7b: REF Auto-Fix
-        ├── phase-7c-changespec.md           # Phase 7c: ChangeSpec
-        ├── phase-7e-incremental-update.md   # Phase 7e: Incremental Update
-        ├── question-bank.md                 # Question Bank operation
-        ├── subagent-behavior.md             # Sub-agent behaviour
-        ├── state-management.md              # State management & resume
-        ├── agents/
-        │   └── chapter-investigator.md  # Per-chapter sub-agent definition
-        ├── references/
-        │   ├── inventory-units.md       # Language units + granularity rules + Rails catalog
-        │   ├── outline-tables.md        # Overview-table definitions for outline mode (6 stacks)
-        │   ├── template-catalog.md
-        │   ├── question-categories.md
-        │   ├── verification-checklists.md
-        │   └── subagent-prompt.md
-        ├── templates/
-        │   ├── web-app.md
-        │   ├── batch-system.md
-        │   ├── api-service.md
-        │   └── library-sdk.md
-        ├── variants/
-        │   └── B/                       # Optional Context Optimization mode B
-        │       ├── README.md            # When and how to activate mode B
-        │       ├── SKILL.phase3-stepG.md  # Phase 3 STEP G override
-        │       └── chapter-investigator.md  # Mode-B sub-agent (return-value contract)
-        └── scripts/
-            ├── source-map.py            # Phase 2: source unit auto-extraction (v1)
-            ├── source_map_v2/           # v2: role-typed, framework-aware, tree-sitter extractor (9 languages)
-            │   ├── taxonomy.py          #   role vocabulary (5 universal tables)
-            │   ├── model.py             #   source-map.json schema 0.2.0
-            │   ├── detect.py            #   framework detection (layer 1)
-            │   ├── pipeline.py          #   3-layer orchestrator
-            │   ├── extractors/          #   per-language extractors (layer 2)
-            │   └── tests/               #   acceptance tests
-            ├── build-trace.py           # End of Phase 3 / Phase 4: build trace.json from <!-- REF: ... --> markers
-            ├── build-traceability.py    # Phase 6: generate traceability.md
-            └── coverage-check.py        # Phase 4: multi-item verification (comprehensive / outline modes)
+├── AGENTS.md
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── install.sh                       # Interactive installer (multi-agent)
+├── install.ps1                      # Windows installer
+├── agents/
+│   └── chapter-investigator.md      # Per-chapter sub-agent definition
+├── docs/
+│   ├── en/                          # Contributor guides (01–11, EN)
+│   ├── ja/                          # Contributor guides (01–11, JA)
+│   └── skill-behavior/              # question-bank / subagent-behavior / state-management / doubt-pass
+├── references/                      # Shared reference files (17 files)
+│   └── composite-chapters/          #   aggregated chapter recipes
+├── schemas/                         # goal / questions / state JSON schemas
+├── skills/
+│   ├── specback/                    # The specback skill (reference implementation)
+│   │   ├── SKILL.md                 # Lightweight index (~70 lines)
+│   │   └── phases/                  # Phase prompt sequences
+│   │       ├── phase-0-setup.md     #   Phase 0: Setup & Goal
+│   │       ├── phase-1-recon.md     #   Phase 1: Recon & Template
+│   │       ├── phase-2-wbs.md       #   Phase 2: Plan & WBS
+│   │       ├── phase-3-investigate.md / phase-3a-comprehensive.md / phase-3b-outline.md
+│   │       ├── phase-4-verify.md    #   Phase 4: Verify
+│   │       ├── phase-5-dialogue.md  #   Phase 5: Refine via Dialogue
+│   │       ├── phase-6-deliver.md / phase-6-5-deepdive.md
+│   │       ├── phase-7-drift.md / phase-7b-ref-autofix.md / phase-7c-changespec.md
+│   │       └── phase-7d-config-refresh.md / phase-7e-incremental-update.md
+│   └── specback-search/             # Companion search skill (CLI + MCP server)
+│       └── scripts/                 #   build-search-index.py / specback-search-mcp.py
+├── templates/
+│   ├── web-app.md · batch-system.md · api-service.md · library-sdk.md
+│   ├── cli-tool.md · infrastructure.md · mobile-app.md · desktop-app.md · event-driven.md
+│   ├── catalog.json                 # Machine-readable template catalog
+│   └── ci/                          # CI workflow templates (drift detection)
+├── variants/
+│   └── B/                           # Optional Context Optimization mode B
+│       ├── README.md                #   When and how to activate mode B
+│       ├── SKILL.phase3-stepG.md    #   Phase 3 STEP G override
+│       └── chapter-investigator.md  #   Mode-B sub-agent (return-value contract)
+└── scripts/                         # Executable scripts (stdlib only)
+    ├── source-map.py                # Phase 2: source unit auto-extraction (v1)
+    ├── source_map_v2/               # v2: role-typed, framework-aware, tree-sitter extractor (9 languages)
+    │   ├── taxonomy.py              #   role vocabulary (5 universal tables)
+    │   ├── model.py                 #   source-map.json schema 0.2.0
+    │   ├── detect.py                #   framework detection (layer 1)
+    │   ├── pipeline.py              #   3-layer orchestrator
+    │   ├── extractors/              #   per-language extractors (layer 2)
+    │   └── tests/                   #   acceptance tests
+    ├── build-trace.py               # End of Phase 3 / Phase 4: build trace.json from <!-- REF: ... --> markers
+    ├── build-traceability.py        # Phase 6: generate traceability.md
+    ├── coverage-check.py            # Phase 4: multi-item verification (comprehensive / outline modes)
+    ├── build-inventory-from-sourcemap.py  # Phase 2: inventory from source-map.json
+    ├── build-knowledge-graph.py     # knowledge-graph.jsonld
+    ├── detect-drift.py              # Phase 7: drift detection
+    ├── fix-refs.py                  # Phase 7b: REF auto-fix
+    ├── change-spec.py               # Phase 7c: ChangeSpec
+    ├── specback-gate.py             # Drift-detection CI wrapper
+    ├── specback-estimate.py         # Token estimation & budget gate
+    ├── specback-health.py           # Spec health report
+    ├── specback-incremental-update.py   # Phase 7e: incremental update
+    ├── validate-template-catalog.py # Template catalog validation
+    ├── restore-sourcemap-from-trace.py  # SRC-ID restore (safe source-map update)
+    ├── snapshot-hashes.py / specback_install.py / validate-schema.py
+    ├── gates.py · common.py · artifact_io.py · refutils.py · git_utils.py · trace_db.py
+    └── tests/                       # pytest suite (+ source_map_v2/tests/)
 ```
 
 ---
@@ -386,7 +409,7 @@ data (`source-map.json`, `trace.json`, `inventory.json`, `questions.json`,
 
 ## Status
 
-Currently **v1.0.0** — initial stable release.
+Currently **v1.2.0**.
 
 ### API Stability
 
@@ -445,10 +468,15 @@ The design draws significant inspiration from:
 ## Documentation
 
 - [Branching Strategy](docs/en/01-branching-strategy.md)
+- [Commit Conventions](docs/en/02-commit-conventions.md)
+- [PR Review Process](docs/en/03-pr-review-process.md)
+- [Release Process](docs/en/04-release-process.md)
 - [Drift Detection CI](docs/en/05-drift-ci.md)
+- [Skill Stamp Install](docs/en/06-install-stamp.md)
 - [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - [Incremental Spec Update](docs/en/08-incremental-update.md)
 - [Spec Health Report](docs/en/09-health-report.md)
+- [specback-search MCP Server](docs/en/10-specback-search-mcp.md)
 - [Template Catalog](docs/en/11-template-catalog.md)
 
 ---
@@ -479,7 +507,7 @@ LLM時代になり、AIに「このコードから仕様書を作って」と頼
 `specback` は以下を最優先します。
 
 - **正直さ**: 推測した部分は隠さず明示する。「未確定事項」を独立した章として示す
-- **トレーサビリティ**: すべての記述にソースコードの行番号付き参照を付ける
+- **トレーサビリティ**: すべての記述にソースコード参照（REF）を付ける（推奨: SRC-ID、source-map 外は path:line）
 - **抜け漏れ防止**: コードから抽出可能な単位を全件列挙し、機械的にカバレッジを検証する
 - **段階的詳細化**: 偵察 → スケルトン → 章ドラフト → 検証 → 対話精緻化、と段階を踏む
 - **再開可能性**: 長時間のセッションを中断・再開できる
@@ -498,7 +526,7 @@ LLM時代になり、AIに「このコードから仕様書を作って」と頼
 
 **成果物は機械から検索可能。** 文書と並んで JSON-LD 知識グラフ・`trace.json`・`source-map.json` を生成し、`specback-search`（CLI / MCP サーバー）で検索できます。仕様が「読む文書」から「データ資産」になります。
 
-**実プロジェクトにそのまま使える。** v1.0.0 安定版・API 安定性保証・MIT ライセンス。未対応の言語・フレームワーク・テンプレートは要望に応じて追加されます。
+**実プロジェクトにそのまま使える。** v1.2.0 安定版・API 安定性保証・MIT ライセンス。未対応の言語・フレームワーク・テンプレートは要望に応じて追加されます。
 
 **「綺麗なだけで現実と乖離していく仕様書」ではなく、「信頼でき、検証でき、最新に保てる仕様書」を必要とするチームのために。**
 
@@ -655,6 +683,8 @@ Drafts（中間ドラフト）は出力先に関わらず常に `.specback/draft
 
 詳細は [`skills/specback/SKILL.md`](skills/specback/SKILL.md) を参照してください。
 
+Phase 7b〜7e は Phase 7 の拡張です: REF 自動修正（`phase-7b-ref-autofix.md`）・ChangeSpec（`phase-7c-changespec.md`）・Config Refresh（`phase-7d-config-refresh.md`）・インクリメンタル更新（`phase-7e-incremental-update.md`）。
+
 ---
 
 ## Depth モード
@@ -711,12 +741,17 @@ python -m source_map_v2 --target <root> --output .specback/source-map.json
 
 ## テンプレート
 
-初期セットとして以下4種類を同梱しています。
+以下9種類のテンプレートを同梱しています。
 
 - **Webアプリケーション仕様書** (`templates/web-app.md`)
 - **バッチ処理システム仕様書** (`templates/batch-system.md`)
 - **APIサービス仕様書** (`templates/api-service.md`)
 - **ライブラリ/SDK仕様書** (`templates/library-sdk.md`)
+- **CLIツール仕様書** (`templates/cli-tool.md`)
+- **インフラストラクチャ仕様書** (`templates/infrastructure.md`)
+- **モバイルアプリ仕様書** (`templates/mobile-app.md`)
+- **デスクトップアプリ仕様書** (`templates/desktop-app.md`)
+- **イベント駆動/ストリーミング仕様書** (`templates/event-driven.md`)
 
 利用者が自前のテンプレートを持参することも可能です。
 
@@ -759,55 +794,71 @@ specback/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-└── skills/
-    └── specback/
-        ├── SKILL.md                         # Lightweight index (~90 lines)
-        ├── phase-0-setup.md                 # Phase 0: Setup & Goal
-        ├── phase-1-recon.md                 # Phase 1: Recon & Template
-        ├── phase-2-wbs.md                   # Phase 2: Plan & WBS
-        ├── phase-3-investigate.md           # Phase 3: Investigate
-        ├── phase-4-verify.md                # Phase 4: Verify
-        ├── phase-5-dialogue.md              # Phase 5: Refine via Dialogue
-        ├── phase-6-deliver.md               # Phase 6: Deliver
-        ├── phase-6-5-deepdive.md            # Phase 6.5: Interactive Deep-Dive
-        ├── phase-7-drift.md                 # Phase 7: Drift Detection
-        ├── phase-7b-ref-autofix.md          # Phase 7b: REF Auto-Fix
-        ├── phase-7c-changespec.md           # Phase 7c: ChangeSpec
-        ├── phase-7e-incremental-update.md   # Phase 7e: Incremental Update
-        ├── question-bank.md                 # Question Bank operation
-        ├── subagent-behavior.md             # Sub-agent behaviour
-        ├── state-management.md              # State management & resume
-        ├── agents/
-        │   └── chapter-investigator.md  # 章単位サブエージェント定義
-        ├── references/
-        │   ├── inventory-units.md       # 言語別単位 + 粒度規定 + Rails カタログ
-        │   ├── outline-tables.md        # outline モード用の概観テーブル定義(6言語)
-        │   ├── template-catalog.md
-        │   ├── question-categories.md
-        │   ├── verification-checklists.md
-        │   └── subagent-prompt.md
-        ├── templates/
-        │   ├── web-app.md
-        │   ├── batch-system.md
-        │   ├── api-service.md
-        │   └── library-sdk.md
-        ├── variants/
-        │   └── B/                       # オプションの Context Optimization mode B
-        │       ├── README.md            # mode B の使いどころと活性化方法
-        │       ├── SKILL.phase3-stepG.md  # Phase 3 STEP G の上書き
-        │       └── chapter-investigator.md  # mode B 用 sub-agent(return-value 契約)
-        └── scripts/
-            ├── source-map.py            # Phase 2: ソースユニット自動抽出 (v1)
-            ├── source_map_v2/           # v2: 役割型付き・FW対応・tree-sitter 抽出器 (9言語)
-            │   ├── taxonomy.py          #   役割語彙 (5普遍テーブル)
-            │   ├── model.py             #   source-map.json schema 0.2.0
-            │   ├── detect.py            #   フレームワーク検出 (第1層)
-            │   ├── pipeline.py          #   三層オーケストレータ
-            │   ├── extractors/          #   言語別エクストラクタ (第2層)
-            │   └── tests/               #   受け入れテスト
-            ├── build-trace.py           # Phase 3末/Phase 4: <!-- REF: ... --> からの trace.json 生成
-            ├── build-traceability.py    # Phase 6: traceability.md 生成
-            └── coverage-check.py        # Phase 4: 多項目検証(comprehensive / outline モード対応)
+├── AGENTS.md
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── install.sh                       # 対話型インストーラー (multi-agent)
+├── install.ps1                      # Windows インストーラー
+├── agents/
+│   └── chapter-investigator.md      # 章単位サブエージェント定義
+├── docs/
+│   ├── en/                          # Contributor ガイド (01–11, EN)
+│   ├── ja/                          # Contributor ガイド (01–11, JA)
+│   └── skill-behavior/              # question-bank / subagent-behavior / state-management / doubt-pass
+├── references/                      # 共有リファレンス (17ファイル)
+│   └── composite-chapters/          #   複合章レシピ
+├── schemas/                         # goal / questions / state JSON schema
+├── skills/
+│   ├── specback/                    # specback スキル本体 (reference implementation)
+│   │   ├── SKILL.md                 # Lightweight index (~70行)
+│   │   └── phases/                  # フェーズ別プロンプト連
+│   │       ├── phase-0-setup.md     #   Phase 0: Setup & Goal
+│   │       ├── phase-1-recon.md     #   Phase 1: Recon & Template
+│   │       ├── phase-2-wbs.md       #   Phase 2: Plan & WBS
+│   │       ├── phase-3-investigate.md / phase-3a-comprehensive.md / phase-3b-outline.md
+│   │       ├── phase-4-verify.md    #   Phase 4: Verify
+│   │       ├── phase-5-dialogue.md  #   Phase 5: Refine via Dialogue
+│   │       ├── phase-6-deliver.md / phase-6-5-deepdive.md
+│   │       ├── phase-7-drift.md / phase-7b-ref-autofix.md / phase-7c-changespec.md
+│   │       └── phase-7d-config-refresh.md / phase-7e-incremental-update.md
+│   └── specback-search/             # Companion: 検索 CLI + MCP サーバー
+│       └── scripts/                 #   build-search-index.py / specback-search-mcp.py
+├── templates/
+│   ├── web-app.md · batch-system.md · api-service.md · library-sdk.md
+│   ├── cli-tool.md · infrastructure.md · mobile-app.md · desktop-app.md · event-driven.md
+│   ├── catalog.json                 # 機械可読テンプレートカタログ
+│   └── ci/                          # CI ワークフローテンプレート (ドリフト検出)
+├── variants/
+│   └── B/                           # オプションの Context Optimization mode B
+│       ├── README.md                #   mode B の使いどころと活性化方法
+│       ├── SKILL.phase3-stepG.md    #   Phase 3 STEP G の上書き
+│       └── chapter-investigator.md  #   mode B 用 sub-agent (return-value 契約)
+└── scripts/                         # 実行スクリプト (stdlib only)
+    ├── source-map.py                # Phase 2: ソースユニット自動抽出 (v1)
+    ├── source_map_v2/               # v2: 役割型付き・FW対応・tree-sitter 抽出器 (9言語)
+    │   ├── taxonomy.py              #   役割語彙 (5普遍テーブル)
+    │   ├── model.py                 #   source-map.json schema 0.2.0
+    │   ├── detect.py                #   フレームワーク検出 (第1層)
+    │   ├── pipeline.py              #   三層オーケストレータ
+    │   ├── extractors/              #   言語別エクストラクタ (第2層)
+    │   └── tests/                   #   受け入れテスト
+    ├── build-trace.py               # Phase 3末/Phase 4: REF から trace.json 生成
+    ├── build-traceability.py        # Phase 6: traceability.md 生成
+    ├── coverage-check.py            # Phase 4: 多項目検証 (comprehensive / outline モード)
+    ├── build-inventory-from-sourcemap.py  # Phase 2: source-map.json から inventory 生成
+    ├── build-knowledge-graph.py     # knowledge-graph.jsonld
+    ├── detect-drift.py              # Phase 7: ドリフト検出
+    ├── fix-refs.py                  # Phase 7b: REF 自動修正
+    ├── change-spec.py               # Phase 7c: ChangeSpec
+    ├── specback-gate.py             # ドリフト検出 CI ラッパー
+    ├── specback-estimate.py         # トークン見積り & バジェットゲート
+    ├── specback-health.py           # 仕様ヘルスレポート
+    ├── specback-incremental-update.py    # Phase 7e: インクリメンタル更新
+    ├── validate-template-catalog.py # テンプレートカタログ検証
+    ├── restore-sourcemap-from-trace.py   # SRC-ID 復元 (安全な source-map 更新)
+    ├── snapshot-hashes.py / specback_install.py / validate-schema.py
+    ├── gates.py · common.py · artifact_io.py · refutils.py · git_utils.py · trace_db.py
+    └── tests/                       # pytest スイート (+ source_map_v2/tests/)
 ```
 
 ---
@@ -840,16 +891,26 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 |ブランチ戦略・開発フローについては以下を参照してください：
 |
 - EN: [Branching Strategy](docs/en/01-branching-strategy.md)
+- EN: [Commit Conventions](docs/en/02-commit-conventions.md)
+- EN: [PR Review Process](docs/en/03-pr-review-process.md)
+- EN: [Release Process](docs/en/04-release-process.md)
 - EN: [Drift Detection CI](docs/en/05-drift-ci.md)
+- EN: [Skill Stamp Install](docs/en/06-install-stamp.md)
 - EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - EN: [Incremental Spec Update](docs/en/08-incremental-update.md)
 - EN: [Spec Health Report](docs/en/09-health-report.md)
+- EN: [specback-search MCP Server](docs/en/10-specback-search-mcp.md)
 - EN: [Template Catalog](docs/en/11-template-catalog.md)
 - JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
+- JA: [コミット規約](docs/ja/02-commit-conventions.md)
+- JA: [PRレビュープロセス](docs/ja/03-pr-review-process.md)
+- JA: [リリース手順](docs/ja/04-release-process.md)
 - JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
+- JA: [スキルスタンプインストール](docs/ja/06-install-stamp.md)
 - JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
 - JA: [インクリメンタル仕様更新](docs/ja/08-incremental-update.md)
 - JA: [仕様ヘルスレポート](docs/ja/09-health-report.md)
+- JA: [specback-search MCP サーバー](docs/ja/10-specback-search-mcp.md)
 - JA: [テンプレートカタログ](docs/ja/11-template-catalog.md)
 
 ---
