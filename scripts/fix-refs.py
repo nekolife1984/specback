@@ -411,6 +411,39 @@ def _check_writable_spec(spec_path: Path, spec_dir: Path) -> bool:
     return True
 
 
+def _resolve_backup_dir(backup_arg: str | None, output_dir: Path) -> Path | None:
+    """Resolve --backup-dir and require it to stay inside the project tree.
+
+    Guards against path traversal and symlink-following writes (Issue #320):
+    backups may contain sensitive spec content, so they must never be written
+    outside the spec project's ``output_dir``.
+
+    Returns a resolved ``Path`` ready for ``mkdir()``, or ``None`` after
+    printing an ERROR to stderr when the requested directory is a symlink or
+    resolves outside ``output_dir``. The default (``backup_arg is None`` →
+    ``output_dir / "backups"``) is validated the same way.
+    """
+    backup_dir = Path(backup_arg) if backup_arg else output_dir / "backups"
+
+    if backup_dir.is_symlink():
+        print(
+            f"ERROR: refusing to use symlink as backup dir: {backup_dir}",
+            file=sys.stderr,
+        )
+        return None
+
+    out_real = output_dir.resolve()
+    backup_real = backup_dir.resolve()
+    if not backup_real.is_relative_to(out_real):
+        print(
+            f"ERROR: backup dir outside project output tree: {backup_real}",
+            file=sys.stderr,
+        )
+        return None
+
+    return backup_real
+
+
 def run_migrate_srcid(
     args: argparse.Namespace,
     specback_path: Path,
@@ -531,9 +564,9 @@ def run_migrate_srcid(
 
     # -- Apply conversions --
     if args.apply and migratable:
-        backup_dir = Path(args.backup_dir) if args.backup_dir else (
-            output_dir / "backups"
-        )
+        backup_dir = _resolve_backup_dir(args.backup_dir, output_dir)
+        if backup_dir is None:
+            return 2
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         # Group by spec file
@@ -827,9 +860,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # -- Apply corrections --
     if args.apply and corrections:
-        backup_dir = Path(args.backup_dir) if args.backup_dir else (
-            output_dir / "backups"
-        )
+        backup_dir = _resolve_backup_dir(args.backup_dir, output_dir)
+        if backup_dir is None:
+            return 2
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         # Group corrections by spec file
