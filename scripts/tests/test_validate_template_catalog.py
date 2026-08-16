@@ -593,3 +593,111 @@ def test_extract_detection_rules_block_ends_at_next_key() -> None:
     )}
     rules = vtc.extract_detection_rules(fm)
     assert rules["always_include"] == ["ch-overview"]
+
+
+# ---------------------------------------------------------------------------
+# Per-feature section checks (Issue #298 follow-up)
+# ---------------------------------------------------------------------------
+
+FEATURE_BLOCK_OK = """#### 2.2 Per-feature processing definitions
+
+##### F-001: {Feature name}
+
+**Overview**
+- Business value
+
+**Priority**
+- P1
+
+**Trigger**
+- Event
+
+**Pre-conditions**
+- Cond
+
+**Main flow**
+1. Step <!-- REF: SRC-NNNN -->
+
+**Alternative flows**
+- Alt-1
+
+**Error handling**
+- Error
+
+**Edge cases**
+- Boundary
+
+**Acceptance scenarios**
+- Scenario 1: Given X When Y Then Z <!-- REF: SRC-NNNN -->
+
+**Independent test**
+- Automated: tests/test_x.py
+
+**Post-conditions**
+- State
+"""
+
+
+def test_extract_feature_block_finds_2_2() -> None:
+    block = vtc.extract_feature_block(FEATURE_BLOCK_OK)
+    assert block is not None
+    assert "**Priority**" in block
+
+
+def test_extract_feature_block_skips_flow_diagrams() -> None:
+    # event-driven's 2.2 "Feature flow diagrams" must NOT match; 2.3 must.
+    body = (
+        "#### 2.2 Feature flow diagrams\n\n```mermaid\nsequenceDiagram\n```\n\n"
+        "#### 2.3 Per-feature processing definitions\n\n"
+        "##### F-001: X\n\n**Priority**\n- P1\n"
+    )
+    block = vtc.extract_feature_block(body)
+    assert block is not None
+    assert "**Priority**" in block
+    assert "mermaid" not in block
+
+
+def test_extract_feature_block_none_when_absent() -> None:
+    assert vtc.extract_feature_block("### Chapter 1: Overview\n") is None
+
+
+def test_check_feature_sections_ok() -> None:
+    errors: list[str] = []
+    vtc.check_feature_sections(FEATURE_BLOCK_OK, Path("templates/demo.md"), errors)
+    assert errors == []
+
+
+def test_check_feature_sections_missing() -> None:
+    block = FEATURE_BLOCK_OK.replace("**Independent test**\n- Automated: tests/test_x.py\n", "")
+    errors: list[str] = []
+    vtc.check_feature_sections(block, Path("templates/demo.md"), errors)
+    assert any("missing section(s): ['**Independent test**']" in e for e in errors)
+
+
+def test_check_feature_sections_out_of_order() -> None:
+    # swap Edge cases and Acceptance scenarios
+    block = FEATURE_BLOCK_OK.replace(
+        "**Edge cases**\n- Boundary\n\n**Acceptance scenarios**",
+        "**Acceptance scenarios**\n- Scenario 1: Given X When Y Then Z <!-- REF: SRC-NNNN -->\n\n**Edge cases**\n- Boundary",
+    )
+    errors: list[str] = []
+    vtc.check_feature_sections(block, Path("templates/demo.md"), errors)
+    assert any("out of order" in e for e in errors)
+
+
+def test_validate_entry_feature_sections_violation(tmp_path: Path) -> None:
+    tdir = tmp_path / "templates"
+    tdir.mkdir()
+    bad = FEATURE_BLOCK_OK.replace("**Edge cases**\n- Boundary\n\n", "")
+    body = "# Demo\n\n## Chapter outline\n\n### Chapter 1: Overview\n\n" + bad
+    fm_text = "template_name: demo\ndescription: demo\n"
+    (tdir / "demo.md").write_text(
+        f"---\n{fm_text}---\n{body}", encoding="utf-8"
+    )
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        json.dumps({"templates": [_catalog_entry(chapters=["Overview"])]}),
+        encoding="utf-8",
+    )
+    errors, _, _ = vtc.validate(catalog, tdir)
+    assert any("per-feature block missing section(s): ['**Edge cases**']" in e for e in errors)

@@ -111,10 +111,15 @@ Integrate the citations into the prose:
 **Feature-specification chapters (Ch2)**: when the assigned chapter contains
 per-feature processing definitions (2.2 / 2.3), each feature block must also
 include the four spec-kit aligned sections (Issue #298): **Priority**
-(P1/P2/P3), **Acceptance scenarios** (Given/When/Then with `<!-- REF: ... -->`
-per scenario), **Independent test** (test file reference or manual procedure),
-and **Edge cases** (boundary values / exceptional inputs, kept separate from
-Error handling). Ordering inside the block: `Overview` → `Priority` →
+(P1/P2/P3 — P1 = core value proposition, P2 = important but not core,
+P3 = auxiliary; derive from code evidence: call volume, criticality of the
+path, blast radius; REF optional), **Acceptance scenarios** (Given/When/Then,
+2–5 per feature, each with `<!-- REF: ... -->` per scenario), **Independent
+test** (test file reference or manual procedure), and **Edge cases**
+(boundary values / exceptional inputs — Error handling = behaviour on failure
+(exceptions, error paths); Edge cases = boundary values / unusual inputs
+(empty, max length, duplicates, concurrency)). Ordering inside the block:
+`Overview` → `Priority` →
 `Trigger` → `Pre-conditions` → `Main flow` → `Alternative flows` → `Error
 handling` → `Edge cases` → `Acceptance scenarios` → `Independent test` →
 `Post-conditions` → `Related business rules` → `Related chapters` →

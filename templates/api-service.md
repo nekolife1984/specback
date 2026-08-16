@@ -186,7 +186,7 @@ For each feature listed above, describe the processing flow structured as below.
 - Which user / system role uses it
 
 **Priority**
-- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P3 = auxiliary). Determined from code evidence. <!-- REF: SRC-NNNN -->
+- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P2 = important but not core, P3 = auxiliary). Determined from code evidence (call volume, criticality of the path, blast radius). REF optional.
 
 **Trigger**
 - User action / system event / external call that initiates this feature
@@ -210,6 +210,7 @@ For each feature listed above, describe the processing flow structured as below.
 - e.g. empty input, max length, duplicate submission, concurrent access
 
 **Acceptance scenarios**
+- Write 2–5 scenarios per feature, each with an `<!-- REF: SRC-NNNN -->` citation to the code branch it validates.
 - Scenario 1: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
 - Scenario 2: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
 

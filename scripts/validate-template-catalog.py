@@ -20,6 +20,10 @@ its corresponding `templates/<name>.md` file:
     (`<!-- REF: ... -->`); the deprecated `[REF: ...]` form is rejected.
 6.  Languages — each `languages` entry is one of the languages supported by
     source_map_v2 extractors.
+7.  Per-feature sections — the per-feature processing block (2.2 / 2.3)
+    carries the four spec-kit aligned sections (`**Priority**` →
+    `**Edge cases**` → `**Acceptance scenarios**` → `**Independent test**`)
+    in canonical order (Issue #298 follow-up).
 
 Exit codes:
   0 — catalog and templates are consistent
@@ -62,6 +66,23 @@ CHAPTER_HEADING_RE = re.compile(r"^### Chapter \d+: (.+)\s*$", re.MULTILINE)
 REF_BRACKET_RE = re.compile(r"\[REF:")
 TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 OPTIONAL_RE = re.compile(r"^\s*optional:\s*true")
+
+# Per-feature processing block: `#### 2.2 ...` or `#### 2.3 ...` whose
+# heading contains "Per-feature" (event-driven's 2.2 "Feature flow diagrams"
+# must not match), up to the next `#### N.x` / `### Chapter N:` heading or
+# the end of the document.
+FEATURE_BLOCK_RE = re.compile(
+    r"^#### 2\.[23] [^\n]*Per-feature[^\n]*\n(?P<body>.*?)(?=^#### \d|\n### Chapter \d+:|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+# The four spec-kit aligned sections, in the canonical order the templates
+# and agent instructions mandate (Issue #298 follow-up).
+FEATURE_SECTIONS = [
+    "**Priority**",
+    "**Edge cases**",
+    "**Acceptance scenarios**",
+    "**Independent test**",
+]
 
 
 class CatalogError(Exception):
@@ -200,6 +221,36 @@ def extract_chapter_titles(body: str) -> list[str]:
     return [m.group(1).strip() for m in CHAPTER_HEADING_RE.finditer(body)]
 
 
+def extract_feature_block(body: str) -> str | None:
+    """Return the per-feature processing block (2.2 / 2.3), or None if absent."""
+    m = FEATURE_BLOCK_RE.search(body)
+    return m.group("body") if m else None
+
+
+def check_feature_sections(block: str, template_path: Path, errors: list[str]) -> None:
+    """Verify the per-feature block carries the four spec-kit sections in order.
+
+    The canonical order is `**Priority**` → `**Edge cases**` →
+    `**Acceptance scenarios**` → `**Independent test**` (Issue #298
+    follow-up). A template that omits or reorders them would silently produce
+    generated specs without BDD acceptance scenarios.
+    """
+    positions = [block.find(s) for s in FEATURE_SECTIONS]
+    missing = [s for s, pos in zip(FEATURE_SECTIONS, positions) if pos < 0]
+    if missing:
+        errors.append(
+            f"{template_path}: per-feature block missing section(s): {missing}. "
+            f"Required in order: {FEATURE_SECTIONS}"
+        )
+        return
+    # positions must be strictly increasing (each section exactly once, in order)
+    if positions != sorted(positions):
+        errors.append(
+            f"{template_path}: per-feature sections out of order. "
+            f"Expected: {' → '.join(FEATURE_SECTIONS)}"
+        )
+
+
 def find_template_files(templates_dir: Path) -> list[Path]:
     """Return template .md files at the top level of the directory.
 
@@ -303,6 +354,12 @@ def validate_entry(
             f"{template_path}: deprecated '[REF: ...]' form found. "
             f"Use HTML-comment form '<!-- REF: ... -->' instead."
         )
+
+    # 5b. per-feature sections (Issue #298 follow-up) — the 2.2/2.3 block must
+    # carry the four spec-kit aligned sections in canonical order.
+    feature_block = extract_feature_block(body)
+    if feature_block is not None:
+        check_feature_sections(feature_block, template_path, errors)
 
     # 6. languages
     languages = entry.get("languages", [])
