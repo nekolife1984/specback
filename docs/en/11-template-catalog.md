@@ -18,7 +18,7 @@ every template's:
 | `name` | Template name — matches `templates/<name>.md` and the `template_name` frontmatter field |
 | `description` | One-line description, synced from the template frontmatter |
 | `template_version` | Template version, synced from the template frontmatter |
-| `chapters` | Ordered chapter outline — synced from the `### Chapter N: Title` headings in the template |
+| `chapters` | Ordered chapter outline — synced from the `### Chapter N: Title` headings in the template. The Feature specifications chapter (Ch2) additionally embeds per-feature sections: `Priority`, `Acceptance scenarios` (Given/When/Then), `Independent test`, and `Edge cases` (Issue #298) |
 | `detection_rules` | `always_include` / `chapters` / `extra_chapters` / `optional` id lists, extracted from the template's `detection_rules` frontmatter block |
 | `languages` | Languages the template targets, from the source_map_v2 extractor set (`SUPPORTED_LANGUAGES`) |
 
