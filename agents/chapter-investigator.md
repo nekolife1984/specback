@@ -56,11 +56,11 @@ List the read files at the **end of the chapter** (after the chapter body):
 ...(main body with `<!-- REF: ... -->` citations)
 
 ## Sources Read
-- `app/models/issue.rb` (lines 1-440)
-- `app/models/project.rb` (lines 1-690)
-- `app/models/user.rb` (lines 1-220)
-- `db/migrate/0042_create_orders.rb` (lines 1-50)
-- `app/models/concerns/soft_delete.rb` (lines 1-95)
+- `app/models/issue.rb`
+- `app/models/project.rb`
+- `app/models/user.rb`
+- `db/migrate/0042_create_orders.rb`
+- `app/models/concerns/soft_delete.rb`
 ```
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
@@ -148,11 +148,13 @@ The main agent reads this and appends the questions to `questions.json`.
 
 The `## Sources Read` section MUST use **bullet-list format** — one file per line starting with `-`. Coverage-check.py parses this format mechanically.
 
+**Path-only is recommended** — line ranges `(N-M)` are optional and go stale whenever the code shifts; they are NOT validated by coverage-check, only counted.
+
 ✅ Correct:
 ```markdown
 ## Sources Read
-- `path/to/file.py` (lines 1-100)
-- `path/to/other.py` (lines 1-50)
+- `path/to/file.py`
+- `path/to/other.py`
 ```
 
 ❌ NOT recognised:

@@ -90,7 +90,7 @@ Example:
 4. For every statement, attach a `<!-- REF: ... -->` citation. **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
    - Example: "Users are physically deleted 30 days after withdrawal <!-- REF: SRC-0142 -->"
    - **Write citations BARE — never wrap them in parentheses/brackets.** `（<!-- REF: SRC-0142 -->）` renders as a visible empty `（）` because the HTML comment disappears. Use `...する<!-- REF: SRC-0142 -->。`
-   - **Use workspace-relative paths only.** Absolute paths (`/Users/...`) are forbidden in both citations and the Sources Read section.
+   - **Use workspace-relative paths only.** Absolute paths (`/Users/...`) are forbidden in both citations and the Sources Read section. **Sources Read entries should be path-only** — line ranges `(N-M)` are optional, go stale on code changes, and are never validated by coverage-check.
 5. Do not hide uncertainty; use these markers:
    - <!-- CONFIDENCE: HIGH -->   reliably derivable from the code
    - <!-- CONFIDENCE: MED -->    multiple interpretations are possible; written with the most likely one
