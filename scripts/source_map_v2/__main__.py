@@ -14,6 +14,8 @@ import json
 import sys
 from pathlib import Path
 
+from common import atomic_write_text
+
 from .pipeline import DEFAULT_EXCLUDES, build_source_map
 
 
@@ -38,8 +40,11 @@ def main(argv: list[str] | None = None) -> int:
     text = json.dumps(payload, ensure_ascii=False, indent=2)
 
     if args.output:
+        if args.output.is_symlink():
+            print(f"ERROR: output path cannot be a symlink: {args.output}", file=sys.stderr)
+            return 2
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text, encoding="utf-8")
+        atomic_write_text(args.output, text)
         stats = payload["stats"]
         print(
             f"source-map v2: {stats['units_total']} units from {stats['files_scanned']} files "
