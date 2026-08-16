@@ -58,7 +58,7 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
-Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section is optional; if present, its bullet lines count toward body_lines, so prefer omitting it.)
 
 ### STEP B: Citation extraction (mandatory)
 

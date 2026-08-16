@@ -48,7 +48,7 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
-Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section is optional; if present, its bullet lines count toward body_lines, so prefer omitting it.)
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript
@@ -141,7 +141,7 @@ A `## Sources Read` section at the end of the chapter is **optional** — the RE
 - `path/to/other.py`
 ```
 
-Path-only bullets are recommended (line ranges go stale whenever the code shifts).
+Path-only bullets are recommended (line ranges go stale whenever the code shifts). Note: the section's lines count toward body_lines, so omit it to keep the body-line metric honest.
 
 ---
 
