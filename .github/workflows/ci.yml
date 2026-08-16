@@ -59,21 +59,21 @@ jobs:
 
       - name: Run tests — scripts/ (coverage)
         run: |
-          python -m pytest scripts/tests/ -q --tb=short --cov=scripts --cov-append
+          python -m pytest scripts/tests/ -q --tb=short --cov=scripts --cov-append --cov-fail-under=0
 
       - name: Run tests — source_map_v2/ (coverage)
         run: |
-          python -m pytest scripts/source_map_v2/tests/ -q --tb=short --cov=scripts --cov-append
+          python -m pytest scripts/source_map_v2/tests/ -q --tb=short --cov=scripts --cov-append --cov-fail-under=0
 
       - name: Run tests — specback-search skill (coverage)
         run: |
-          python -m pytest skills/specback-search/scripts/tests/ -q --tb=short --cov=scripts --cov-append
+          python -m pytest skills/specback-search/scripts/tests/ -q --tb=short --cov=scripts --cov-append --cov-fail-under=0
 
       - name: Run tests — combined suite in parallel (pytest-xdist)
         run: |
           python -m pytest scripts/tests/ scripts/source_map_v2/tests/ skills/specback-search/scripts/tests/ -n 2 -q --tb=short
 
-      - name: Coverage report (gate)
+      - name: Coverage report (gate) — enforced on accumulated data
         run: |
           python -m coverage report --skip-covered
 
