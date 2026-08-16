@@ -34,14 +34,19 @@ Output
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import sys
 from collections import defaultdict
 import artifact_io
 import git_utils
-from common import add_specback_dir_arg, load_json_text, sha256_file, utcnow_iso
+from common import (
+    add_specback_dir_arg,
+    atomic_write_json,
+    load_json_text,
+    sha256_file,
+    utcnow_iso,
+)
 from pathlib import Path
 from typing import Any
 
@@ -784,10 +789,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     output_path = args.output or str(specback_path / "change-spec.json")
-    Path(output_path).write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(output_path, result)
     print(f"change-spec.py: written to {output_path}", file=sys.stderr)
 
     summary = result["summary"]

@@ -41,7 +41,7 @@ import math
 import os
 import statistics
 import sys
-from common import reject_nonfinite, utcnow_iso
+from common import reject_nonfinite, utcnow_iso, atomic_write_json
 from pathlib import Path
 from typing import Any
 
@@ -228,12 +228,7 @@ def record_actual(history_path: Path, entry: dict[str, Any]) -> None:
         raise ValueError(f"refusing to write through symlink: {history_path}")
     runs = load_runs(history_path)
     runs.append(entry)
-    tmp = history_path.with_name(history_path.name + ".tmp")
-    tmp.write_text(
-        json.dumps({"runs": runs}, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    os.replace(tmp, history_path)
+    atomic_write_json(history_path, {"runs": runs})
 
 
 # ---------------------------------------------------------------------------

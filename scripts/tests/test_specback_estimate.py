@@ -565,6 +565,22 @@ def test_record_actual_refuses_symlink_direct(tmp_path: Path) -> None:
     assert victim.read_text(encoding="utf-8") == "{}"
 
 
+def test_record_actual_ignores_planted_tmp_symlink(tmp_path: Path) -> None:
+    """Fixed-name .tmp symlink (H-2) must never be followed for the write."""
+    d = tmp_path / ".specback"
+    d.mkdir(parents=True)
+    victim = tmp_path / "victim.json"
+    victim.write_text("SAFE", encoding="utf-8")
+    # Attacker plants a symlink at the old fixed-name temp location.
+    (d / "estimate-history.json.tmp").symlink_to(victim)
+    mod.record_actual(d / "estimate-history.json", {"actual_tokens": 1})
+    assert (d / "estimate-history.json").exists()
+    data = json.loads((d / "estimate-history.json").read_text(encoding="utf-8"))
+    assert data["runs"][0]["actual_tokens"] == 1
+    # The victim was never overwritten through the planted symlink.
+    assert victim.read_text(encoding="utf-8") == "SAFE"
+
+
 def test_reject_nonfinite_via_common(tmp_path: Path) -> None:
     """load_json rejects NaN via the shared common.reject_nonfinite hook."""
     p = tmp_path / "bad.json"
