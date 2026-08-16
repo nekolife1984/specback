@@ -963,3 +963,94 @@ class TestSanitizeAndLoadShared:
         )
         mod = _import_fix_refs()
         assert mod.load_source_map(specback) == {}
+
+
+class TestBackupDirConstraint:
+    """--backup-dir must stay inside the project output tree (Issue #320)."""
+
+    def _setup(self, tmp_path):
+        specback = tmp_path / ".specback"
+        specback.mkdir()
+        (specback / "source-map.json").write_text(json.dumps({
+            "units": [
+                {"id": "SRC-0001", "path": "src/app.py", "line_range": [10, 42]},
+            ]
+        }), encoding="utf-8")
+        drafts = specback / "drafts"
+        drafts.mkdir()
+        (drafts / "01-overview.md").write_text(
+            "# Overview\n\n<!-- REF: src/app.py:10-42 -->\n",
+            encoding="utf-8",
+        )
+        return specback, drafts
+
+    def _migrate_apply(self, specback, *extra):
+        return _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+            *extra,
+        )
+
+    def test_outside_output_dir_rejected(self, tmp_path):
+        """Backup dir outside the project tree errors (exit 2) and writes nothing."""
+        specback, drafts = self._setup(tmp_path)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        proc = self._migrate_apply(specback, "--backup-dir", str(outside))
+        assert proc.returncode == 2, proc.stderr
+        assert "outside project output tree" in proc.stderr
+        # No backup file written outside the tree
+        assert list(outside.iterdir()) == []
+        # Spec file left untouched (no partial application)
+        content = (drafts / "01-overview.md").read_text(encoding="utf-8")
+        assert "<!-- REF: src/app.py:10-42 -->" in content
+
+    def test_symlink_backup_dir_rejected(self, tmp_path):
+        """A symlink backup dir is refused outright (no follow)."""
+        specback, drafts = self._setup(tmp_path)
+        target = tmp_path / "target"
+        target.mkdir()
+        link = tmp_path / "backup-link"
+        link.symlink_to(target)
+        proc = self._migrate_apply(specback, "--backup-dir", str(link))
+        assert proc.returncode == 2, proc.stderr
+        assert "symlink" in proc.stderr.lower()
+        assert list(target.iterdir()) == []
+
+    def test_default_backup_still_under_output_dir(self, tmp_path):
+        """Default (no --backup-dir) keeps backups under <output-dir>/backups."""
+        specback, drafts = self._setup(tmp_path)
+        proc = self._migrate_apply(specback)
+        assert proc.returncode == 0, proc.stderr
+        backups = list((specback / "backups").glob("01-overview.md.*.bak"))
+        assert len(backups) == 1
+
+    def test_relative_output_dir_resolved(self, tmp_path):
+        """Only child directories of a relative (resolved) output dir are allowed."""
+        specback, drafts = self._setup(tmp_path)
+        inside = specback / "custom-backup"
+        proc = self._migrate_apply(specback, "--backup-dir", str(inside))
+        assert proc.returncode == 0, proc.stderr
+        backups = list(inside.glob("01-overview.md.*.bak"))
+        assert len(backups) == 1
+
+    def test_helper_accepts_child_rejects_outside_and_symlink(self, tmp_path):
+        """Unit-level check of _resolve_backup_dir (coverage + behavior)."""
+        mod = _import_fix_refs()
+        out = tmp_path / "output"
+        out.mkdir()
+        child = out / "sub"
+        assert mod._resolve_backup_dir(str(child), out) == child.resolve()
+
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        assert mod._resolve_backup_dir(str(outside), out) is None
+
+        link = tmp_path / "link"
+        link.symlink_to(outside)
+        assert mod._resolve_backup_dir(str(link), out) is None
+
+        # Default resolves to <output-dir>/backups (contained)
+        assert mod._resolve_backup_dir(None, out) == (out / "backups").resolve()
