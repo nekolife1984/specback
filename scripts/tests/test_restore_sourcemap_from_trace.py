@@ -9,7 +9,6 @@ and clean error handling.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
 import sys
@@ -17,15 +16,13 @@ from pathlib import Path
 
 import pytest
 
+from conftest import load_script_module
+
 SCRIPT = Path(__file__).resolve().parent.parent / "restore-sourcemap-from-trace.py"
 
-# Load the script as a module for unit tests (imports artifact_io / common).
-sys.path.insert(0, str(SCRIPT.parent))
-_spec = importlib.util.spec_from_file_location("restore_sourcemap_core", SCRIPT)
-assert _spec is not None and _spec.loader is not None
-mod = importlib.util.module_from_spec(_spec)
-sys.modules["restore_sourcemap_core"] = mod  # register before exec_module
-_spec.loader.exec_module(mod)
+# Load the script as a module for unit tests (imports artifact_io / common),
+# without leaking scripts/ onto sys.path (Issue #324).
+mod = load_script_module(SCRIPT, "restore_sourcemap_core")
 
 # ---------------------------------------------------------------------------
 # Fixtures

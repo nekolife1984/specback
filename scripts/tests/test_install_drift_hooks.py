@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import create_repo as _create_repo
+
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL_SH = ROOT / "scripts" / "install-drift-hooks.sh"
 
@@ -47,15 +49,7 @@ def mock_env(tmp_path):
 
 
 def _init_repo(repo: Path) -> None:
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "t@t.com"],
-                   cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True)
-    (repo / "sample.py").write_text("x=1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "sample.py"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
-    (repo / ".specback").mkdir()
-    (repo / ".specback" / "drafts").mkdir()
+    _create_repo(repo, with_spec=False)
 
 
 def run_install(env, repo):

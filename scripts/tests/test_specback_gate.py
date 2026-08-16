@@ -9,22 +9,19 @@ Covers:
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+from conftest import create_repo as _create_repo, load_script_module
+
 SCRIPT = Path(__file__).resolve().parent.parent / "specback-gate.py"
 
-# Import specback-gate.py as a module for pure-function tests (Issue #258).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-_spec = importlib.util.spec_from_file_location("specback_gate_core", SCRIPT)
-assert _spec is not None and _spec.loader is not None
-gate = importlib.util.module_from_spec(_spec)
-sys.modules["specback_gate_core"] = gate
-_spec.loader.exec_module(gate)
+# Import specback-gate.py as a module for pure-function tests (Issue #258),
+# without leaking scripts/ onto sys.path (Issue #324).
+gate = load_script_module(SCRIPT, "specback_gate_core")
 
 
 # ---------------------------------------------------------------------------
@@ -39,60 +36,7 @@ def _init_repo(tmp_path: Path, with_spec: bool = True) -> Path:
     source-map.json + trace.json with a single unit (SRC-0001) mapped to
     a spec section; the repo also has a spec draft file.
     """
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"],
-                   cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path,
-                   check=True)
-    (tmp_path / "sample.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "sample.py"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path,
-                   check=True,
-                   env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00",
-                        "GIT_COMMITTER_DATE": "2026-01-01T00:00:00"})
-
-    specback = tmp_path / ".specback"
-    specback.mkdir()
-    drafts = specback / "drafts"
-    drafts.mkdir()
-    (drafts / "01-overview.md").write_text(
-        "# Overview\n\nNothing here yet.\n", encoding="utf-8",
-    )
-
-    if with_spec:
-        (specback / "source-map.json").write_text(
-            json.dumps({
-                "schema_version": "0.1.0",
-                "target_root": ".",
-                "units": [{
-                    "id": "SRC-0001", "path": "sample.py",
-                    "kind": "function", "name": "main", "role": "action",
-                }],
-                "by_path": {"sample.py": ["SRC-0001"]},
-                "by_id": {"SRC-0001": {"id": "SRC-0001", "path": "sample.py"}},
-                "stats": {"total_units": 1},
-            }),
-            encoding="utf-8",
-        )
-        (specback / "trace.json").write_text(
-            json.dumps({
-                "schema_version": "0.1.0",
-                "source_units_total": 1,
-                "source_units_covered": 1,
-                "mece_passed": True,
-                "by_source": {
-                    "SRC-0001": {
-                        "path": "sample.py",
-                        "covered_by_sections": [{
-                            "file": "drafts/01-overview.md",
-                            "section": "Overview",
-                        }],
-                    },
-                },
-            }),
-            encoding="utf-8",
-        )
-    return specback
+    return _create_repo(tmp_path, with_spec=with_spec)
 
 
 def _run_gate(tmp_path: Path, *extra: str) -> subprocess.CompletedProcess:

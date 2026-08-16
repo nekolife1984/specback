@@ -2,21 +2,18 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+from conftest import create_repo as _create_repo, load_script_module
+
 SCRIPT = Path(__file__).resolve().parent.parent / "detect-drift.py"
 
-# Import detect-drift.py as a module for pure-function tests (Issue #258).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-_spec = importlib.util.spec_from_file_location("detect_drift_core", SCRIPT)
-assert _spec is not None and _spec.loader is not None
-drift = importlib.util.module_from_spec(_spec)
-sys.modules["detect_drift_core"] = drift
-_spec.loader.exec_module(drift)
+# Import detect-drift.py as a module for pure-function tests (Issue #258),
+# without leaking scripts/ onto sys.path (Issue #324).
+drift = load_script_module(SCRIPT, "detect_drift_core")
 
 
 def test_help_includes_specback_dir():
@@ -84,25 +81,7 @@ def test_args_with_mode_hash():
 
 def _init_repo(tmp_path: Path) -> Path:
     """Create a git repo with one commit and a minimal .specback dir."""
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
-    (tmp_path / "sample.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "sample.py"], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "init"],
-        cwd=tmp_path, check=True,
-        env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00",
-             "GIT_COMMITTER_DATE": "2026-01-01T00:00:00"},
-    )
-    specback = tmp_path / ".specback"
-    specback.mkdir()
-    (specback / "source-map.json").write_text(
-        json.dumps({"units": [], "stats": {}, "target_root": "."}),
-        encoding="utf-8",
-    )
-    (specback / "trace.json").write_text("{}", encoding="utf-8")
-    return specback
+    return _create_repo(tmp_path, with_spec=True)
 
 
 def test_state_json_injection_rejected(tmp_path):

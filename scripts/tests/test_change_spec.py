@@ -9,24 +9,18 @@ without touching the real filesystem or git.
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Add the scripts directory to sys.path so we can import
+from conftest import load_script_module
+
 HERE = Path(__file__).resolve().parent
 SCRIPTS = HERE.parent
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
 
-import importlib.util
-_cs_path = str(SCRIPTS / "change-spec.py")
-_spec = importlib.util.spec_from_file_location("change_spec", _cs_path)
-assert _spec is not None, f"Could not load spec from {_cs_path}"
-_cs = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None, f"Loader not found for {_cs_path}"
-_spec.loader.exec_module(_cs)
+# Import change-spec.py as a module for pure-function tests, without leaking
+# scripts/ onto sys.path (Issue #324).
+_cs = load_script_module(SCRIPTS / "change-spec.py", "change_spec")
 
 # Re-export
 MODE_AUTO = _cs.MODE_AUTO
