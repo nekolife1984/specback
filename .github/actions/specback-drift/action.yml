@@ -81,4 +81,8 @@ runs:
           exit 0
         fi
         PR_NUMBER="${{ github.event.pull_request.number }}"
+        if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "Fork PR — skipping comment (token lacks pull-requests: write permission)."
+          exit 0
+        fi
         gh pr comment "$PR_NUMBER" --body-file "$COMMENT_MD"
