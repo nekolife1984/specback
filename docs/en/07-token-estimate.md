@@ -1,6 +1,6 @@
 # Token Estimate & Budget Gate
 
-> **Documentation**: [English](07-token-estimate.md) · [日本語](07-token-estimate.md)
+> **Documentation**: [English](07-token-estimate.md) · [日本語](../ja/07-token-estimate.md)
 
 ## Overview
 

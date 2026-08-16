@@ -1,6 +1,6 @@
 # インクリメンタル仕様更新
 
-> **ドキュメント**: [English](08-incremental-update.md) · [日本語](08-incremental-update.md)
+> **ドキュメント**: [English](../en/08-incremental-update.md) · [日本語](08-incremental-update.md)
 
 ## 概要
 

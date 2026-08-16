@@ -1,6 +1,6 @@
 # トークン見積り & バジェットゲート
 
-> **ドキュメント**: [English](07-token-estimate.md) · [日本語](07-token-estimate.md)
+> **ドキュメント**: [English](../en/07-token-estimate.md) · [日本語](07-token-estimate.md)
 
 ## 概要
 
