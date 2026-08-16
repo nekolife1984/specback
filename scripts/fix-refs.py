@@ -43,6 +43,7 @@ from collections import defaultdict
 import artifact_io
 from common import (
     add_specback_dir_arg,
+    atomic_write_text,
     sanitize_control,
     utcnow_iso,
     utcnow_iso_z,
@@ -583,7 +584,7 @@ def run_migrate_srcid(
             backup_path = backup_dir / (
                 f"{spec_name}.{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.bak"
             )
-            backup_path.write_text(content, encoding="utf-8")
+            atomic_write_text(backup_path, content)
 
             # Apply bottom-up; replace at the exact recorded position, not the
             # first occurrence of the same text (Issue #248 / FIX-1).
@@ -600,7 +601,7 @@ def run_migrate_srcid(
                     expected=m["full_match"],
                 )
 
-            spec_path.write_text(content, encoding="utf-8")
+            atomic_write_text(spec_path, content)
             print(
                 f"fix-refs.py: migrated {len(file_migrations)} REFs "
                 f"to SRC-ID in {spec_name} (backup: {backup_path})",
@@ -879,7 +880,7 @@ def main(argv: list[str] | None = None) -> int:
             backup_path = backup_dir / (
                 f"{spec_name}.{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.bak"
             )
-            backup_path.write_text(content, encoding="utf-8")
+            atomic_write_text(backup_path, content)
 
             # Apply corrections in reverse line order (bottom-up to avoid offset
             # issues); replace at the exact recorded position, not the first
@@ -902,7 +903,7 @@ def main(argv: list[str] | None = None) -> int:
                     expected=c["full_match"],
                 )
 
-            spec_path.write_text(content, encoding="utf-8")
+            atomic_write_text(spec_path, content)
             print(
                 f"fix-refs.py: applied {len(file_corrections)} corrections "
                 f"to {spec_name} (backup: {backup_path})",

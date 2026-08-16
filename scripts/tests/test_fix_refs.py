@@ -369,6 +369,29 @@ class TestMigrateSrcidCli:
         backup = backups[0]
         assert "<!-- REF: src/app.py:10-42 -->" in backup.read_text(encoding="utf-8")
 
+    def test_apply_writes_file_and_backup_atomically(self, tmp_path):
+        """Spec and backup are written via atomic_write_text: no leftover .tmp
+        sibling remains and the written files are regular files (#321)."""
+        specback, drafts = self._setup(tmp_path)
+        result = _run(
+            "--specback-dir", str(specback),
+            "--output-dir", str(specback),
+            "--migrate-srcid",
+            "--apply",
+        )
+        assert result.returncode == 0
+        # No mkstemp temp file is left in either directory after the atomic write.
+        assert list(drafts.glob("*.tmp")) == []
+        assert list((specback / "backups").glob("*.tmp")) == []
+        # Spec was replaced atomically (regular file), correct content.
+        spec = drafts / "01-overview.md"
+        assert spec.is_file() and not spec.is_symlink()
+        assert "<!-- REF: SRC-0001 -->" in spec.read_text(encoding="utf-8")
+        # Backup is a written regular file, not a symlink.
+        backups = sorted((specback / "backups").glob("01-overview.md.*.bak"))
+        assert len(backups) == 1
+        assert backups[0].is_file() and not backups[0].is_symlink()
+
     def test_missing_source_map_errors(self, tmp_path):
         specback = tmp_path / ".specback"
         specback.mkdir()
