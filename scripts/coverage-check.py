@@ -4,7 +4,7 @@ specback coverage-check.py
 
 Verification script for Phase 4 (Verify). Checks not only inventory
 mentions but also per-chapter quality metrics (REF count, body line
-count, code-block count, Mermaid count, Sources Read section, etc.),
+count, code-block count, Mermaid count, etc.),
 Question Bank integrity, MECE coverage, and outline-mode entity
 enumeration in a single pass.
 
@@ -14,17 +14,16 @@ Checks performed:
 2.  Body-line count per chapter (`--min-lines-per-chapter`, default 0 — tone-guided)
 3.  Fenced-code-block count per chapter (`--min-code-blocks-per-chapter`)
 4.  Mermaid-diagram count per chapter (`--min-mermaid-per-chapter`)
-5.  Number of files under the `## Sources Read` section of each chapter (`--min-sources-read-per-chapter`)
-6.  Auto-derived minimum inventory size = max(50, file_count // 20)  (`--min-inventory`)
-7.  Upper bound on the ratio of grouping-style INVs like controller_group (`--max-macro-ratio`)
-8.  Total `questions.json` count (`--min-questions`)
-9.  Upper bound on the `status: open` ratio after Phase 5 (`--max-open-ratio`)
-10. inventory.covered_by fill rate (`--min-covered-by-fill`)
-11. MECE check (consults `.specback/trace.json`, `--min-mece-coverage`)
-12. **User-custom deliverables**: every filename in
+5.  Auto-derived minimum inventory size = max(50, file_count // 20)  (`--min-inventory`)
+6.  Upper bound on the ratio of grouping-style INVs like controller_group (`--max-macro-ratio`)
+7.  Total `questions.json` count (`--min-questions`)
+8.  Upper bound on the `status: open` ratio after Phase 5 (`--max-open-ratio`)
+9.  inventory.covered_by fill rate (`--min-covered-by-fill`)
+10. MECE check (consults `.specback/trace.json`, `--min-mece-coverage`)
+11. **User-custom deliverables**: every filename in
     `goal.json.user_custom_deliverables` must exist in the target directory
     AND have a non-empty body (>= 10 non-blank lines outside code fences).
-    These files are exempt from checks 1-5 (the per-chapter comprehensive
+    These files are exempt from checks 1-4 (the per-chapter comprehensive
     quality gates) because their quality bar is the user's intent expressed
     in `free_text_notes`, not the source-code-spec-chapter gates. Only
     existence + body presence is enforced.
@@ -50,7 +49,6 @@ Usage:
       --min-refs-per-chapter 10 \\
       --min-code-blocks-per-chapter 3 \\
       --min-mermaid-per-chapter 1 \\
-      --min-sources-read-per-chapter 5 \\
       --min-inventory auto \\
       --max-macro-ratio 0.2 \\
       --min-questions 10 \\
@@ -91,8 +89,6 @@ REQUIRED_FILES = ("00-metadata.md", "99-unresolved.md", "traceability.md")
 # Regexes used in chapter bodies (REF markers live in scripts/refutils.py)
 CODE_FENCE_RE = re.compile(r"^```([a-zA-Z0-9_-]+)?")
 MERMAID_FENCE_RE = re.compile(r"^```mermaid\b")
-SOURCES_READ_RE = re.compile(r"^##+\s*Sources\s*Read\b", re.IGNORECASE)
-SOURCES_READ_ITEM_RE = re.compile(r"^\s*[-*]\s+`?([^`\n]+?)`?(?:\s*\([^)]*\))?\s*$")
 
 # Keywords that make an INV count as "macro" (matched against the `type` field)
 MACRO_TYPE_KEYWORDS = ("group", "module", "domain", "category", "bundle", "section")
@@ -121,7 +117,6 @@ class ChapterMetrics:
     refs: int
     code_blocks: int
     mermaid_blocks: int
-    sources_read_count: int
     code_block_lines: int = 0  # non-blank lines inside fenced code blocks (for weighted adjustment)
     failures: list[str] = field(default_factory=list)
 
@@ -258,8 +253,8 @@ def load_user_custom_deliverables(specback_dir: Path) -> list[str]:
     These are extra filenames the user explicitly requested in `free_text_notes`
     during Phase 0. They are exempt from the standard chapter-naming regex and
     must exist in the target directory at Phase 6 (intent-vs-delivery audit).
-    Per-chapter comprehensive quality gates (200 lines / 10 REFs / Mermaid /
-    Sources Read) are NOT applied to these files; only existence + non-empty
+    Per-chapter comprehensive quality gates (200 lines / 10 REFs / Mermaid)
+    are NOT applied to these files; only existence + non-empty
     body (check 12) is enforced.
     """
     data = load_goal_json(specback_dir) or {}
@@ -322,8 +317,6 @@ def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
     code_blocks = 0
     mermaid_blocks = 0
     refs = 0
-    sources_read_count = 0
-    in_sources_read = False
 
     for line, in_code, is_fence in iter_fence_state(content):
         if is_fence:
@@ -339,22 +332,6 @@ def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
                 code_block_lines += 1
             continue
         stripped = line.strip()
-        if SOURCES_READ_RE.match(line):
-            in_sources_read = True
-            continue
-        if in_sources_read:
-            # Blank lines do NOT end the section. Standard Markdown puts a blank
-            # line between the `## Sources Read` heading and its bullet list, so
-            # terminating on the first blank line would zero the count for every
-            # well-formatted chapter.
-            if not stripped:
-                continue
-            if SOURCES_READ_ITEM_RE.match(line):
-                sources_read_count += 1
-                continue
-            # Any other non-blank line (typically the next heading) ends the
-            # section; fall through so it is still counted as body content.
-            in_sources_read = False
         if not stripped:
             continue
         body_lines += 1
@@ -367,7 +344,6 @@ def compute_chapter_metrics(name: str, content: str) -> ChapterMetrics:
         refs=refs,
         code_blocks=code_blocks,
         mermaid_blocks=mermaid_blocks,
-        sources_read_count=sources_read_count,
         code_block_lines=code_block_lines,
     )
 
@@ -379,7 +355,6 @@ def evaluate_chapter_gates(
     min_lines: int,
     min_code_blocks: int,
     min_mermaid: int,
-    min_sources_read: int,
     code_block_line_weight: float = 0.5,
 ) -> None:
     """Populate `failures` on each ChapterMetrics (per-chapter threshold violations).
@@ -404,10 +379,6 @@ def evaluate_chapter_gates(
             m.failures.append(f"code blocks {m.code_blocks} < required {min_code_blocks}")
         if m.mermaid_blocks < min_mermaid:
             m.failures.append(f"Mermaid diagrams {m.mermaid_blocks} < required {min_mermaid}")
-        if m.sources_read_count < min_sources_read:
-            m.failures.append(
-                f"Sources Read items {m.sources_read_count} < required {min_sources_read}"
-            )
 
 
 # ----------------------------------------------------------------------------
@@ -1028,7 +999,6 @@ def build_report(
     min_lines_per_chapter: int,
     min_code_blocks_per_chapter: int,
     min_mermaid_per_chapter: int,
-    min_sources_read_per_chapter: int,
     min_mece_coverage: float,
     code_block_line_weight: float = 0.5,
     # New checks for #158
@@ -1073,15 +1043,15 @@ def build_report(
     ]
 
     # user_custom chapters are evaluated only by check 12 (existence + non-empty body).
-    # The comprehensive per-chapter gates (200 lines / 10 REFs / code blocks / Mermaid /
-    # Sources Read) are designed for source-derived spec chapters, not for user-narrated
+    # The comprehensive per-chapter gates (200 lines / 10 REFs / code blocks / Mermaid)
+    # are designed for source-derived spec chapters, not for user-narrated
     # files like manual.md. Split chapter_metrics into "standard" and "user_custom" so
     # only the standard ones receive evaluate_chapter_gates.
     user_custom_set = set(user_custom)
     standard_chapter_metrics = [m for m in chapter_metrics if m.file not in user_custom_set]
 
     # In outline / interactive mode the comprehensive-mode chapter gates
-    # (200 lines / 10 REFs / code blocks / Mermaid / 5 Sources Read) are
+    # (200 lines / 10 REFs / code blocks / Mermaid) are
     # dropped. Instead, the MECE criterion is "every entity appears in
     # some row of some table" — reuse the uncovered logic below.
     if depth_mode == "comprehensive":
@@ -1091,7 +1061,6 @@ def build_report(
             min_lines=min_lines_per_chapter,
             min_code_blocks=min_code_blocks_per_chapter,
             min_mermaid=min_mermaid_per_chapter,
-            min_sources_read=min_sources_read_per_chapter,
             code_block_line_weight=code_block_line_weight,
         )
 
@@ -1270,7 +1239,7 @@ def render_text(report: CoverageReport) -> str:
                 code_extra = f" (code-block-adjusted: {effective})"
         lines.append(
             f"  {flag} {m.file}: body={m.body_lines}{code_extra}, refs={m.refs} "
-            f"code={m.code_blocks} mermaid={m.mermaid_blocks} sources_read={m.sources_read_count}"
+            f"code={m.code_blocks} mermaid={m.mermaid_blocks}"
         )
         for f in m.failures:
             lines.append(f"      - {f}")
@@ -1320,7 +1289,6 @@ def render_json(report: CoverageReport) -> str:
                 "refs": m.refs,
                 "code_blocks": m.code_blocks,
                 "mermaid_blocks": m.mermaid_blocks,
-                "sources_read_count": m.sources_read_count,
                 "failures": m.failures,
             }
             for m in report.chapter_metrics
@@ -1360,7 +1328,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Minimum body lines per chapter (default: 0 — tone-guided; set explicitly to enforce a floor)")
     p.add_argument("--min-code-blocks-per-chapter", type=int, default=3)
     p.add_argument("--min-mermaid-per-chapter", type=int, default=1)
-    p.add_argument("--min-sources-read-per-chapter", type=int, default=5)
     p.add_argument("--code-block-line-weight", type=float, default=0.5,
                    help='Weight for non-blank code-block lines when counting body lines '
                         '(default: 0.5 — every two code lines count as one body line). '
@@ -1422,7 +1389,6 @@ def main(argv: list[str] | None = None) -> int:
             min_lines_per_chapter=args.min_lines_per_chapter,
             min_code_blocks_per_chapter=args.min_code_blocks_per_chapter,
             min_mermaid_per_chapter=args.min_mermaid_per_chapter,
-            min_sources_read_per_chapter=args.min_sources_read_per_chapter,
             min_mece_coverage=min_mece_coverage,
             code_block_line_weight=args.code_block_line_weight,
             # New checks for #158

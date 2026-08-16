@@ -117,7 +117,7 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
    - The remaining names are **user-promised custom deliverables**. They MUST appear in `{output_dir}/` at Phase 6 completion; missing any of them is a hard failure (check 12 in `coverage-check.py`).
    - Example: `free_text_notes = "顧客向けドキュメント。Mermaid図による視覚的説明と、紙芝居的な manual.md を含める。"` → `user_custom_deliverables = ["manual.md"]`.
    - If the free-form text is empty or contains no `*.md` references, the list is `[]`.
-   - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid / Sources Read minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
+   - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
 
 6. **Persist to `goal.json`**
    - Save the language choice from Step 3, the 6 answers from Step 4, and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `{output_dir}/.specback/`. Schema:

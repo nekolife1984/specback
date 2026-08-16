@@ -53,7 +53,7 @@ Selection criteria (see the end of references/outline-tables.md):
 #### OUT-D: Drop the body-length constraints
 
 In outline mode:
-- **The "10 REFs / 5 Sources Read" requirements do NOT apply.**
+- **The "10 REFs / 3 code blocks / 1 Mermaid" requirements do NOT apply.**
 - Instead the MECE criterion is "**every entity appears in some row of some table**" (Phase 4's `coverage-check.py` decides this automatically).
 - The chapter body consists of: table + 1-2 paragraphs of explanation + Mermaid diagrams (where applicable) + the deep-dive candidates list.
 

@@ -191,7 +191,7 @@ Example `.gitignore` entry:
 
 Starting **v0.4.0**, the entire skill bundle (`SKILL.md`, `agents/`, `templates/`, `references/`, and the docstrings/messages of `scripts/`) is **English-base**. The default for `goal.json.output_language` is `"en"`.
 
-Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Step 3, and the agent dynamically renders chapter bodies, AskUserQuestion bodies, and progress messages in Japanese while preserving every machine-readable element (`## Sources Read`, `<!-- REF: ... -->`, `<!-- CONFIDENCE: ... -->`, JSON keys, file slugs, ID prefixes) verbatim in English. See SKILL.md Principle #11 for the full contract.
+Japanese output is fully supported: select `日本語 (Japanese)` in Phase 0 Step 3, and the agent dynamically renders chapter bodies, AskUserQuestion bodies, and progress messages in Japanese while preserving every machine-readable element (`<!-- REF: ... -->`, `<!-- CONFIDENCE: ... -->`, JSON keys, file slugs, ID prefixes) verbatim in English. See SKILL.md Principle #11 for the full contract.
 
 ---
 
@@ -636,7 +636,7 @@ Drafts（中間ドラフト）は出力先に関わらず常に `.specback/draft
 
 **v0.4.0** から、スキル本体一式 (`SKILL.md` / `agents/` / `templates/` / `references/` / `scripts/` の docstring・メッセージ) は **英語ベース** になりました。`goal.json.output_language` のデフォルトは `"en"` です。
 
-日本語出力は引き続き完全サポート: Phase 0 Step 3 で `日本語 (Japanese)` を選択すると、章本文・AskUserQuestion 質問文・進捗メッセージ等の自然言語出力が日本語で動的に生成されます。ただし機械可読要素 (`## Sources Read`、`<!-- REF: ... -->`、`<!-- CONFIDENCE: ... -->`、JSON キー、ファイル名 slug、ID prefix 等) は言語に関わらず英語固定です。詳細は SKILL.md の Principle #11 を参照。
+日本語出力は引き続き完全サポート: Phase 0 Step 3 で `日本語 (Japanese)` を選択すると、章本文・AskUserQuestion 質問文・進捗メッセージ等の自然言語出力が日本語で動的に生成されます。ただし機械可読要素 (`<!-- REF: ... -->`、`<!-- CONFIDENCE: ... -->`、JSON キー、ファイル名 slug、ID prefix 等) は言語に関わらず英語固定です。詳細は SKILL.md の Principle #11 を参照。
 
 ---
 

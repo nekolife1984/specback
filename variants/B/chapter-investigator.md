@@ -34,8 +34,8 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 > **Language handling**: render the chapter body, headings, prose, and
 > detail-question text in `goal.output_language` (`"en"` by default,
 > `"ja"` only when explicitly chosen in Phase 0). Code blocks, file
-> paths, JSON keys, `<!-- REF: ... -->` markers, `<!-- CONFIDENCE: ... -->` labels,
-> and the literal heading `## Sources Read` stay English regardless.
+> paths, JSON keys, `<!-- REF: ... -->` markers, and `<!-- CONFIDENCE: ... -->` labels
+> stay English regardless.
 
 ---
 
@@ -47,7 +47,6 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 | `<!-- REF: SRC-NNNN -->` citations | **≥ 10** (SRC-ID refs are stable across refactors) |
 | fenced code blocks | **≥ 3** |
 | Mermaid diagrams (` ```mermaid `) | **≥ 1** |
-| `## Sources Read` section at the end of the chapter | **≥ 5** viewed source files listed |
 
 Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase 4 loopback in which the main agent re-invokes you.
 
@@ -55,23 +54,11 @@ Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase
 
 ## Procedure (STEP A through STEP F)
 
-### STEP A: Sources Read (mandatory)
+### STEP A: Read the sources (mandatory)
 
 For every assigned `inventory_id`, **read the corresponding real source file with the Read tool**. Writing a `<!-- REF: ... -->` citation for a file that you did not read is forbidden.
 
-List the read files at the **end of the chapter** (after the chapter body). **Path-only is recommended** — line ranges `(N-M)` are optional and go stale when the code shifts; coverage-check only counts the items:
-
-```markdown
-## Chapter Title
-...(main body with `<!-- REF: ... -->` citations)
-
-## Sources Read
-- `app/models/issue.rb`
-- `app/models/project.rb`
-- `app/models/user.rb`
-- `db/migrate/0042_create_orders.rb`
-- `app/models/concerns/soft_delete.rb`
-```
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section at the end of the chapter is optional and harmless, but coverage-check no longer requires or validates it.)
 
 ### STEP B: Citation extraction (mandatory)
 
@@ -172,7 +159,7 @@ List questions raised while writing the chapter as a **full list inside the trai
 - **Generating multiple files in one script**
 - **Writing files via shell `>` redirection or heredoc** (always use Write / Edit)
 - **Embedding absolute paths (`/home/...` etc.) in the deliverable** (always use workspace-relative paths)
-- **Citing files that are not in Sources Read**
+- **Citing files you did not read**
 - **🆕 Pasting the chapter body into the task return text** (strictly forbidden in mode B)
 
 ---

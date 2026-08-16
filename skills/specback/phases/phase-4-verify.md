@@ -65,7 +65,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    - inventory count (min: `max(50, files / 20)`)
    - macro-type INV ratio (max 20%)
    - covered_by fill rate (90%)
-   - per-chapter body lines (>= 200), <!-- REF: ... --> count (>= 10), code blocks (>= 3), Mermaid (>= 1), Sources Read items (>= 5) — **applied only to standard chapters that are NOT excluded by Phase 1 detection (excluded chapters are skipped entirely by Phase 2 and must not appear in the draft directory); user_custom chapters are exempt**
+   - per-chapter body lines (>= 200), <!-- REF: ... --> count (>= 10), code blocks (>= 3), Mermaid (>= 1) — **applied only to standard chapters that are NOT excluded by Phase 1 detection (excluded chapters are skipped entirely by Phase 2 and must not appear in the draft directory); user_custom chapters are exempt**
    - questions count (≥ 10), open ratio (≤ 20%)
    - MECE coverage (≥ 70%)
    - **Check 12 — User-custom deliverables**: every filename in `goal.json.user_custom_deliverables` must exist in the target directory (`{output_dir}/.specback/drafts/` in Phase 4, `{output_dir}/` in Phase 6) AND have a non-empty body (≥ 10 non-blank lines outside code fences).
@@ -99,7 +99,7 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    - When exit code is 1, read the "gate decision" section of the output and:
      1. Identify the failed chapter (e.g. `chapter 05-data-model.md: <!-- REF: ... --> count is 7 < required 10`)
      2. **Read additional sources** corresponding to the chapter's `assigned_inventory_ids`
-     3. Add to Sources Read, raise `<!-- REF: ... -->` count, thicken the body
+     3. Raise `<!-- REF: ... -->` count, thicken the body
      4. Re-run coverage-check.py
    - For `user_custom` chapters that are missing or empty, treat the failure the same way: return to Phase 3 and fill the chapter using `wbs.json.chapters[].source_intent` and any Phase 5 dialogue answers that pertain to it.
    - Maximum iterations: **3**. If a `kind: "standard"` chapter still fails after 3 attempts, record it in `99-unresolved.md` as "insufficient quality" and continue. A failing `kind: "user_custom"` chapter must NOT be silently demoted to `99-unresolved.md`; instead, prompt the user via `AskUserQuestion` to (a) keep retrying, (b) reduce scope, or (c) abandon the deliverable explicitly.
