@@ -29,7 +29,8 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
    - 🆕 **Tree-sitter availability**: Check whether `tree-sitter` is installed (`python -c "import tree_sitter"`). Record as `tree_sitter_available: true/false` in recon-report.md. When unavailable, note that some language extractors will fall back to file-level granularity.
 
 2. **Present template candidates**
-   - Consult `references/template-catalog.md` and propose candidates suitable for the target codebase.
+   - Consult `templates/catalog.json` (machine-readable registry) and `references/template-catalog.md` (human-readable guide) and propose candidates suitable for the target codebase.
+   - `templates/catalog.json` is the canonical machine-readable source: each entry lists `name`, `description`, `chapters`, `detection_rules`, and `languages`. Use it to shortlist templates whose target languages overlap the codebase's detected language mix.
    - Use `AskUserQuestion` to present the candidates to the user.
 
    **Example template choices**:
@@ -50,11 +51,13 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
 
    #### 3a. Read detection rules from the selected template
 
-   Read the `detection_rules` section from the selected template's frontmatter (e.g. `templates/web-app.md`). It defines:
+   Read the `detection_rules` section from the selected template's catalog entry (`templates/catalog.json`) or frontmatter (e.g. `templates/web-app.md`). It defines:
    - `always_include` — chapters always present regardless of code content
    - `chapters[]` — standard chapters with detection rules
    - `extra_chapters[]` — chapters to auto-add when detected
    - `granularity` — merge/split rules based on code volume
+
+   The catalog entry and the template frontmatter are kept in sync by `scripts/validate-template-catalog.py`; either is authoritative for reading, prefer `templates/catalog.json` for programmatic access.
 
    Load the reference format from `references/template-catalog.md` → "Detection rules" section.
 

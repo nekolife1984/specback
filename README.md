@@ -275,6 +275,11 @@ Initial set of 4 templates included:
 
 Users can also bring their own templates.
 
+All 9 built-in templates are registered in the machine-readable
+[template catalog](docs/en/11-template-catalog.md)
+(`templates/catalog.json`), which is kept in sync with the template files by
+`scripts/validate-template-catalog.py`.
+
 ---
 
 ## Question Bank
@@ -444,6 +449,7 @@ The design draws significant inspiration from:
 - [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - [Incremental Spec Update](docs/en/08-incremental-update.md)
 - [Spec Health Report](docs/en/09-health-report.md)
+- [Template Catalog](docs/en/11-template-catalog.md)
 
 ---
 > "An honest spec with visible holes is more practically valuable than a polished spec full of fiction."
@@ -714,6 +720,8 @@ python -m source_map_v2 --target <root> --output .specback/source-map.json
 
 利用者が自前のテンプレートを持参することも可能です。
 
+同梱の9テンプレートはすべて機械可読な[テンプレートカタログ](docs/ja/11-template-catalog.md)（`templates/catalog.json`）に登録されており、`scripts/validate-template-catalog.py` がテンプレートファイルとの同期を検証します。
+
 ---
 
 ## Question Bank
@@ -836,11 +844,13 @@ MIT License。詳細は [LICENSE](LICENSE) を参照。
 - EN: [Token Estimate & Budget Gate](docs/en/07-token-estimate.md)
 - EN: [Incremental Spec Update](docs/en/08-incremental-update.md)
 - EN: [Spec Health Report](docs/en/09-health-report.md)
+- EN: [Template Catalog](docs/en/11-template-catalog.md)
 - JA: [ブランチ戦略](docs/ja/01-branching-strategy.md)
 - JA: [ドリフト検出のCI自動化](docs/ja/05-drift-ci.md)
 - JA: [トークン見積り & バジェットゲート](docs/ja/07-token-estimate.md)
 - JA: [インクリメンタル仕様更新](docs/ja/08-incremental-update.md)
 - JA: [仕様ヘルスレポート](docs/ja/09-health-report.md)
+- JA: [テンプレートカタログ](docs/ja/11-template-catalog.md)
 
 ---
 

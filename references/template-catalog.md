@@ -572,6 +572,8 @@ Agent: "Got it. Finalising with:
 
 Phase 1 でテンプレート選択後、コードベースを分析して章構成を自動カスタマイズするためのルール定義。各テンプレートの frontmatter `detection_rules` に定義され、Phase 1 エージェントがこれを読み取って検出を実行する。
 
+> **機械可読版**: `templates/catalog.json` に各テンプレートの `detection_rules`（`always_include` / `chapters` / `extra_chapters` / `optional` の ID リスト）が登録されている。テンプレート frontmatter と catalog は `scripts/validate-template-catalog.py` で同期検証される。プログラムから参照する場合は catalog を、人が読む場合はテンプレート frontmatter を使う。
+
 ### Detection types
 
 | Type | Method | Example |

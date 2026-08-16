@@ -1,0 +1,553 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Machine-readable registry of spec templates. Each entry mirrors the YAML frontmatter of templates/<name>.md (template_name, description, detection_rules) plus the chapter outline (### Chapter N: Title headings) and the languages the template targets. Catalog is canonical: run scripts/validate-template-catalog.py to verify consistency with the template files.",
+  "templates": [
+    {
+      "name": "api-service",
+      "description": "API service spec template. For microservices and public APIs that expose REST/GraphQL/gRPC.",
+      "template_version": "0.1.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Architecture overview",
+        "Class / Module Design",
+        "Endpoint catalogue",
+        "Request / response specifications",
+        "Data Model",
+        "Error codes / error responses",
+        "External interfaces",
+        "Authentication",
+        "Rate limiting / quotas",
+        "Versioning",
+        "SLA / performance requirements",
+        "Operations settings",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-endpoint-catalogue",
+          "ch-auth",
+          "ch-rate-limiting",
+          "ch-sla",
+          "ch-request-response",
+          "ch-error-codes",
+          "ch-versioning",
+          "ch-operations"
+        ],
+        "extra_chapters": [
+          "ch-webhooks"
+        ],
+        "optional": [
+          "ch-rate-limiting",
+          "ch-sla",
+          "ch-error-codes",
+          "ch-versioning"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "go",
+        "java",
+        "ruby",
+        "php",
+        "kotlin",
+        "csharp",
+        "rust",
+        "swift",
+        "dart"
+      ]
+    },
+    {
+      "name": "web-app",
+      "description": "Web application spec template. For interactive systems that render HTML.",
+      "template_version": "0.1.1",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Architecture overview",
+        "Class / Module Design",
+        "Screens and screen transitions",
+        "Routes / endpoints",
+        "Data model",
+        "Authentication and authorisation",
+        "External interfaces",
+        "Operations settings",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-screens",
+          "ch-routes",
+          "ch-data-model",
+          "ch-auth",
+          "ch-external-interfaces",
+          "ch-operations"
+        ],
+        "extra_chapters": [
+          "ch-background-jobs",
+          "ch-caching"
+        ],
+        "optional": [
+          "ch-data-model"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "javascript",
+        "ruby",
+        "php",
+        "java",
+        "csharp",
+        "go",
+        "kotlin",
+        "dart"
+      ]
+    },
+    {
+      "name": "batch-system",
+      "description": "Batch-system spec template. For scheduled jobs, data pipelines, COBOL batch jobs, and similar.",
+      "template_version": "0.1.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Architecture overview",
+        "Class / Module Design",
+        "Job catalogue",
+        "Triggers and schedule",
+        "Data flow",
+        "Data Model",
+        "Forms and Reports",
+        "Error handling and retry policy",
+        "Recovery procedures",
+        "Operations calendar and dependencies",
+        "Monitoring / alerts",
+        "External interfaces",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-job-catalogue",
+          "ch-triggers",
+          "ch-data-flow",
+          "ch-monitoring",
+          "ch-error-handling",
+          "ch-recovery",
+          "ch-operations-calendar"
+        ],
+        "extra_chapters": [
+          "ch-notifications"
+        ],
+        "optional": [
+          "ch-data-flow",
+          "ch-monitoring",
+          "ch-error-handling",
+          "ch-recovery",
+          "ch-operations-calendar"
+        ]
+      },
+      "languages": [
+        "python",
+        "java",
+        "csharp",
+        "sql",
+        "cobol",
+        "typescript",
+        "go",
+        "ruby",
+        "php",
+        "rust",
+        "kotlin",
+        "swift",
+        "dart"
+      ]
+    },
+    {
+      "name": "library-sdk",
+      "description": "Library / SDK spec template. For reusable code packages distributed via npm/pip/composer/gem/NuGet, etc.",
+      "template_version": "0.1.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Module architecture (overview)",
+        "Installation",
+        "Public API catalogue",
+        "Usage examples (quick start)",
+        "Configuration options",
+        "Compatibility",
+        "Extension points / plugin system",
+        "Migration guide",
+        "Internal structure (optional)",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-module-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-installation",
+          "ch-usage-examples",
+          "ch-api-catalogue",
+          "ch-config-options",
+          "ch-compatibility",
+          "ch-extension-points",
+          "ch-migration-guide",
+          "ch-internal-structure"
+        ],
+        "extra_chapters": [
+          "ch-performance"
+        ],
+        "optional": [
+          "ch-installation",
+          "ch-usage-examples",
+          "ch-config-options",
+          "ch-compatibility",
+          "ch-extension-points",
+          "ch-migration-guide",
+          "ch-internal-structure"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "javascript",
+        "go",
+        "ruby",
+        "java",
+        "php",
+        "csharp",
+        "rust",
+        "kotlin",
+        "swift",
+        "dart"
+      ]
+    },
+    {
+      "name": "cli-tool",
+      "description": "CLI tool spec template. For command-line programs distributed as standalone binaries or via package managers.",
+      "template_version": "0.2.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Architecture overview",
+        "Class / Module Design",
+        "Installation",
+        "Command-line reference",
+        "Arguments and options reference",
+        "Configuration",
+        "Usage examples",
+        "Output formats",
+        "Exit codes and error handling",
+        "Shell completion and integration",
+        "Extension points / plugin system",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-module-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-module-architecture",
+          "ch-installation",
+          "ch-command-catalogue",
+          "ch-configuration",
+          "ch-output-format",
+          "ch-internal-structure"
+        ],
+        "extra_chapters": [
+          "ch-exit-codes",
+          "ch-plugin"
+        ],
+        "optional": [
+          "ch-installation",
+          "ch-configuration",
+          "ch-output-format",
+          "ch-internal-structure"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "javascript",
+        "go",
+        "rust",
+        "ruby",
+        "java",
+        "php",
+        "csharp",
+        "swift",
+        "kotlin",
+        "dart"
+      ]
+    },
+    {
+      "name": "infrastructure",
+      "description": "Infrastructure spec template. For cloud resources, networking, IaC, and deployment topology.",
+      "template_version": "0.2.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Resource inventory",
+        "Network topology",
+        "Deployment pipeline",
+        "Configuration and environment",
+        "Monitoring and observability",
+        "Disaster recovery and backup",
+        "Cost and sizing",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-resource-inventory",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-network-topology",
+          "ch-deployment-pipeline",
+          "ch-config-environment",
+          "ch-monitoring",
+          "ch-dr-backup",
+          "ch-cost-sizing"
+        ],
+        "extra_chapters": [
+          "ch-security-compliance",
+          "ch-serverless-events"
+        ],
+        "optional": [
+          "ch-deployment-pipeline",
+          "ch-monitoring",
+          "ch-dr-backup",
+          "ch-cost-sizing"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "go",
+        "ruby",
+        "java",
+        "csharp",
+        "kotlin"
+      ]
+    },
+    {
+      "name": "mobile-app",
+      "description": "Mobile app spec template. For native and cross-platform mobile applications targetting iOS, Android, or both.",
+      "template_version": "0.2.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Module architecture",
+        "Screen list and transitions",
+        "State management",
+        "Data persistence and offline-first",
+        "Platform API integration",
+        "Push notifications",
+        "Networking and sync",
+        "Build and deployment",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-module-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-screens",
+          "ch-state-management",
+          "ch-data-persistence",
+          "ch-platform-api",
+          "ch-push-notifications",
+          "ch-networking"
+        ],
+        "extra_chapters": [
+          "ch-build-deploy",
+          "ch-deep-links"
+        ],
+        "optional": [
+          "ch-state-management",
+          "ch-data-persistence",
+          "ch-platform-api",
+          "ch-push-notifications"
+        ]
+      },
+      "languages": [
+        "swift",
+        "kotlin",
+        "dart",
+        "typescript",
+        "javascript",
+        "java",
+        "cpp"
+      ]
+    },
+    {
+      "name": "desktop-app",
+      "description": "Desktop application spec template. For native and cross-platform GUI applications that run on Windows, macOS, or Linux.",
+      "template_version": "0.2.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Module architecture",
+        "Window management and menus",
+        "UI component catalogue",
+        "Platform integration",
+        "State management and persistence",
+        "Auto-update and installer",
+        "Networking",
+        "Keyboard shortcuts and accessibility",
+        "Build and deployment",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-module-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-window-management",
+          "ch-platform-integration",
+          "ch-auto-update",
+          "ch-ui-catalogue",
+          "ch-state-persistence",
+          "ch-networking",
+          "ch-keyboard-accessibility"
+        ],
+        "extra_chapters": [
+          "ch-build-deploy",
+          "ch-ipc"
+        ],
+        "optional": [
+          "ch-platform-integration",
+          "ch-auto-update",
+          "ch-ui-catalogue",
+          "ch-state-persistence",
+          "ch-networking",
+          "ch-keyboard-accessibility"
+        ]
+      },
+      "languages": [
+        "csharp",
+        "cpp",
+        "dart",
+        "typescript",
+        "javascript",
+        "swift",
+        "kotlin",
+        "python",
+        "rust",
+        "go",
+        "java"
+      ]
+    },
+    {
+      "name": "event-driven",
+      "description": "Event-driven / Streaming spec template. For asynchronous messaging systems using Kafka, Pulsar, EventBridge, SQS, RabbitMQ, Google Pub/Sub, Azure Event Hubs, and similar brokers.",
+      "template_version": "0.2.0",
+      "chapters": [
+        "Overview",
+        "Feature specifications",
+        "Module architecture",
+        "Event catalogue",
+        "Producers",
+        "Consumers",
+        "Serialization and schema",
+        "Delivery guarantees",
+        "Partitioning and scaling",
+        "Error handling and recovery",
+        "Monitoring and observability",
+        "Design decisions",
+        "Known constraints and unresolved items"
+      ],
+      "detection_rules": {
+        "always_include": [
+          "ch-overview",
+          "ch-feature-specs",
+          "ch-module-architecture",
+          "ch-design-decisions",
+          "ch-known-constraints"
+        ],
+        "chapters": [
+          "ch-event-catalogue",
+          "ch-producers",
+          "ch-consumers",
+          "ch-serialization",
+          "ch-delivery-guarantees",
+          "ch-partitioning",
+          "ch-error-recovery",
+          "ch-monitoring"
+        ],
+        "extra_chapters": [
+          "ch-stream-processing",
+          "ch-event-sourcing"
+        ],
+        "optional": [
+          "ch-serialization",
+          "ch-delivery-guarantees",
+          "ch-partitioning",
+          "ch-error-recovery",
+          "ch-monitoring"
+        ]
+      },
+      "languages": [
+        "python",
+        "typescript",
+        "javascript",
+        "go",
+        "java",
+        "kotlin",
+        "csharp",
+        "ruby",
+        "php",
+        "rust"
+      ]
+    }
+  ]
+}
