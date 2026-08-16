@@ -14,6 +14,8 @@ import json
 import sys
 from pathlib import Path
 
+from common import atomic_write_text
+
 from .pipeline import DEFAULT_EXCLUDES, build_source_map
 
 
@@ -42,12 +44,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ERROR: output path cannot be a symlink: {args.output}", file=sys.stderr)
             return 2
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        import tempfile
-        import os
-        tmp_fd, tmp_path = tempfile.mkstemp(dir=args.output.parent, prefix=".tmp_smap_")
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.replace(tmp_path, args.output)
+        atomic_write_text(args.output, text)
         stats = payload["stats"]
         print(
             f"source-map v2: {stats['units_total']} units from {stats['files_scanned']} files "
