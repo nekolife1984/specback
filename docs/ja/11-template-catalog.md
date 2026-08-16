@@ -13,7 +13,7 @@
 | `name` | テンプレート名 — `templates/<name>.md` と frontmatter の `template_name` に対応 |
 | `description` | 1行説明 — テンプレート frontmatter から同期 |
 | `template_version` | テンプレートバージョン — テンプレート frontmatter から同期 |
-| `chapters` | 章構成の順序付きリスト — テンプレートの `### Chapter N: Title` 見出しから同期 |
+| `chapters` | 章構成の順序付きリスト — テンプレートの `### Chapter N: Title` 見出しから同期。機能仕様章（Ch2）には per-feature セクションとして `Priority` / `Acceptance scenarios`（Given/When/Then）/ `Independent test` / `Edge cases` が含まれます（Issue #298） |
 | `detection_rules` | `always_include` / `chapters` / `extra_chapters` / `optional` のIDリスト — テンプレートの `detection_rules` frontmatter ブロックから抽出 |
 | `languages` | テンプレートが対象とする言語 — source_map_v2 抽出器のセット（`SUPPORTED_LANGUAGES`）から選択 |
 

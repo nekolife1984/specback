@@ -188,6 +188,15 @@ One row per candidate feature. Columns: `Feature ID`, `Feature name`, `Category`
 #### STEP J: Write per-feature processing definitions (top-5)
 For the most critical or complex features, write structured processing definitions (trigger, pre-conditions, main flow, alternative flows, error handling, post-conditions, related chapters). Include `<!-- REF: ... -->` citations to real code for each step.
 
+Additionally, for every feature written in STEP J, include the following sections (Issue #298 — spec-kit alignment):
+
+1. **Priority** — P1/P2/P3 importance for the product. P1 = core value proposition (must be implemented for the product to work), P3 = auxiliary. Derive from code evidence (call volume, criticality of the path, blast radius). `<!-- REF: ... -->` optional.
+2. **Acceptance scenarios** — Given/When/Then style, derived from actual code behaviour (handler / controller / service branches). Each scenario MUST carry an `<!-- REF: SRC-NNNN -->` citation. Do NOT write scenarios for unimplemented features (specback = code → spec).
+3. **Independent test** — how to verify this feature in isolation. If test code exists, reference the test file (e.g. `tests/test_<feature>.py`); otherwise give a manual verification procedure.
+4. **Edge cases** — boundary conditions / exceptional inputs. Kept separate from Error handling: Error handling = behaviour on failure (exceptions, error paths), Edge cases = boundary values / unusual inputs (empty, max length, duplicates, concurrency).
+
+Ordering inside each feature block: `Overview` → `Priority` → `Trigger` → `Pre-conditions` → `Main flow` → `Alternative flows` → `Error handling` → `Edge cases` → `Acceptance scenarios` → `Independent test` → `Post-conditions` → `Related business rules` → `Related chapters` → `Confidence`.
+
 #### STEP K: Populate `spec_missing` questions
 For features whose boundaries or existence are uncertain, add a `spec_missing` category question to `questions.json` (at least 1 per 3 features). The main agent reads the returned DETAIL_QUESTIONS and appends them.
 

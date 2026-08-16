@@ -197,6 +197,9 @@ For each feature listed above, describe the processing flow structured as below.
 - Business value this feature provides
 - Which user / system role uses it
 
+**Priority**
+- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P3 = auxiliary). Determined from code evidence. <!-- REF: SRC-NNNN -->
+
 **Trigger**
 - User action / system event / external call that initiates this feature
 
@@ -213,6 +216,19 @@ For each feature listed above, describe the processing flow structured as below.
 
 **Error handling**
 - Error type → system behaviour <!-- REF: SRC-NNNN -->
+
+**Edge cases**
+- Boundary conditions / exceptional inputs (kept separate from Error handling: Error handling = behaviour on failure, Edge cases = boundary values / unusual inputs) <!-- REF: SRC-NNNN -->
+- e.g. empty input, max length, duplicate submission, concurrent access
+
+**Acceptance scenarios**
+- Scenario 1: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
+- Scenario 2: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
+
+**Independent test**
+- How to verify this feature in isolation:
+  - Automated: test file reference (e.g. `tests/test_<feature>.py`) <!-- REF: SRC-NNNN -->
+  - Manual: [manual verification steps]
 
 **Post-conditions**
 - State of the system after successful execution

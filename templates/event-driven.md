@@ -213,6 +213,60 @@ sequenceDiagram
     C-->>P: Ack (if applicable)
 ```
 
+#### 2.3 Per-feature processing definitions
+
+For each feature listed in the catalogue above, describe the processing flow structured as below. Generate at minimum the top-5 features by complexity or business criticality; list the remainder in the catalogue table only.
+
+##### F-001: {Feature name}
+
+**Overview**
+- Business value this feature provides
+- Which user / system role uses it
+
+**Priority**
+- P1 / P2 / P3 — importance for the product (P1 = core value proposition, P3 = auxiliary). Determined from code evidence. <!-- REF: SRC-NNNN -->
+
+**Trigger**
+- Event / schedule / external call that initiates this feature (see 2.2 flow diagram)
+
+**Pre-conditions**
+- Conditions that must hold before execution
+
+**Main flow**
+1. Step 1 <!-- REF: SRC-NNNN -->
+2. Step 2 <!-- REF: SRC-NNNN -->
+3. ...
+
+**Alternative flows**
+- Alt-1: When [condition] → [behaviour] <!-- REF: SRC-NNNN -->
+
+**Error handling**
+- Error type → system behaviour <!-- REF: SRC-NNNN -->
+
+**Edge cases**
+- Boundary conditions / exceptional inputs (kept separate from Error handling: Error handling = behaviour on failure, Edge cases = boundary values / unusual inputs) <!-- REF: SRC-NNNN -->
+- e.g. empty payload, out-of-order events, duplicate delivery, consumer lag
+
+**Acceptance scenarios**
+- Scenario 1: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
+- Scenario 2: Given [precondition] When [action] Then [observable result] <!-- REF: SRC-NNNN -->
+
+**Independent test**
+- How to verify this feature in isolation:
+  - Automated: test file reference (e.g. `tests/test_<feature>.py`) <!-- REF: SRC-NNNN -->
+  - Manual: [manual verification steps]
+
+**Post-conditions**
+- State of the system after successful execution
+
+**Related business rules**
+- → Ch? (Domain rules section) cross-reference
+
+**Related chapters**
+- → Ch? (Event catalogue / Producers / Consumers) cross-reference
+
+**Confidence**: 🟢/🟡/🔴
+
 ---
 
 ### Chapter 3: Module architecture
