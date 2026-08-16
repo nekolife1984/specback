@@ -27,6 +27,15 @@ List the viewed file paths and line ranges at the **end of the chapter under a `
 
 **Minimum 5 files** under Sources Read. `coverage-check.py` enforces this count. Writing `<!-- REF: ... -->` citations for files that are not listed is forbidden.
 
+**Strict Sources Read format** (`coverage-check.py` parses these lines with `SOURCES_READ_ITEM_RE = ^\s*[-*]\s+\`?([^\`\n]+?)\`?(?:\s*\([^)]*\))?\s*$`):
+
+- Each bullet MUST be exactly one of: ``- `path` `` or ``- `path` (start-end) ``. No other decoration is allowed on the line.
+- ✅ OK: ``- `app/models/issue.rb` (1-440) `` / ``- `app/models/issue.rb` ``
+- ❌ **Absolute paths are forbidden**: ``- `/Users/me/proj/app/models/issue.rb` `` (use workspace-relative `app/models/issue.rb`).
+- ❌ **Trailing descriptions are forbidden**: ``- `app/models/issue.rb` (1-440) — モデル定義 `` (anything after the closing paren breaks the regex `$` anchor, so the item is NOT counted).
+- ❌ **Full-width / CJK annotations are forbidden**: ``- `app/models/issue.rb`（モデル定義） `` (the parser only accepts ASCII `(...)`; full-width parens fail the match).
+- ❌ Do NOT write ``(lines 1-440)`` in the parens; write ``(1-440)`` (the `lines` prefix is not required and can confuse the parser).
+
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript
 > (Express / Fastify / Hono) / Ruby on Rails, see
@@ -73,6 +82,7 @@ Examples:
 - Use **`<!-- REF: path:line -->`**, **`<!-- REF: path:start-end -->`**, or **`<!-- REF: SRC-NNNN -->`** only. The HTML comment markers, the `REF:` prefix, and the colon between path and line numbers (for path:line format) are all mandatory.
 - The path is workspace-relative (`app/...` for an env with `archiveRoot = "myapp-main"`). Absolute paths are forbidden.
 - Line numbers are integers. Use a single line (`:42`) when a single line is being cited; use a range (`:42-56`) when an extent matters. Do NOT use `L42`, `line 42`, ` lines 42-56`, parentheses, or any other decoration.
+- **NEVER wrap a citation in parentheses or brackets** — `（<!-- REF: SRC-0142 -->）` or `(<!-- REF: SRC-0142 -->)`. The HTML comment renders as nothing, leaving a **visible empty `（）`** in the delivered spec. Write the citation bare: `...する<!-- REF: SRC-0142 -->。`
 - Forbidden alternative forms include but are not limited to:
   - ❌ `Gemfile (lines 1-138)` — parenthesised line annotation
   - ❌ `[REF: Gemfile:1-138]` — **deprecated** legacy format (NOT parsed by the scripts; do not write it in specs)
@@ -161,6 +171,10 @@ Quality bar:
 - Mermaid diagrams >= 1 (ER diagram)
 - >= 5 files under ## Sources Read
 - Body guided by tone: concise -> compact; thorough -> detailed
+
+Format rules (coverage-check.py enforces these; violations loop back):
+- Write `<!-- REF: ... -->` citations BARE — never wrap them in （） or (). A wrapped citation renders as a visible empty `（）`.
+- Sources Read bullets MUST be ``- `path` `` or ``- `path` (start-end) `` with workspace-relative paths. NO absolute paths, NO trailing descriptions (`— 説明`), NO full-width parens (（...）).
 
 When done, return the chapter's key points + a list of detail questions raised.
 The detail questions are material for the main agent to append into questions.json.
