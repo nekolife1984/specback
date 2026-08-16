@@ -64,7 +64,6 @@ class PhpExtractor(Extractor):
 
         def _maybe_route(stmt):
             # Route::get('/path', ...)
-            blob = H.text(stmt, src)
             sce = None
             for d in _descend(stmt):
                 if d.type == "scoped_call_expression":

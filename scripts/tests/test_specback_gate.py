@@ -242,7 +242,7 @@ def test_resolve_base_rejects_injection(tmp_path):
 
 def test_e2e_skip_when_spec_missing(tmp_path):
     """No source-map.json -> warn (exit 0), not a CI failure."""
-    specback = _init_repo(tmp_path, with_spec=False)
+    _init_repo(tmp_path, with_spec=False)
     result = _run_gate(tmp_path, "--json")
     assert result.returncode == 0, result.stderr
     out = json.loads(result.stdout)
@@ -257,7 +257,7 @@ def test_e2e_skip_when_spec_missing(tmp_path):
 
 def test_e2e_drift_fails(tmp_path):
     """Modifying sample.py after spec generation -> fail (exit 1)."""
-    specback = _init_repo(tmp_path)
+    _init_repo(tmp_path)
     base_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path,
                               capture_output=True, text=True, check=True)
     # Introduce a change on top of the base commit.
@@ -272,7 +272,7 @@ def test_e2e_drift_fails(tmp_path):
 
 def test_e2e_drift_warn_only(tmp_path):
     """--warn-only downgrades fail -> exit 0."""
-    specback = _init_repo(tmp_path)
+    _init_repo(tmp_path)
     base_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path,
                               capture_output=True, text=True, check=True)
     (tmp_path / "sample.py").write_text("x = 2\n", encoding="utf-8")
@@ -286,7 +286,7 @@ def test_e2e_drift_warn_only(tmp_path):
 
 def test_e2e_clean_pass(tmp_path):
     """No changes -> pass (exit 0), drift report still generated."""
-    specback = _init_repo(tmp_path)
+    _init_repo(tmp_path)
     result = _run_gate(tmp_path, "--json")
     assert result.returncode == 0, result.stdout + result.stderr
     out = json.loads(result.stdout)

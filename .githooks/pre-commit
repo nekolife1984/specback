@@ -18,7 +18,28 @@ else
   echo "   Install: brew install gitleaks"
 fi
 
-# ── Phase 2: Test coverage for new/modified scripts ───────────
+# ── Phase 2: Ruff lint (E4/E7/E9/F) for staged .py files ─────
+if command -v ruff >/dev/null 2>&1; then
+  echo "🪄 Checking staged .py files for ruff lint violations..."
+  staged_py=$(git diff --cached --name-only --diff-filter=AM -- '*.py' || true)
+  if [ -n "$staged_py" ]; then
+    # shellcheck disable=SC2086
+    ruff check $staged_py
+    if [ $? -ne 0 ]; then
+      echo ""
+      echo "❌ Ruff lint violations detected! Please fix them before committing."
+      echo "💡 To bypass: git commit --no-verify"
+      exit 1
+    fi
+  else
+    echo "  ✅ No Python changes to lint."
+  fi
+else
+  echo "⚠️  ruff not found — skipping lint check"
+  echo "   Install: uv tool install ruff"
+fi
+
+# ── Phase 3: Test coverage for new/modified scripts ───────────
 echo "🔍 Checking staged scripts for test coverage..."
 
 SCRIPT_DIR="scripts"
@@ -102,7 +123,7 @@ fi
 
 echo "  ✅ All checks passed."
 
-# ── Phase 4: Template catalog sync check ─────────────────────
+# ── Phase 5: Template catalog sync check ─────────────────────
 # Run validate-template-catalog.py whenever catalog.json or a template file is staged.
 echo "🔍 Checking template catalog sync..."
 staged_catalog_files=$( \
@@ -123,7 +144,7 @@ else
     echo "  ✅ No catalog/template changes detected."
 fi
 
-# ── Phase 3: EN/JA doc sync check ────────────────────────────
+# ── Phase 4: EN/JA doc sync check ────────────────────────────
 echo "🔍 Checking EN/JA doc sync..."
 staged_en_docs=$( \
     git diff --cached --name-only --diff-filter=AM -- "docs/en/*.md" \

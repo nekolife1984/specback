@@ -94,3 +94,12 @@ def test_source_map_with_nan_fails(tmp_path):
     )
     assert result.returncode != 0
     assert "non-finite" in result.stderr
+
+
+def test_parse_output_default(tmp_path):
+    """Default --output path resolves under the specback dir (#322)."""
+    mod = load_script_module(SCRIPT, "snapshot_hashes_out")
+    sb = tmp_path / "proj" / ".specback"
+    sb.mkdir(parents=True)
+    args = mod.parse_args(["--specback-dir", str(sb)])
+    assert args.output is None

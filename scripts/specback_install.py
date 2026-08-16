@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sys
 from common import reject_nonfinite, sha256_file, utcnow_iso
@@ -411,7 +410,7 @@ def cmd_install(target: Path, force: bool, dry_run: bool, version: str) -> int:
         print(f"     📁 {target / SPECBACK_DATA_DIR}/  → customize here")
         print(f"     📁 {target / '.claude' / 'skills' / 'specback'}/  → core skill")
     else:
-        print(f"  🏁  Dry-run complete. No changes were made.\n")
+        print("  🏁  Dry-run complete. No changes were made.\n")
 
     return 0
 
@@ -423,7 +422,7 @@ def cmd_check(target: Path) -> int:
     existing_lock = _load_lockfile(target)
     if existing_lock is None:
         print(f"  ❌  No lockfile found at {target / SPECBACK_DATA_DIR / LOCKFILE_NAME}")
-        print(f"     specback has not been stamped into this target.")
+        print("     specback has not been stamped into this target.")
         return 1
 
     print(f"\n  🔍  Drift check for: {target}\n")
@@ -461,7 +460,7 @@ def cmd_check(target: Path) -> int:
         print(f"  ✅  Intact files: {len(drift['ok'])}")
 
     if not has_issues:
-        print(f"  ✅  No drift detected. All stamped files match lockfile.")
+        print("  ✅  No drift detected. All stamped files match lockfile.")
 
     return 1 if has_issues else 0
 

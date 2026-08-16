@@ -58,7 +58,7 @@ import re
 import stat
 import sys
 from common import atomic_write_json, utcnow_iso
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
@@ -293,7 +293,7 @@ def classify_file(rel_path: str) -> list[str]:
     elif p.endswith((".css", ".scss", ".sass", ".less")):
         # Stylesheets: coarse, file level.
         strategies.append("style_file")
-    elif p.endswith((".md", ".rst", ".txt", ".rdoc")) and not "readme" in p:
+    elif p.endswith((".md", ".rst", ".txt", ".rdoc")) and "readme" not in p:
         # Skip generic Markdown.
         return []
     elif p.endswith(".sql"):

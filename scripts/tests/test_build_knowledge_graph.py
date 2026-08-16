@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "build-knowledge-graph.py"
 

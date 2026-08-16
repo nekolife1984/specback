@@ -31,6 +31,49 @@ python_version = "3.11"
 ignore_missing_imports = true
 follow_imports = "skip"
 
+[tool.ruff]
+preview = false
+line-length = 88
+
+[tool.ruff.lint]
+# Stable default rules only: pycodestyle error (E4/E7/E9) + pyflakes (F).
+# The codebase deliberately uses several noisy rules (BLE001 blind-except,
+# PLW1510 subprocess w/o check, DTZ007, B017, etc.) — those are explicitly
+# excluded here and out of scope for lint enforcement.
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    # Module-level import-after-sys.path.insert is a deliberate collection-order
+    # pattern used by the test suite (see scripts/tests/test_*.py).
+    "E402",
+    # Ambiguous `l` loop vars are kept for readability in tests.
+    "E741",
+    # Intentionally-used noisy rules (out of scope — #322).
+    "B017",
+    "BLE001",
+    "C408",
+    "DTZ007",
+    "EXE001",
+    "FURB167",
+    "FURB188",
+    "ISC004",
+    "PERF102",
+    "PIE810",
+    "PLC0206",
+    "PLW1510",
+    "PYI034",
+    "RUF022",
+    "RUF034",
+    "RUF059",
+    "RUF100",
+    "S110",
+    "S112",
+    "SIM102",
+    "SIM114",
+    "TRY004",
+    "UP033",
+    "UP035",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["scripts/tests", "scripts/source_map_v2/tests", "skills/specback-search/scripts/tests"]

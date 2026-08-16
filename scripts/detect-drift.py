@@ -37,7 +37,6 @@ Output
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from collections import defaultdict
 import artifact_io
@@ -414,8 +413,8 @@ def generate_markdown(
 
     lines.append("## Summary")
     lines.append("")
-    lines.append(f"| Metric | Count |")
-    lines.append(f"|--------|------:|")
+    lines.append("| Metric | Count |")
+    lines.append("|--------|------:|")
     lines.append(f"| Changed files | {changed_files_count} |")
     lines.append(f"| **Affected spec sections** | **{len(all_sections)}** |")
     # Count high-impact
@@ -698,8 +697,8 @@ def print_base_info(base: str) -> None:
     """Print info about the base ref being used."""
     if base == "HEAD":
         print(
-            f"detect-drift.py: using --base HEAD "
-            f"(no generated_at_commit in state.json)",
+            "detect-drift.py: using --base HEAD "
+            "(no generated_at_commit in state.json)",
             file=sys.stderr,
         )
     else:

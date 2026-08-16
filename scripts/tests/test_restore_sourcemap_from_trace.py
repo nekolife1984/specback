@@ -378,3 +378,10 @@ def test_main_accepts_argv() -> None:
     with pytest.raises(SystemExit) as excinfo:
         mod.main(["--help"])
     assert excinfo.value.code == 0
+
+
+def test_main_reports_missing_trace(tmp_path) -> None:
+    """main with an absent trace.json exits 1 with a clean error (no traceback)."""
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main(["--repo", str(tmp_path / "nope"), "--new-ids", "SRC-0003"])
+    assert excinfo.value.code == 1
