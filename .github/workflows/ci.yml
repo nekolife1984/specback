@@ -62,6 +62,10 @@ jobs:
         run: |
           python -m pytest skills/specback-search/scripts/tests/ -v --tb=short
 
+      - name: Validate template catalog sync
+        run: |
+          python3 scripts/validate-template-catalog.py --catalog templates/catalog.json --templates-dir templates
+
       - name: Type check — mypy
         run: |
           python -m mypy scripts/ \

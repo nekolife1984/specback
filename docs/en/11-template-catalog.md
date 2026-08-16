@@ -51,6 +51,19 @@ It checks:
 
 Exit codes: `0` consistent, `1` violations found, `2` usage error.
 
+The validator is wired into the pre-commit hook (Phase 4 — runs whenever
+`templates/catalog.json` or a `templates/*.md` file is staged) and into CI
+(`Validate template catalog sync` step), so drift is caught before merge.
+
+Hardening (post-review of PR #300): the chapter-heading regex is greedy to
+avoid quadratic backtracking (ReDoS); non-UTF-8 files, deep/NaN JSON, and
+invalid template names (`../`, separators, control chars) fail cleanly with
+exit 2; template files must not be symlinks and must resolve inside the
+templates dir; control characters in interpolated values are sanitized;
+quoted YAML scalars and CRLF line endings are handled; a missing
+`description` / `template_version` in the frontmatter emits a warning
+(not an error) when the catalog has a value.
+
 ## Usage in phase-1 recon
 
 `skills/specback/phases/phase-1-recon.md` step 2 reads the catalog to

@@ -39,6 +39,10 @@ python3 scripts/validate-template-catalog.py
 
 終了コード：`0` 整合、`1` 違反あり、`2` 使い方エラー。
 
+検証は pre-commit フック（Phase 4 — `templates/catalog.json` または `templates/*.md` がステージされたときに実行）と CI（`Validate template catalog sync` ステップ）に配線されており、マージ前にドリフトを検出します。
+
+堅牢化（PR #300 の事後レビュー対応）：章見出し regex は greedy 化し二次バックトラッキング（ReDoS）を回避。非UTF-8ファイル・深ネスト/NaN JSON・不正テンプレート名（`../`・区切り文字・制御文字）は exit 2 でクリーンに失敗。テンプレートファイルは symlink 禁止・templates ディレクトリ内に解決必須。補間値の制御文字はサニタイズ。quoted YAML scalar・CRLF 行末に対応。frontmatter の `description` / `template_version` 欠落は、カタログに値がある場合 warning（エラーではない）を出力します。
+
 ## phase-1 recon での利用
 
 `skills/specback/phases/phase-1-recon.md` のステップ2でカタログを読み、テンプレート候補を絞り込みます — 各エントリの `languages` をコードベースの検出言語と照合してから候補をユーザーに提示できます。ステップ3aではカタログエントリ（または検証ツールで同一に保たれるテンプレート frontmatter）から `detection_rules` を読みます。

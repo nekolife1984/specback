@@ -308,7 +308,7 @@ def test_validate_duplicate_name(tmp_path: Path) -> None:
 def test_validate_bad_json(tmp_path: Path) -> None:
     catalog = tmp_path / "catalog.json"
     catalog.write_text("{ not json", encoding="utf-8")
-    with pytest.raises(vtc.CatalogError, match="invalid JSON"):
+    with pytest.raises(vtc.CatalogError, match="cannot parse catalog"):
         vtc.validate(catalog, tmp_path / "templates")
 
 
@@ -408,7 +408,8 @@ REPO_ROOT = SCRIPT.parent.parent
 def test_repo_catalog_consistent() -> None:
     errors, _, count = vtc.validate(REPO_ROOT / "templates" / "catalog.json", REPO_ROOT / "templates")
     assert errors == []
-    assert count == 9
+    # entry count must equal the number of template files (not a hardcoded 9)
+    assert count == len(list((REPO_ROOT / "templates").glob("*.md")))
 
 
 @pytest.mark.skipif(not (REPO_ROOT / "templates" / "catalog.json").is_file(), reason="repo templates absent")
@@ -417,3 +418,178 @@ def test_repo_catalog_languages_subset() -> None:
     for entry in data["templates"]:
         for lang in entry["languages"]:
             assert lang in vtc.SUPPORTED_LANGUAGES, f"{entry['name']}: {lang}"
+
+
+# ---------------------------------------------------------------------------
+# Post-review hardening regression tests (security + code review, #299 follow-up)
+# ---------------------------------------------------------------------------
+
+def test_load_catalog_rejects_invalid_name(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        json.dumps({"templates": [_catalog_entry(name="../secret", version="x", description="x")]}),
+        encoding="utf-8",
+    )
+    with pytest.raises(vtc.CatalogError, match="invalid template name"):
+        vtc.load_catalog(catalog)
+
+
+def test_load_catalog_rejects_nan(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        '{"templates": [{"name": "demo", "template_version": NaN}]}', encoding="utf-8"
+    )
+    with pytest.raises(vtc.CatalogError, match="cannot parse catalog"):
+        vtc.load_catalog(catalog)
+
+
+def test_load_catalog_rejects_non_utf8(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    catalog.write_bytes(b'{"templates": [\xff\xfe]}')
+    with pytest.raises(vtc.CatalogError, match="cannot parse catalog"):
+        vtc.load_catalog(catalog)
+
+
+def test_load_catalog_rejects_deep_nesting(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
+    with pytest.raises(vtc.CatalogError):
+        vtc.load_catalog(catalog)
+
+
+def test_extract_frontmatter_non_utf8_raises(tmp_path: Path) -> None:
+    p = tmp_path / "t.md"
+    p.write_bytes(b"---\ntemplate_name: \xff\xfe\n---\n")
+    with pytest.raises(vtc.CatalogError, match="cannot read template"):
+        vtc.extract_frontmatter(p)
+
+
+def test_extract_frontmatter_unterminated(tmp_path: Path) -> None:
+    p = tmp_path / "t.md"
+    p.write_text("---\ntemplate_name: demo\n", encoding="utf-8")
+    fm = vtc.extract_frontmatter(p)
+    assert "unterminated frontmatter" in fm.get("error", "")
+
+
+def test_extract_frontmatter_crlf(tmp_path: Path) -> None:
+    p = tmp_path / "t.md"
+    p.write_text("---\r\ntemplate_name: demo\r\n---\r\nbody\r\n", encoding="utf-8")
+    fm = vtc.extract_frontmatter(p)
+    assert "template_name" in fm["text"]
+    assert "body" in fm["body"]
+
+
+def test_frontmatter_field_quoted_scalar() -> None:
+    fm = {"text": 'template_name: "demo"\ndescription: \'A test\'\ntemplate_version: "1.2.3"\n'}
+    assert vtc._frontmatter_field(fm, "template_name") == "demo"
+    assert vtc._frontmatter_field(fm, "description") == "A test"
+    assert vtc._frontmatter_field(fm, "template_version") == "1.2.3"
+
+
+def test_frontmatter_field_empty_does_not_cross_lines() -> None:
+    fm = {"text": "description:\ndetection_rules:\n"}
+    # empty description must not swallow the next line — treated as missing
+    assert vtc._frontmatter_field(fm, "description") is None
+
+
+def test_extract_detection_rules_no_pollution_after_block() -> None:
+    # a later top-level section with "- id:" must NOT leak into extra_chapters
+    fm = {"text": (
+        "detection_rules:\n"
+        "  always_include:\n"
+        "    - ch-overview\n"
+        "  chapters:\n"
+        "    - id: ch-auth\n"
+        "  extra_chapters:\n"
+        "    - id: ch-webhooks\n"
+        "other_section:\n"
+        "    - id: ch-sneaky\n"
+    )}
+    rules = vtc.extract_detection_rules(fm)
+    assert rules["extra_chapters"] == ["ch-webhooks"]
+
+
+def test_extract_detection_rules_optional_indent_flexible() -> None:
+    fm = {"text": (
+        "detection_rules:\n"
+        "  chapters:\n"
+        "    - id: ch-auth\n"
+        "      optional: true\n"
+    )}
+    rules = vtc.extract_detection_rules(fm)
+    assert rules["optional"] == ["ch-auth"]
+
+
+def test_validate_entry_languages_non_list(demo_template: Path, demo_catalog: Path) -> None:
+    catalog = vtc.load_catalog(demo_catalog)
+    entry = dict(catalog["by_name"]["demo"])
+    entry["languages"] = "python"
+    errors: list[str] = []
+    warnings: list[str] = []
+    vtc.validate_entry(entry, demo_template, errors, warnings)
+    assert any("'languages' must be a list" in e for e in errors)
+
+
+def test_validate_entry_escape_sequence_sanitized(demo_template: Path, demo_catalog: Path) -> None:
+    catalog = vtc.load_catalog(demo_catalog)
+    entry = catalog["by_name"]["demo"]
+    # real ESC/OSC control bytes in the template frontmatter
+    evil = "template_name: \x1b]0;OWNED\x07\x1b[31mRED\x1b[0m"
+    (demo_template / "demo.md").write_text(
+        VALID_FRONTMATTER.replace("template_name: demo", evil),
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+    warnings: list[str] = []
+    vtc.validate_entry(entry, demo_template, errors, warnings)
+    # raw control bytes must not reach the error output (sanitized)
+    assert not any("\x1b" in e or "\x07" in e for e in errors)
+    assert any("!= catalog name" in e for e in errors)
+
+
+def test_validate_entry_missing_description_warns(demo_template: Path, demo_catalog: Path) -> None:
+    catalog = vtc.load_catalog(demo_catalog)
+    entry = catalog["by_name"]["demo"]
+    (demo_template / "demo.md").write_text(
+        VALID_FRONTMATTER.replace("description: A demo template for tests.\n", ""),
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+    warnings: list[str] = []
+    vtc.validate_entry(entry, demo_template, errors, warnings)
+    assert any("description missing from frontmatter" in w for w in warnings)
+
+
+def test_validate_entry_symlink_rejected(tmp_path: Path) -> None:
+    tdir = tmp_path / "templates"
+    tdir.mkdir()
+    target = tmp_path / "secret.md"
+    target.write_text("---\ntemplate_name: demo\n---\n### Chapter 1: X\n", encoding="utf-8")
+    (tdir / "demo.md").symlink_to(target)
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(json.dumps({"templates": [_catalog_entry()]}), encoding="utf-8")
+    errors, _, _ = vtc.validate(catalog, tdir)
+    assert any("must not be a symlink" in e for e in errors)
+
+
+def test_chapter_heading_no_redos() -> None:
+    # long whitespace run must not cause quadratic backtracking (was 36s at 100KB)
+    import time
+    body = "### Chapter 1: " + " " * 200_000 + "X\n"
+    t0 = time.monotonic()
+    titles = vtc.extract_chapter_titles(body)
+    elapsed = time.monotonic() - t0
+    assert titles == ["X"]
+    assert elapsed < 2.0, f"chapter heading extraction took {elapsed:.2f}s (ReDoS regression)"
+
+
+def test_extract_detection_rules_block_ends_at_next_key() -> None:
+    fm = {"text": (
+        "detection_rules:\n"
+        "  always_include:\n"
+        "    - ch-overview\n"
+        "reader_order:\n"
+        "  maintenance_developer: null\n"
+    )}
+    rules = vtc.extract_detection_rules(fm)
+    assert rules["always_include"] == ["ch-overview"]

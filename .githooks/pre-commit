@@ -37,9 +37,11 @@ staged_scripts=$( \
 
 if [ -z "$staged_scripts" ]; then
     echo "  ✅ No script changes detected."
-    exit 0
+    # NOTE: intentionally no `exit 0` here — Phase 3 (EN/JA sync) and Phase 4
+    # (template catalog sync) must still run when only docs/templates changed.
 fi
 
+if [ -n "$staged_scripts" ]; then
 echo "$staged_scripts" | while IFS= read -r script; do
     base=$(basename "$script" .py)
     # Test files use underscores; scripts may use hyphens
@@ -89,6 +91,7 @@ echo "$staged_scripts" | while IFS= read -r script; do
         fi
     fi
 done
+fi
 
 if [ -f /tmp/.specback-hook-violation.tmp ]; then
     rm -f /tmp/.specback-hook-violation.tmp
@@ -98,6 +101,27 @@ if [ -f /tmp/.specback-hook-violation.tmp ]; then
 fi
 
 echo "  ✅ All checks passed."
+
+# ── Phase 4: Template catalog sync check ─────────────────────
+# Run validate-template-catalog.py whenever catalog.json or a template file is staged.
+echo "🔍 Checking template catalog sync..."
+staged_catalog_files=$( \
+    git diff --cached --name-only --diff-filter=AMR -- "templates/catalog.json" "templates/*.md" \
+    || true \
+)
+if [ -n "$staged_catalog_files" ]; then
+    ROOT="$(git rev-parse --show-toplevel)"
+    if python3 "$ROOT/scripts/validate-template-catalog.py" --catalog "$ROOT/templates/catalog.json" --templates-dir "$ROOT/templates" >/dev/null 2>&1; then
+        echo "  ✅ catalog.json consistent with template files"
+    else
+        echo "  ❌ templates/catalog.json out of sync with templates/*.md"
+        echo "     Run: python3 scripts/validate-template-catalog.py"
+        echo "     💡 To bypass: git commit --no-verify"
+        exit 1
+    fi
+else
+    echo "  ✅ No catalog/template changes detected."
+fi
 
 # ── Phase 3: EN/JA doc sync check ────────────────────────────
 echo "🔍 Checking EN/JA doc sync..."
