@@ -589,6 +589,34 @@ class TestBuildChangeSpec(unittest.TestCase):
                     self.assertEqual(len(f["impacted_sections"]), 0,
                                      msg=f"Unexpected impacted sections for {f['file']}")
 
+    def test_main_does_not_follow_output_symlink(self):
+        """CLI output (H-1) must not write through a symlinked change-spec.json."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            specback_path = tmp / ".specback"
+            specback_path.mkdir(parents=True)
+            (specback_path / "source-map.json").write_text(
+                json.dumps(SAMPLE_SOURCE_MAP), encoding="utf-8",
+            )
+            (specback_path / "trace.json").write_text(
+                json.dumps(SAMPLE_TRACE), encoding="utf-8",
+            )
+            victim = tmp / "victim.json"
+            victim.write_text("SAFE", encoding="utf-8")
+            out = specback_path / "change-spec.json"
+            out.symlink_to(victim)
+
+            rc = _cs.main([
+                "--specback-dir", str(specback_path),
+                "--mode", "hash",
+                "--base", "hash-snapshot",
+            ])
+            self.assertEqual(rc, 0)
+            # Victim untouched; change-spec.json is now a real file (symlink replaced).
+            self.assertEqual(victim.read_text(encoding="utf-8"), "SAFE")
+            data = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(data["mode"], "hash")
+
 
 class TestResolveMode(unittest.TestCase):
     """Tests for resolve_mode()"""
