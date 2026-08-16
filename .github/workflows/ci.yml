@@ -19,15 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install gitleaks
+      - name: Install gitleaks (with retry)
         run: |
-          VERSION=$(curl -sSfL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | cut -d\" -f4)
+          set -eo pipefail
+          VERSION=$(curl -sSfL --retry 3 --retry-delay 2 https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name"' | cut -d\" -f4)
           OS=$(uname -s | tr '[:upper:]' '[:lower:]')
           ARCH=$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_${OS}_${ARCH}.tar.gz" \
-            | tar xz -C /usr/local/bin gitleaks
-          gitleaks version
+          for i in 1 2 3; do
+            if curl -sSfL --retry 3 --retry-delay 2 "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_${OS}_${ARCH}.tar.gz" | tar xz -C /usr/local/bin gitleaks; then
+              gitleaks version && break
+            elif [ "$i" -lt 3 ]; then
+              echo "gitleaks download failed (attempt $i/3); retrying..." && sleep 5
+            else
+              echo "gitleaks download failed after 3 attempts" && exit 1
+            fi
+          done
 
       - name: Secret scan — gitleaks
         run: |
@@ -37,6 +43,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
