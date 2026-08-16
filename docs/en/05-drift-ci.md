@@ -1,6 +1,6 @@
 # Drift Detection CI
 
-> **Documentation**: [English](05-drift-ci.md) · [日本語](05-drift-ci.md)
+> **Documentation**: [English](05-drift-ci.md) · [日本語](../ja/05-drift-ci.md)
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # ドリフト検出のCI自動化
 
-> **ドキュメント**: [English](05-drift-ci.md) · [日本語](05-drift-ci.md)
+> **ドキュメント**: [English](../en/05-drift-ci.md) · [日本語](05-drift-ci.md)
 
 ## 概要
 

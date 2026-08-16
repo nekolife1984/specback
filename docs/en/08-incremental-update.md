@@ -1,6 +1,6 @@
 # Incremental Spec Update
 
-> **Documentation**: [English](08-incremental-update.md) · [日本語](08-incremental-update.md)
+> **Documentation**: [English](08-incremental-update.md) · [日本語](../ja/08-incremental-update.md)
 
 ## Overview
 
