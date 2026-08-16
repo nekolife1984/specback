@@ -11,9 +11,11 @@ from unittest.mock import patch
 
 import pytest
 
-# Ensure gates.py is importable.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import gates  # noqa: E402
+from conftest import add_scripts_to_path
+
+# Ensure gates.py is importable, then restore sys.path (Issue #324).
+with add_scripts_to_path(Path(__file__).resolve().parent.parent):
+    import gates  # noqa: E402
 
 
 def _proc(stdout: str, returncode: int = 0) -> subprocess.CompletedProcess:

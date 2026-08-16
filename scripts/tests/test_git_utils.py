@@ -10,18 +10,18 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-# Add the scripts directory to sys.path so we can import git_utils
+from conftest import add_scripts_to_path, create_repo as _create_repo
+
+# Add the scripts directory to sys.path so we can import git_utils, then
+# restore it (Issue #324 — no leaked sys.path mutations).
 HERE = Path(__file__).resolve().parent
 SCRIPTS = HERE.parent
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-import git_utils
+with add_scripts_to_path(SCRIPTS):
+    import git_utils
 
 
 # ---------------------------------------------------------------------------
@@ -217,15 +217,4 @@ def test_resolve_base_missing_state_dir_falls_back_to_head(tmp_path: Path) -> No
 
 def _init_repo(tmp_path: Path) -> Path:
     """Create a git repo with one commit and return its path."""
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
-    (tmp_path / "sample.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "sample.py"], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "init"],
-        cwd=tmp_path, check=True,
-        env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00",
-             "GIT_COMMITTER_DATE": "2026-01-01T00:00:00"},
-    )
-    return tmp_path
+    return _create_repo(tmp_path, with_spec=False)
