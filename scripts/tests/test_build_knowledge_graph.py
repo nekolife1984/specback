@@ -402,3 +402,22 @@ def test_missing_optional_input_warns_consequence(tmp_path: Path):
     assert "proceeding with an empty trace.json" in result.stderr
     assert "proceeding with an empty inventory.json" in result.stderr
     assert "knowledge graph will have fewer nodes" in result.stderr
+
+
+def test_nonfinite_input_is_rejected_cleanly(tmp_path: Path):
+    """NaN inside source-map.json must be rejected (reject_nonfinite) and
+    handled cleanly (no raw traceback), Issue #314."""
+    sm = tmp_path / "source-map.json"
+    sm.write_text('{"units": [], "bad": NaN}', encoding="utf-8")
+    out = tmp_path / "kg.jsonld"
+
+    result = run_script(tmp_path, [
+        "--source-map", str(sm),
+        "--trace", str(tmp_path / "missing-trace.json"),
+        "--inventory", str(tmp_path / "missing-inventory.json"),
+        "--skip-questions",
+        "--output", str(out),
+    ])
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    assert "missing or has no 'units' key" in result.stderr

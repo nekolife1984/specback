@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **ヘルスレビュー YELLOW 対応** ([#309]-[#315]): `coverage-check.py` の `count_confidence_labels()` をワード境界 regex 化（UNVERIFIED / UNASSUMED / DISINFERRED 等の否定語を実ラベルとしてカウントしない）、`load_inventory()` を不正 JSON / bare list / キー欠落でクリーンエラー化（生 traceback 回避）。`build-traceability.py` に E2E 機能テスト追加 + trace.json キー欠落のクリーンエラー化、`build-trace.py` に E2E テスト追加、`specback-gate.py` が fix-refs の失敗（非 0 exit / JSON 契約不一致）を「0 orphaned / ok」に握りつぶさず warning + `fix_refs.ok=false` にする（docs EN/JA 更新）。`build-knowledge-graph.py` の出力を `atomic_write_json` 化、`coverage-check.py` / `build-traceability.py` / `gates.py` / `specback-gate.py` / `specback_install.py` / `trace_db.py` の raw `json.loads` に `reject_nonfinite` 適用、`load_json_text_or` の IsADirectoryError 分岐テスト追加
 - `specback-estimate.py` の堅牢化 (agency review 事後対応): `--record-actual` / `--budget-limit` の正値検証（0・負値拒否）、`estimate-history.json` のアトミック書き込み + symlink 拒否（任意ファイル上書き防止）、非有限 JSON 定数（NaN/Infinity）と破損履歴の拒否・`.bak` 隔離、履歴の最大50件キャップと不正エントリ除外、`depth_mode` / `tone` の型ガードと制御文字サニタイズ、入力ファイルのサイズ上限（50 MiB）。テストを 20 → 35 件に拡充
 - **`## Sources Read` セクションを撤廃** ([#305], [#306], **breaking**): `coverage-check.py` から `--min-sources-read-per-chapter` フラグ・`sources_read_count` メトリクス・`SOURCES_READ_RE`/`SOURCES_READ_ITEM_RE` を削除。読了ソースの記録は `<!-- REF: ... -->` マーカー + `traceability.md` に一本化。phase ドキュメント・エージェントプロンプトから Sources Read 強制を除去し、既存 specs のセクションは任意（残置時は body_lines に加算される）。既存仕様書のセクションは削除推奨（ai-chat PR #37 で全削除済み）
 
@@ -247,3 +248,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 [#53]: https://github.com/nekolife1984/specback/pull/53
 [#55]: https://github.com/nekolife1984/specback/pull/55
 [#57]: https://github.com/nekolife1984/specback/pull/57
+[#298]: https://github.com/nekolife1984/specback/issues/298
+[#299]: https://github.com/nekolife1984/specback/issues/299
+[#305]: https://github.com/nekolife1984/specback/issues/305
+[#306]: https://github.com/nekolife1984/specback/issues/306
+[#309]: https://github.com/nekolife1984/specback/issues/309
+[#310]: https://github.com/nekolife1984/specback/issues/310
+[#311]: https://github.com/nekolife1984/specback/issues/311
+[#312]: https://github.com/nekolife1984/specback/issues/312
+[#313]: https://github.com/nekolife1984/specback/issues/313
+[#314]: https://github.com/nekolife1984/specback/issues/314
+[#315]: https://github.com/nekolife1984/specback/issues/315

@@ -50,7 +50,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from common import add_specback_dir_arg
+from common import add_specback_dir_arg, reject_nonfinite
 from git_utils import SAFE_REF_RE, resolve_ref
 
 SCHEMA_VERSION = "0.1.0"
@@ -170,8 +170,11 @@ def load_drift_report(specback_dir: Path) -> dict[str, Any]:
     """Load drift-report.json, returning {} when absent/unparseable."""
     report_path = specback_dir / "drift-report.json"
     try:
-        return json.loads(report_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        return json.loads(
+            report_path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (OSError, json.JSONDecodeError, ValueError):
         return {}
 
 
@@ -327,13 +330,27 @@ def main(argv: list[str] | None = None) -> int:
         cwd=str(target_dir),
     )
     orphaned = 0
+    fix_refs_ok = fix_refs_proc.returncode == 0
     try:
         fix_refs_out = json.loads(fix_refs_proc.stdout)
         orphaned = int(fix_refs_out.get("orphaned", 0) or 0)
-    except (json.JSONDecodeError, AttributeError, ValueError):
-        orphaned = 0
+    except (json.JSONDecodeError, AttributeError, ValueError) as e:
+        # Contract mismatch: do NOT silently treat it as "0 orphaned / ok".
+        # A non-JSON / malformed fix-refs output means the gate cannot trust
+        # the orphan count — surface it as a warning instead of a false pass.
+        fix_refs_ok = False
+        result["warnings"].append(
+            "fix-refs.py --check --json produced unparseable output "
+            f"(exit {fix_refs_proc.returncode}): {e}"
+        )
+    if fix_refs_proc.returncode != 0:
+        fix_refs_ok = False
+        result["warnings"].append(
+            f"fix-refs.py --check failed (exit {fix_refs_proc.returncode}): "
+            f"{fix_refs_proc.stderr.strip()}"
+        )
     result["fix_refs"]["orphaned"] = orphaned
-    result["fix_refs"]["ok"] = orphaned == 0
+    result["fix_refs"]["ok"] = fix_refs_ok and orphaned == 0
     if orphaned > 0:
         result["warnings"].append(
             f"{orphaned} orphaned REF(s) found — run "

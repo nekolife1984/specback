@@ -194,6 +194,23 @@ class TestTraceabilityFull:
         assert r.name == "traceability_full"
         assert not r.passed  # should fail due to missing directory
 
+    def test_nan_trace_json_is_rejected(self, tmp_path: Path) -> None:
+        """trace.json containing NaN must fail the parse check (reject_nonfinite,
+        Issue #314) instead of propagating a ValueError."""
+        sb = tmp_path / ".specback"
+        sb.mkdir()
+        (sb / "trace.json").write_text(
+            '{"source_units_total": 1, "bad": NaN}', encoding="utf-8"
+        )
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc("", returncode=0)
+            r = gates.traceability_full(
+                specback_dir=str(sb), output_dir=str(tmp_path)
+            )
+        assert isinstance(r, gates.GateReport)
+        checks = {c["item"]: c["ok"] for c in r.to_dict()["checks"]}
+        assert checks.get("trace.json parses") is False
+
 
 # ===========================================================================
 # drift_detected gate

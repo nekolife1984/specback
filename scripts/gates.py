@@ -37,6 +37,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from common import reject_nonfinite
+
 # ---------------------------------------------------------------------------
 # GateReport
 # ---------------------------------------------------------------------------
@@ -184,7 +186,7 @@ def coverage_mece(
     # Try to parse JSON output for per-check granularity.
     data: dict[str, Any] = {}
     try:
-        data = json.loads(proc.stdout)
+        data = json.loads(proc.stdout, parse_constant=reject_nonfinite)
     except (json.JSONDecodeError, ValueError):
         pass
 
@@ -325,8 +327,11 @@ def traceability_full(
         return report
 
     try:
-        trace: dict[str, Any] = json.loads(trace_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
+        trace: dict[str, Any] = json.loads(
+            trace_path.read_text(encoding="utf-8"),
+            parse_constant=reject_nonfinite,
+        )
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
         report.check("trace.json parses", False, str(exc))
         return report
 
@@ -394,13 +399,14 @@ def drift_detected(
     if report_json.exists():
         try:
             drift: dict[str, Any] = json.loads(
-                report_json.read_text(encoding="utf-8")
+                report_json.read_text(encoding="utf-8"),
+                parse_constant=reject_nonfinite,
             )
             affected = drift.get("affected_sections",
                                  drift.get("sections", []))
             report.check("affected sections reviewed", True,
                          f"{len(affected)} section(s) potentially affected")
-        except (json.JSONDecodeError, OSError) as exc:
+        except (json.JSONDecodeError, ValueError, OSError) as exc:
             report.check("drift-report.json parses", False, str(exc))
 
     return report

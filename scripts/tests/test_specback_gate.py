@@ -348,3 +348,55 @@ def test_e2e_clean_pass(tmp_path):
     out = json.loads(result.stdout)
     assert out["verdict"] == "pass"
     assert (tmp_path / ".specback" / "drift-report.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# fix-refs contract mismatch (#313): a broken fix-refs --json output must
+# NOT be swallowed as "0 orphaned / ok".
+# ---------------------------------------------------------------------------
+
+
+def _run_gate_with_fake_fix_refs(
+    tmp_path: Path,
+    monkeypatch,
+    stdout: str,
+    returncode: int,
+) -> Path:
+    specback = _init_repo(tmp_path)
+    real_run_script = gate.run_script
+
+    def fake_run_script(name, args, cwd=None, timeout=120):
+        if name == "fix-refs.py":
+            return subprocess.CompletedProcess(
+                args, returncode, stdout=stdout, stderr="boom"
+            )
+        return real_run_script(name, args, cwd=cwd, timeout=timeout)
+
+    monkeypatch.setattr(gate, "run_script", fake_run_script)
+    return specback
+
+
+def test_fix_refs_non_json_output_is_warned(tmp_path, monkeypatch, capsys):
+    """fix-refs printing garbage -> warning + ok=False, NOT silent ok."""
+    specback = _run_gate_with_fake_fix_refs(
+        tmp_path, monkeypatch, stdout="not json", returncode=0
+    )
+    rc = gate.main(["--specback-dir", str(specback), "--json"])
+    captured = capsys.readouterr()
+    out = json.loads(captured.out)
+    assert rc == 0  # warning only; gate does not hard-fail
+    assert out["fix_refs"]["ok"] is False
+    assert any("unparseable output" in w for w in out["warnings"])
+
+
+def test_fix_refs_nonzero_exit_is_warned(tmp_path, monkeypatch, capsys):
+    """fix-refs exiting non-zero -> warning + ok=False, NOT silent ok."""
+    specback = _run_gate_with_fake_fix_refs(
+        tmp_path, monkeypatch, stdout="{}", returncode=2
+    )
+    rc = gate.main(["--specback-dir", str(specback), "--json"])
+    captured = capsys.readouterr()
+    out = json.loads(captured.out)
+    assert rc == 0  # warning only; gate does not hard-fail
+    assert out["fix_refs"]["ok"] is False
+    assert any("fix-refs.py --check failed" in w for w in out["warnings"])
