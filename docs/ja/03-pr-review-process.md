@@ -40,7 +40,7 @@
 | ブランチ名が命名規則に従っている | 履歴のナビゲーション |
 | 1ブランチ = 1論理変更 | クリーンなsquash merge |
 | `pytest tests/ -q` が通る | CIゲート |
-| `mypy . --strict` が通る（該当時） | CIゲート（アドバイザリ） |
+| `pyrefly check scripts/` が通る（該当時） | CIゲート（ブロッキング） |
 | Trace/drift gate が通る（該当時） | 仕様の整合性 |
 | `CHANGELOG.md` を更新した | リリース準備 |
 | ドキュメント（EN + JA）を更新した | バイリンガル一貫性 |
