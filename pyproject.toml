@@ -26,6 +26,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = []
 
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+follow_imports = "skip"
+
 [tool.ruff]
 preview = false
 line-length = 88
@@ -84,8 +89,3 @@ source = ["scripts"]
 fail_under = 68
 show_missing = true
 skip_covered = true
-
-[tool.pyrefly]
-python-version = "3.11.0"
-preset = "legacy"
-ignore-missing-imports = ["*"]
