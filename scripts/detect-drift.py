@@ -789,7 +789,7 @@ def main(argv: list[str] | None = None) -> int:
         source_hashes = load_source_hashes(
             specback_path / "source-hashes.json",
         )
-        target_root = source_hashes.get("target_root", source_map.get("target_root", "."))
+        target_root = source_hashes.get("target_root") or source_map.get("target_root") or "."
         changes = compute_hash_changes(source_hashes, source_map, target_root)
         base = f"hash-snapshot ({source_hashes.get('generated_at', '?')[:19]})"
     elif args.diff is not None:

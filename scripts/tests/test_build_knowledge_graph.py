@@ -334,6 +334,56 @@ def test_question_nodes(tmp_path: Path):
     assert "ccrsg:raisesForUnit" in q1
 
 
+def test_question_null_related_source_ids_does_not_crash(tmp_path: Path):
+    """null related_source_ids must not crash the graph build (pyrefly).
+
+    Previously `q.get("related_source_ids", q.get("source_ids", []))`
+    returned None for an explicit null, leaving the caller with a
+    None value instead of a list. The or-chain fallback now treats
+    null/empty as "missing" and falls back to [].
+    """
+    questions = {
+        "questions": [
+            {
+                "id": "Q-0001", "category": "architecture",
+                "severity": "high", "status": "open",
+                "question": "What is the auth strategy?",
+                "related_source_ids": None,
+            },
+            {
+                "id": "Q-0002", "category": "data_model",
+                "severity": "medium", "status": "resolved",
+                "question": "Should Product have a status field?",
+                "related_source_ids": None, "source_ids": ["SRC-0003"],
+            },
+        ],
+    }
+    write_json(tmp_path, SAMPLE_SOURCE_MAP, "source-map.json")
+    write_json(tmp_path, SAMPLE_TRACE, "trace.json")
+    write_json(tmp_path, SAMPLE_INVENTORY, "inventory.json")
+    write_json(tmp_path, questions, "questions.json")
+    out = tmp_path / "kg.jsonld"
+
+    result = run_script(tmp_path, [
+        "--source-map", str(tmp_path / "source-map.json"),
+        "--trace", str(tmp_path / "trace.json"),
+        "--inventory", str(tmp_path / "inventory.json"),
+        "--questions", str(tmp_path / "questions.json"),
+        "--output", str(out),
+    ])
+    assert result.returncode == 0
+
+    kg = load_kg(out)
+    q_nodes = [n for n in kg["@graph"] if n.get("@type") == "ccrsg:Question"]
+    assert len(q_nodes) == 2
+    # Q-0001 has no related source ids -> no raisesForUnit edge.
+    q1 = next(n for n in q_nodes if "auth strategy" in n["schema:name"])
+    assert "ccrsg:raisesForUnit" not in q1
+    # Q-0002 falls back to source_ids -> raisesForUnit edge present.
+    q2 = next(n for n in q_nodes if "status field" in n["schema:name"])
+    assert q2["ccrsg:raisesForUnit"] == [{"@id": "ccrsg:unit/SRC-0003"}]
+
+
 def test_stats(tmp_path: Path):
     """Stats should reflect the correct counts."""
     write_json(tmp_path, SAMPLE_SOURCE_MAP, "source-map.json")

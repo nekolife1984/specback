@@ -89,3 +89,8 @@ source = ["scripts"]
 fail_under = 68
 show_missing = true
 skip_covered = true
+
+[tool.pyrefly]
+python-version = "3.11.0"
+preset = "legacy"
+ignore-missing-imports = ["*"]

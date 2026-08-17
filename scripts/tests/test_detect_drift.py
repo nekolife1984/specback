@@ -327,6 +327,70 @@ def test_compute_hash_changes_no_changes(tmp_path):
     assert changes == []
 
 
+def test_hash_mode_target_root_falls_back_to_source_map(tmp_path):
+    """--mode hash with no target_root in source-hashes.json must not crash.
+
+    Previously `source_hashes.get("target_root", source_map.get("target_root", "."))`
+    returned None for an explicit null, and compute_hash_changes raised
+    TypeError when joining against None. The or-chain fallback now
+    resolves source_hashes -> source_map -> "." (pyrefly).
+    """
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "same.py").write_text("keep\n", encoding="utf-8")
+    h = hashlib.sha256(b"keep").hexdigest()
+    # detect-drift always loads trace.json regardless of mode.
+    (specback / "trace.json").write_text(
+        json.dumps({"schema_version": "0.2.0", "by_section": {}}), encoding="utf-8")
+
+    # source-hashes.json has no useful target_root (null), source-map has it.
+    (specback / "source-hashes.json").write_text(
+        json.dumps({
+            "target_root": None,
+            "units": {
+                "SRC-0001": {"path": "src/same.py", "line_range": [1, 1],
+                             "hash": f"sha256:{h}", "line_count": 1,
+                             "status": "OK"},
+            },
+        }), encoding="utf-8")
+    (specback / "source-map.json").write_text(
+        json.dumps(_source_map(
+            [{"id": "SRC-0001", "path": "src/same.py"}],
+            target_root=str(tmp_path),
+        )), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
+         "--mode", "hash", "--json"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "No changes detected" in result.stdout
+
+
+def test_hash_mode_target_root_missing_uses_dot(tmp_path):
+    """--mode hash with no target_root anywhere defaults to "." (pyrefly)."""
+    specback = tmp_path / ".specback"
+    specback.mkdir()
+    # detect-drift always loads trace.json regardless of mode.
+    (specback / "trace.json").write_text(
+        json.dumps({"schema_version": "0.2.0", "by_section": {}}), encoding="utf-8")
+    # Empty units: nothing to hash, but target_root resolution must not crash.
+    (specback / "source-hashes.json").write_text(
+        json.dumps({"units": {}}), encoding="utf-8")
+    (specback / "source-map.json").write_text(
+        json.dumps(_source_map([], target_root=None)), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
+         "--mode", "hash", "--json"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 # --- analyze_impact -------------------------------------------------------
 
 
