@@ -45,7 +45,7 @@ git push origin feat/your-feature
 - **Squash merge** — mainの履歴をまっすぐ保つ
 - **CIゲート通過必須** — GitHub Actions（`.github/workflows/ci.yml`）が PR 上で自動実行:
   - `pytest`（scripts/ および source_map_v2/）
-  - `pyrefly`（型チェック、ブロッキング）
+  - `mypy`（アドバイザリ、警告表示）
   - Smoke import チェック（全スクリプトの import 検証）
 
 > **💡 テストスキップについて:** tree-sitter grammars 未インストール時は一部テストがスキップされます（`pytest -rs` で理由確認可）。CI では `requirements.txt` 経由で自動インストールされるため全件実行されます。
@@ -185,8 +185,8 @@ pytest scripts/source_map_v2/tests/ -v
 # Smoke import（source_map_v2 が正しくロードされるか）
 python -m source_map_v2 --target tests/fixtures/your_lang/
 
-# pyrefly（非ブロッキング、新規警告がないことを確認）
-pyrefly check scripts/
+# mypy（非ブロッキング、新規警告がないことを確認）
+mypy scripts/source_map_v2/ --ignore-missing-imports --follow-imports=skip
 ```
 
 ## テンプレートを追加する
