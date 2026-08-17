@@ -243,6 +243,25 @@ class TestDriftDetected:
             f"--json not passed to detect-drift.py: {call_args.args[1]}"
         )
 
+    def test_null_affected_sections_does_not_crash(self, tmp_path: Path) -> None:
+        """drift-report.json with null affected_sections must not crash (pyrefly).
+
+        Previously `drift.get("affected_sections", drift.get("sections", []))`
+        returned None for an explicit null, and `len(None)` raised TypeError.
+        The or-chain fallback now treats null as "missing".
+        """
+        (tmp_path / "drift-report.md").write_text("# drift", encoding="utf-8")
+        (tmp_path / "drift-report.json").write_text(
+            json.dumps({"affected_sections": None}), encoding="utf-8"
+        )
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc("", returncode=0)
+            r = gates.drift_detected(specback_dir=str(tmp_path), output_dir=str(tmp_path))
+        assert isinstance(r, gates.GateReport)
+        assert r.passed  # report artefacts exist and JSON parses
+        checks = {c["item"]: c["note"] for c in r.to_dict()["checks"]}
+        assert checks["affected sections reviewed"] == "0 section(s) potentially affected"
+
 
 # ===========================================================================
 # run_gates

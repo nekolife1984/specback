@@ -401,8 +401,7 @@ def drift_detected(
                 report_json.read_text(encoding="utf-8"),
                 parse_constant=reject_nonfinite,
             )
-            affected = drift.get("affected_sections",
-                                 drift.get("sections", []))
+            affected = drift.get("affected_sections") or drift.get("sections") or []
             report.check("affected sections reviewed", True,
                          f"{len(affected)} section(s) potentially affected")
         except (json.JSONDecodeError, ValueError, OSError) as exc:

@@ -224,7 +224,7 @@ def build_knowledge_graph(
     if questions:
         # Build a map from source ID → questions for raisesForUnit links
         for idx, q in enumerate(questions):
-            q_source_ids: list[str] = q.get("related_source_ids", q.get("source_ids", []))
+            q_source_ids: list[str] = q.get("related_source_ids") or q.get("source_ids") or []
             graph.append(build_question_node(q, idx, q_source_ids))
 
     # Assemble top-level document
