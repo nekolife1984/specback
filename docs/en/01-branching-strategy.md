@@ -28,7 +28,7 @@ All work branches branch from `main` and are deleted after merge.
 ## PR Lifecycle
 
 ```
-main → feat/xxx → commits → open PR → CI (pytest + mypy + trace gates)
+main → feat/xxx → commits → open PR → CI (pytest + pyrefly + trace gates)
                                     ↓
                           All green? → squash merge to main → delete branch
                                     ↓

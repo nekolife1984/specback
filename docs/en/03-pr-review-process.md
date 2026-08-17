@@ -39,7 +39,7 @@ Walk through every item before marking it done:
 | Branch name follows convention | Keeps history navigable |
 | One branch = one logical change | Clean squash merge |
 | `pytest tests/ -q` passes | CI gate — must be green |
-| `mypy . --strict` passes (if applicable) | CI gate — advisory level |
+| `pyrefly check scripts/` passes (if applicable) | CI gate — blocking |
 | Trace/drift gate passes (if applicable) | Spec integrity |
 | `CHANGELOG.md` updated | Release readiness |
 | Docs synced (EN + JA) | Bilingual consistency |

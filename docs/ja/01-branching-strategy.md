@@ -28,7 +28,7 @@
 ## PRライフサイクル
 
 ```
-main → feat/xxx → コミット → PR作成 → CI (pytest + mypy + trace gates)
+main → feat/xxx → コミット → PR作成 → CI (pytest + pyrefly + trace gates)
                                     ↓
                           全部通った？ → squash merge → ブランチ削除
                                     ↓
