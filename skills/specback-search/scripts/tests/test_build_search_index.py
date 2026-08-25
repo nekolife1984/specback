@@ -471,3 +471,44 @@ class TestConfidenceRe:
     def test_invalid_src_id_no_match(self):
         m = self._re.search('<!-- REF: SRC-XXX --> 🟢')
         assert m is None
+
+
+class TestConfCommentRe:
+    """Verify CONF_COMMENT_RE maps the phase-doc comment form into a confidence.
+
+    #360: chapters written with ``<!-- CONFIDENCE: HIGH | MED | LOW -->`` must
+    still surface a confidence in search even when no emoji sits right after the
+    REF. We import the real module (stdlib-only deps) and exercise its regex and
+    emoji mapping directly.
+    """
+
+    @staticmethod
+    def _load_bsi():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "bsi", str(SCRIPT)
+        )
+        sys.modules["bsi"] = spec.loader.create_module(spec) if hasattr(spec.loader, "create_module") else None
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["bsi"] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_comment_form_higher_map(self):
+        bsi = self._load_bsi()
+        m = bsi.CONF_COMMENT_RE.search("<!-- CONFIDENCE: HIGH -->")
+        assert m is not None
+        assert bsi.CONF_COMMENT_TO_EMOJI[m.group(1).upper()] == "🟢"
+
+    def test_comment_form_mapping_table(self):
+        bsi = self._load_bsi()
+        assert bsi.CONF_COMMENT_TO_EMOJI["HIGH"] == "🟢"
+        assert bsi.CONF_COMMENT_TO_EMOJI["MED"] == "🟡"
+        assert bsi.CONF_COMMENT_TO_EMOJI["LOW"] == "🔴"
+        assert bsi.CONF_COMMENT_TO_EMOJI["INFERRED"] == "🟡"
+
+    def test_comment_form_lowercase_legacy(self):
+        bsi = self._load_bsi()
+        m = bsi.CONF_COMMENT_RE.search("<!-- CONFIDENCE: assumed -->")
+        assert m is not None
+        assert bsi.CONF_COMMENT_TO_EMOJI[m.group(1).upper()] == "🔴"

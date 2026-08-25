@@ -65,6 +65,12 @@ WORD_ASSUMED = re.compile(r"\bASSUMED\b")
 COMMENT_VERIFIED = "<!-- CONFIDENCE: verified"
 COMMENT_INFERRED = "<!-- CONFIDENCE: inferred"
 COMMENT_ASSUMED = "<!-- CONFIDENCE: assumed"
+# HTML-comment form taught by the phase docs (<!-- CONFIDENCE: HIGH | MED | LOW -->).
+# Counted in addition to the legacy lower-case spellings so the two runtimes
+# (coverage-check / specback-health) agree on what the docs recommend (#360).
+COMMENT_VERIFIED_HIGH = "<!-- CONFIDENCE: HIGH"
+COMMENT_INFERRED_MED = "<!-- CONFIDENCE: MED"
+COMMENT_ASSUMED_LOW = "<!-- CONFIDENCE: LOW"
 UNRESOLVED_MARKERS = ("<!-- BLOCKED:", "<!-- ASK SME", "<!-- ASSUMED")
 REF_PATTERN = "<!-- REF:"
 
@@ -209,13 +215,22 @@ def scan_chapter(path: Path, metric: ChapterMetric) -> None:
             continue
         metric.body_lines += 1
         metric.verified += (
-            line.count("🟢") + len(WORD_VERIFIED.findall(line)) + line.count(COMMENT_VERIFIED)
+            line.count("🟢")
+            + len(WORD_VERIFIED.findall(line))
+            + line.count(COMMENT_VERIFIED)
+            + line.count(COMMENT_VERIFIED_HIGH)
         )
         metric.inferred += (
-            line.count("🟡") + len(WORD_INFERRED.findall(line)) + line.count(COMMENT_INFERRED)
+            line.count("🟡")
+            + len(WORD_INFERRED.findall(line))
+            + line.count(COMMENT_INFERRED)
+            + line.count(COMMENT_INFERRED_MED)
         )
         metric.assumed += (
-            line.count("🔴") + len(WORD_ASSUMED.findall(line)) + line.count(COMMENT_ASSUMED)
+            line.count("🔴")
+            + len(WORD_ASSUMED.findall(line))
+            + line.count(COMMENT_ASSUMED)
+            + line.count(COMMENT_ASSUMED_LOW)
         )
         metric.refs += line.count(REF_PATTERN)
         for marker in UNRESOLVED_MARKERS:

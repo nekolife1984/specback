@@ -102,6 +102,12 @@ Surface uncertainty in each statement:
 - `<!-- ASK SME -->` (needs confirmation from a subject-matter expert)
 - `<!-- ASSUMED: ... -->` (basis for the inference)
 
+> **Confidence form**: the HTML-comment form above (`HIGH | MED | LOW`) and the
+> emoji form used in outline tables (`🟢 VERIFIED` / `🟡 INFERRED` / `🔴 ASSUMED`)
+> are **both counted identically** by `coverage-check.py` and `specback-health.py`.
+> Use whichever fits the context (comment in prose, emoji in table cells); either
+> way the label is counted.
+
 #### STEP E: Add detail questions to the Question Bank
 
 Questions that surface while writing a chapter are added to `questions.json` (at least 1 per chapter). The final `questions.json` must contain **>= 10 items** (`coverage-check.py` enforces this).

@@ -684,6 +684,34 @@ def test_count_confidence_labels_word_boundary():
     assert assumed == 0
 
 
+def test_count_confidence_labels_comment_form():
+    # #360: the HTML-comment form (<!-- CONFIDENCE: HIGH | MED | LOW -->) in the
+    # phase docs must count alongside the emoji+word form. Also handle the
+    # legacy lower-case spellings (verified / inferred / assumed).
+    chapters = {
+        "01.md": (
+            "<!-- CONFIDENCE: HIGH --> statement reliable\n"
+            "<!-- CONFIDENCE: MED --> two interpretations\n"
+            "<!-- CONFIDENCE: LOW --> needs review\n"
+        ),
+        "02.md": "<!-- CONFIDENCE: LOW — em-dash description continues -->",
+    }
+    verified, inferred, assumed = cov.count_confidence_labels(chapters)
+    assert verified == 1  # HIGH
+    assert inferred == 1  # MED
+    assert assumed == 2  # LOW in 01.md + LOW in 02.md (em-dash form)
+
+
+def test_count_confidence_labels_comment_form_lowercase_legacy():
+    # The legacy lower-case comment spellings (specback-health originally) must
+    # be counted too, so both forms resolve.
+    chapters = {"01.md": "<!-- CONFIDENCE: verified --> <!-- CONFIDENCE: assumed -->"}
+    verified, inferred, assumed = cov.count_confidence_labels(chapters)
+    assert verified == 1
+    assert inferred == 0
+    assert assumed == 1
+
+
 def test_parse_args_defaults_and_overrides():
     args = cov.parse_args(["--min-inventory", "5"])
     assert args.min_inventory == "5"

@@ -185,6 +185,26 @@ def test_scan_chapter_counts_unresolved_and_conf_comments(tmp_path: Path) -> Non
     assert m.unresolved == 2  # BLOCKED + ASK SME
 
 
+def test_scan_chapter_counts_comment_form_uppercase(tmp_path: Path) -> None:
+    # #360: the phase-doc form (<!-- CONFIDENCE: HIGH | MED | LOW -->, uppercase)
+    # must count as verified / inferred / assumed alongside the legacy lower-case
+    # comment spellings.
+    m = mod.ChapterMetric("conf.md")
+    p = tmp_path / "conf.md"
+    p.write_text(
+        "# Conf\n\n"
+        "<!-- CONFIDENCE: HIGH --> reliable\n"
+        "<!-- CONFIDENCE: MED --> likely\n"
+        "<!-- CONFIDENCE: LOW --> needs review\n"
+        "<!-- CONFIDENCE: LOW — em-dash continues --> also low\n",
+        encoding="utf-8",
+    )
+    mod.scan_chapter(p, m)
+    assert m.verified == 1  # HIGH
+    assert m.inferred == 1  # MED
+    assert m.assumed == 2  # LOW x2 (plain + em-dash description)
+
+
 def test_scan_chapter_word_boundary_no_false_positive(tmp_path: Path) -> None:
     m = mod.ChapterMetric("w.md")
     p = tmp_path / "w.md"
