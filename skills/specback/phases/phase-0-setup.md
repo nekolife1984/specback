@@ -119,6 +119,23 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
    - If the free-form text is empty or contains no `*.md` references, the list is `[]`.
    - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
 
+5.5 **Show what each selection changes (goal → spec reflection table), THEN confirm**
+
+   - Before persisting (Step 6), present a **confirmation summary** that maps each of the 6 answers to how it actually affects the generated spec. The goal is transparency: the user should know which choices **deterministically** change the output vs. which only flow through as **agent context** (soft guidance). Use the following table (rendered in `output_language`; the "Field" / "Kind" columns stay English):
+
+   | Q | goal.json field | Kind | What it changes |
+   |---|-----------------|------|-----------------|
+   | Q1 | `primary_reader` | 🔹 **Deterministic** | Phase 2 picks the template's `reader_order[primary_reader]` → chapter **ordering** (e.g. delivery_customer pulls installation/usage forward; regulator pulls constraints/design-decisions early). See `references/template-catalog.md` → Reader-adaptive ordering. |
+   | Q2 | `reader_action` | ◻️ **Agent context** | Passed to the sub-agent prompt as "what the reader does after reading". Guides prose emphasis; no deterministic structural change. |
+   | Q3 | `granularity` | ◻️ **Agent context** (soft) | Passed to the sub-agent prompt's "Granularity interpretation" (high-level / medium / detailed) → guides each chapter's level of detail. **Independent of `depth_mode`** (see note below). |
+   | Q4 | `perspectives` | ◻️ **Agent context** | Passed to the sub-agent prompt as "emphasised perspectives"; guides which aspects get raised. No deterministic structural change. |
+   | Q5 | `existing_docs` | ◻️ **Agent context** | Passed to the sub-agent prompt; guides how existing docs are positioned (update / coexist / retire). No deterministic structural change. |
+   | Q6 | `output_dir` | 🔹 **Deterministic** | Sets the final spec output directory (and `.specback/` location). Direct filesystem effect. |
+
+   - **Clarify the Q3 vs depth-mode distinction** when presenting: `granularity` (Q3) here is the **descriptive granularity within each chapter** (guided by the agent), while **`depth_mode`** (decided in Phase 1 from code scale — see `phase-1-recon.md` → "depth-mode & tone decision") is the **overall mode** (comprehensive vs. outline vs. interactive). The two are independent axes: a comprehensive spec can still be written at "high-level overview" granularity if the user asks, and an outline spec always uses table-first output regardless of granularity.
+   - **Do not confuse this `granularity` with the template frontmatter `granularity`** (merge/split rules based on code volume, applied deterministically in Phase 1 — e.g. screens ≤ N → Screens/Routes merged, entities ≥ N → data-model split). That template-level `granularity` is a separate concept that IS a deterministic structural change; the `goal.json` field in this table is only the intended descriptive detail. Both share the name `granularity` but act in different places.
+   - Present the table as part of the confirmation step (the same one referenced in Phase-specific cautions), so the user validates both **their answers** and **what each answer will change**. Confirm before persisting.
+
 6. **Persist to `goal.json`**
    - Save the language choice from Step 3, the 6 answers from Step 4, and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `{output_dir}/.specback/`. Schema:
 
@@ -146,30 +163,13 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
    - 🆕 **`scopes[]`** (array of objects, empty by default): each entry specifies `{"name": "...", "root": "..."}` where `name` is a short slug (e.g. `auth`) and `root` is the relative path to the system root (e.g. `services/auth`). Populated in Phase 1 when `multi_scope` becomes `true`.
    - 🆕 **`current_scope`** (integer, default `0`): index into `scopes[]` tracking which scope is currently being processed. Used for resume across multi-scope phases. When `scopes.length > 0` and all scopes have been processed, this resets to `0` before advancing to the next phase.
 
-6.5 **Show what each selection changes (goal → spec reflection table)**
-
-   - Before persisting, present a **confirmation summary** that maps each of the 6 answers to how it actually affects the generated spec. The goal is transparency: the user should know which choices **deterministically** change the output vs. which only flow through as **agent context** (soft guidance). Use the following table (rendered in `output_language`; the "Field" / "Kind" columns stay English):
-
-   | Q | goal.json field | Kind | What it changes |
-   |---|-----------------|------|-----------------|
-   | Q1 | `primary_reader` | 🔹 **Deterministic** | Phase 2 picks the template's `reader_order[primary_reader]` → chapter **ordering** (e.g. delivery_customer pulls installation/usage forward; regulator pulls constraints/design-decisions early). See `references/template-catalog.md` → Reader-adaptive ordering. |
-   | Q2 | `reader_action` | ◻️ **Agent context** | Passed to the sub-agent prompt as "what the reader does after reading". Guides prose emphasis; no deterministic structural change. |
-   | Q3 | `granularity` | ◻️ **Agent context** (soft) | Passed to the sub-agent prompt's "Granularity interpretation" (high-level / medium / detailed) → guides each chapter's level of detail. **Independent of `depth_mode`** (see step 7 note below). |
-   | Q4 | `perspectives` | ◻️ **Agent context** | Passed to the sub-agent prompt as "emphasised perspectives"; guides which aspects get raised. No deterministic structural change. |
-   | Q5 | `existing_docs` | ◻️ **Agent context** | Passed to the sub-agent prompt; guides how existing docs are positioned (update / coexist / retire). No deterministic structural change. |
-   | Q6 | `output_dir` | 🔹 **Deterministic** | Sets the final spec output directory (and `.specback/` location). Direct filesystem effect. |
-
-   - **Clarify the Q3 vs depth-mode distinction** when presenting: `granularity` (Q3) is the **descriptive granularity within each chapter** (guided by the agent), while **`depth_mode`** (decided in Phase 1 from code scale — see `phase-1-recon.md` → "depth-mode & tone decision") is the **overall mode** (comprehensive vs. outline vs. interactive). The two are independent axes: a comprehensive spec can still be written at "high-level overview" granularity if the user asks, and an outline spec always uses table-first output regardless of granularity.
-
-   - Present the table as part of the confirmation step (the same one referenced in Phase-specific cautions), so the user validates both **their answers** and **what each answer will change**. Confirm before persisting.
-
 7. **Phase 0 complete**
    - Update `state.json` and proceed to Phase 1.
 
 ### Phase-specific cautions
 - Minimise the user's burden by leading with choice-based UI; never force the user to type the same thing twice.
 - Treat the free-form field as a "none of the above" safety net; it is unnecessary when the user picked one of the choices.
-- The goal influences every later phase, so do not skip summarising the answers and asking the user to confirm. **The confirmation summary is also rendered in `output_language`.** As part of the confirmation, present the **goal → spec reflection table** (see Step 6.5) so the user sees not only their answers but also **what each choice deterministically changes** (chapter order for `primary_reader`, output location for `output_dir`) vs. **which choices are soft agent-context guidance** (`reader_action`, `granularity`, `perspectives`, `existing_docs`).
+- The goal influences every later phase, so do not skip summarising the answers and asking the user to confirm. **The confirmation summary is also rendered in `output_language`.** As part of the confirmation, present the **goal → spec reflection table** (see Step 5.5) so the user sees not only their answers but also **what each choice deterministically changes** (chapter order for `primary_reader`, output location for `output_dir`) vs. **which choices are soft agent-context guidance** (`reader_action`, `granularity`, `perspectives`, `existing_docs`).
 - The output-language selection (Step 3) is **bilingual only for that first dialogue**. From Step 4 on, use the confirmed language exclusively. If the user requests a language switch mid-flight, update `goal.json.output_language` and individually check whether existing `drafts/` and `questions.json` bodies need to be re-rendered.
 
 ---
