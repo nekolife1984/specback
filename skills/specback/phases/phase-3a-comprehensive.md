@@ -10,7 +10,7 @@ Full prose per chapter with `comprehensive` depth mode — applies STEP A throug
 
 For every INV in that chapter's `wbs.json.chapters[*].assigned_inventory_ids`, **use the Read tool on the corresponding real source files**.
 
-Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section is optional; if present, its bullet lines count toward body_lines, so prefer omitting it.)
+Every read file that backs a statement in the chapter body MUST be cited with an `<!-- REF: ... -->` marker (STEP B). **Place each citation AFTER the statement's period (。), never before it, and attach at most ONE citation per statement** — group consecutive statements backed by the same file/unit into a single citation at the end of the paragraph. There is no separate Sources Read section to maintain — the REF markers ARE the read-source record. (A `## Sources Read` section is optional; if present, its bullet lines count toward body_lines, so prefer omitting it.)
 
 > Examples shown use Rails conventions. For catalogues covering PHP /
 > Python (FastAPI / Django) / Java (Spring) / JavaScript & TypeScript
@@ -58,7 +58,9 @@ Examples:
 - Use **`<!-- REF: path:line -->`**, **`<!-- REF: path:start-end -->`**, or **`<!-- REF: SRC-NNNN -->`** only. The HTML comment markers, the `REF:` prefix, and the colon between path and line numbers (for path:line format) are all mandatory.
 - The path is workspace-relative (`app/...` for an env with `archiveRoot = "myapp-main"`). Absolute paths are forbidden.
 - Line numbers are integers. Use a single line (`:42`) when a single line is being cited; use a range (`:42-56`) when an extent matters. Do NOT use `L42`, `line 42`, ` lines 42-56`, parentheses, or any other decoration.
-- **NEVER wrap a citation in parentheses or brackets** — `（<!-- REF: SRC-0142 -->）` or `(<!-- REF: SRC-0142 -->)`. The HTML comment renders as nothing, leaving a **visible empty `（）`** in the delivered spec. Write the citation bare: `...する<!-- REF: SRC-0142 -->。`
+- **NEVER wrap a citation in parentheses or brackets** — `（<!-- REF: SRC-0142 -->）` or `(<!-- REF: SRC-0142 -->)`. The HTML comment renders as nothing, leaving a **visible empty `（）`** in the delivered spec.
+- **Place citations AFTER the period (。), never before it**: write `...する。<!-- REF: SRC-0142 -->`, NOT `...する<!-- REF: SRC-0142 -->。` (the latter breaks the sentence right before its period).
+- **One statement = at most one citation.** Group consecutive statements backed by the same file/unit into ONE citation at the end of the paragraph (e.g. `<!-- REF: SRC-0034, SRC-0035, SRC-0001 -->`). Do NOT sprinkle a tag on every line.
 - Forbidden alternative forms include but are not limited to:
   - ❌ `Gemfile (lines 1-138)` — parenthesised line annotation
   - ❌ `[REF: Gemfile:1-138]` — **deprecated** legacy format (NOT parsed by the scripts; do not write it in specs)

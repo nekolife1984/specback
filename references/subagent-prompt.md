@@ -87,9 +87,11 @@ Example:
 1. Use the Read tool to carefully read the source files corresponding to the assigned inventory items.
 2. As needed, use Grep / Glob to explore related code.
 3. Generate the chapter body in Markdown.
-4. For every statement, attach a `<!-- REF: ... -->` citation. **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
-   - Example: "Users are physically deleted 30 days after withdrawal <!-- REF: SRC-0142 -->"
-   - **Write citations BARE — never wrap them in parentheses/brackets.** `（<!-- REF: SRC-0142 -->）` renders as a visible empty `（）` because the HTML comment disappears. Use `...する<!-- REF: SRC-0142 -->。`
+4. Attach citations **per statement — place `<!-- REF: ... -->` AFTER the statement's period (。), never before it, and never split one statement across multiple citations.** **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
+   - ✅ Correct: "Users are physically deleted 30 days after withdrawal.`<!-- REF: SRC-0142 -->`"
+   - ❌ Wrong: "Users are physically deleted 30 days after withdrawal`<!-- REF: SRC-0142 -->`." — the tag breaks the sentence right before its period.
+   - **One statement = at most one citation.** Group consecutive statements backed by the same file/unit into ONE citation at the end of the paragraph (e.g. `...reads A. ...writes B. ...logs C. <!-- REF: SRC-0034, SRC-0035, SRC-0001 -->`). Do NOT sprinkle a tag on every line.
+   - **Write citations BARE — never wrap them in parentheses/brackets.** `（<!-- REF: SRC-0142 -->）` renders as a visible empty `（）` because the HTML comment disappears. Use `...する。<!-- REF: SRC-0142 -->`
    - **Use workspace-relative paths only.** Absolute paths (`/Users/...`) are forbidden in citations. (A `## Sources Read` section is optional; if present, use path-only bullets — line ranges go stale on code changes and are never validated by coverage-check.)
 5. Do not hide uncertainty; use these markers:
    - <!-- CONFIDENCE: HIGH -->   reliably derivable from the code

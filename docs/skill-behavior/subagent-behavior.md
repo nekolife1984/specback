@@ -26,7 +26,7 @@ You are an investigation agent in charge of a specific chapter.
 [Working instructions]
 1. Carefully read the source code corresponding to the assigned inventory items.
 2. Write the chapter body.
-3. For every statement, attach a `<!-- REF: ... -->` citation. **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
+3. Attach a `<!-- REF: ... -->` citation **per statement — place it AFTER the statement's period (。), never before it, at most one per statement** (group consecutive statements backed by the same file/unit into one citation at the end of the paragraph). **Prefer the SRC-ID format** (`<!-- REF: SRC-NNNN -->`, resolved from `{output_dir}/.specback/source-map.json` — stable across refactors); fall back to HTML-comment path:line (`<!-- REF: path:start-end -->`) only when no source-map entry exists.
 4. Do not hide uncertainty; use the following markers:
    - <!-- CONFIDENCE: HIGH | MED | LOW -->
    - <!-- ASK SME -->
