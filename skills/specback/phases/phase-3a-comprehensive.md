@@ -60,7 +60,7 @@ Examples:
 - Line numbers are integers. Use a single line (`:42`) when a single line is being cited; use a range (`:42-56`) when an extent matters. Do NOT use `L42`, `line 42`, ` lines 42-56`, parentheses, or any other decoration.
 - **NEVER wrap a citation in parentheses or brackets** — `（<!-- REF: SRC-0142 -->）` or `(<!-- REF: SRC-0142 -->)`. The HTML comment renders as nothing, leaving a **visible empty `（）`** in the delivered spec.
 - **Place citations AFTER the period (。), never before it**: write `...する。<!-- REF: SRC-0142 -->`, NOT `...する<!-- REF: SRC-0142 -->。` (the latter breaks the sentence right before its period).
-- **One statement = at most one citation.** Group consecutive statements backed by the same file/unit into ONE citation at the end of the paragraph (e.g. `<!-- REF: SRC-0034, SRC-0035, SRC-0001 -->`). Do NOT sprinkle a tag on every line.
+- **One statement = at most one citation, each placed AFTER that statement's own period (。).** Do NOT comma-join multiple IDs into a single tag — `<!-- REF: SRC-0034, SRC-0035 -->` is **not parsed** by the scripts and is silently dropped from the REF count and the trace. One citation per statement also keeps the chapter's total REF count above the gate.
 - Forbidden alternative forms include but are not limited to:
   - ❌ `Gemfile (lines 1-138)` — parenthesised line annotation
   - ❌ `[REF: Gemfile:1-138]` — **deprecated** legacy format (NOT parsed by the scripts; do not write it in specs)
