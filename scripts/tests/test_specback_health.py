@@ -196,13 +196,15 @@ def test_scan_chapter_counts_comment_form_uppercase(tmp_path: Path) -> None:
         "<!-- CONFIDENCE: HIGH --> reliable\n"
         "<!-- CONFIDENCE: MED --> likely\n"
         "<!-- CONFIDENCE: LOW --> needs review\n"
-        "<!-- CONFIDENCE: LOW — em-dash continues --> also low\n",
+        "<!-- CONFIDENCE: LOW — em-dash continues --> also low\n"
+        "<!-- CONFIDENCE: higher --> not HIGH (word-boundary, HIGHER ≠ HIGH)\n"
+        "<!-- CONFIDENCE: low --> lowercase legacy spelling counts too\n",
         encoding="utf-8",
     )
     mod.scan_chapter(p, m)
-    assert m.verified == 1  # HIGH
+    assert m.verified == 1  # HIGH only; HIGHER must NOT add a verified
     assert m.inferred == 1  # MED
-    assert m.assumed == 2  # LOW x2 (plain + em-dash description)
+    assert m.assumed == 3  # LOW x2 (plain + em-dash description) + lowercase "low"
 
 
 def test_scan_chapter_word_boundary_no_false_positive(tmp_path: Path) -> None:
