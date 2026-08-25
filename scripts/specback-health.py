@@ -62,9 +62,14 @@ DEFAULT_MIN_SCORE = 70.0
 WORD_VERIFIED = re.compile(r"\bVERIFIED\b")
 WORD_INFERRED = re.compile(r"\bINFERRED\b")
 WORD_ASSUMED = re.compile(r"\bASSUMED\b")
-COMMENT_VERIFIED = "<!-- CONFIDENCE: verified"
-COMMENT_INFERRED = "<!-- CONFIDENCE: inferred"
-COMMENT_ASSUMED = "<!-- CONFIDENCE: assumed"
+# HTML-comment confidence markers (<!-- CONFIDENCE: HIGH | MED | LOW --> plus the
+# legacy lower-case spellings verified/inferred/assumed). Regexes (not bare
+# substring counts) so they match the coverage-check semantics exactly: a
+# word-boundary prevents HIGHER/HIGH- from matching HIGH, and IGNORECASE lets the
+# lower-case legacy spellings resolve (#360).
+COMMENT_VERIFIED_RE = re.compile(r"<!--\s*CONFIDENCE:\s*(?:HIGH|verified)\b", re.IGNORECASE)
+COMMENT_INFERRED_RE = re.compile(r"<!--\s*CONFIDENCE:\s*(?:MED|inferred)\b", re.IGNORECASE)
+COMMENT_ASSUMED_RE = re.compile(r"<!--\s*CONFIDENCE:\s*(?:LOW|assumed)\b", re.IGNORECASE)
 UNRESOLVED_MARKERS = ("<!-- BLOCKED:", "<!-- ASK SME", "<!-- ASSUMED")
 REF_PATTERN = "<!-- REF:"
 
@@ -209,13 +214,19 @@ def scan_chapter(path: Path, metric: ChapterMetric) -> None:
             continue
         metric.body_lines += 1
         metric.verified += (
-            line.count("🟢") + len(WORD_VERIFIED.findall(line)) + line.count(COMMENT_VERIFIED)
+            line.count("🟢")
+            + len(WORD_VERIFIED.findall(line))
+            + len(COMMENT_VERIFIED_RE.findall(line))
         )
         metric.inferred += (
-            line.count("🟡") + len(WORD_INFERRED.findall(line)) + line.count(COMMENT_INFERRED)
+            line.count("🟡")
+            + len(WORD_INFERRED.findall(line))
+            + len(COMMENT_INFERRED_RE.findall(line))
         )
         metric.assumed += (
-            line.count("🔴") + len(WORD_ASSUMED.findall(line)) + line.count(COMMENT_ASSUMED)
+            line.count("🔴")
+            + len(WORD_ASSUMED.findall(line))
+            + len(COMMENT_ASSUMED_RE.findall(line))
         )
         metric.refs += line.count(REF_PATTERN)
         for marker in UNRESOLVED_MARKERS:

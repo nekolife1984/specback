@@ -45,6 +45,15 @@ MAX_ARTIFACT_BYTES = 50 * 1024 * 1024  # 50 MiB
 # Supports both path:line format (<!-- REF: path:file:1-50 --> 🟢) and
 # SRC-ID format (<!-- REF: SRC-0001 --> 🟢). Group 1 = REF target, group 2 = marker.
 CONFIDENCE_RE = re.compile(r'<!-- REF:\s*(\S+:\d+(?:-\d+)?|SRC-\d+)\s*-->\s*([🟢🟡🔴])')
+# HTML-comment form taught by the phase docs (<!-- CONFIDENCE: HIGH | MED | LOW -->,
+# also spelled lower-case ``verified / inferred / assumed``). Mapped to emoji on
+# extraction so a chapter written in the comment form still gets a confidence in
+# search results. Group 1 = the confidence keyword.
+CONF_COMMENT_RE = re.compile(r'<!--\s*CONFIDENCE:\s*(HIGH|MED|LOW|verified|inferred|assumed)\b', re.IGNORECASE)
+CONF_COMMENT_TO_EMOJI = {
+    "HIGH": "🟢", "MED": "🟡", "LOW": "🔴",
+    "VERIFIED": "🟢", "INFERRED": "🟡", "ASSUMED": "🔴",
+}
 
 
 class SpecbackDataError(Exception):
@@ -187,6 +196,7 @@ def _extract_confidence(src_id: str, specback_dir: Path) -> str | None:
         for line in text.split("\n"):
             if src_id not in line:
                 continue
+            # Emoji markers placed right after a REF (<!-- REF: ... --> 🟢)
             for m in CONFIDENCE_RE.finditer(line):
                 target, marker = m.group(1), m.group(2)
                 # SRC-ID REFs must point at this unit; path:line REFs are
@@ -196,6 +206,9 @@ def _extract_confidence(src_id: str, specback_dir: Path) -> str | None:
                         confidence_markers.append(marker)
                 else:
                     confidence_markers.append(marker)
+            # HTML-comment confidence markers (<!-- CONFIDENCE: HIGH --> etc.)
+            for m in CONF_COMMENT_RE.finditer(line):
+                confidence_markers.append(CONF_COMMENT_TO_EMOJI[m.group(1).upper()])
     if not confidence_markers:
         return None
     # Return the lowest confidence found (🔴 < 🟡 < 🟢)

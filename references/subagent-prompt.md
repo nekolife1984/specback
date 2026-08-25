@@ -101,6 +101,7 @@ Example:
    - <!-- ASK SME -->            requires confirmation from a subject-matter expert
    - <!-- ASSUMED: {content}; basis: {evidence} -->   surface the inference and its basis
    - <!-- BLOCKED: see Q-XXX --> left blank because of a critical question; see the Question Bank
+   - **Confidence form**: the comment form above (`HIGH | MED | LOW`) and the emoji form used in outline tables (`🟢 VERIFIED` / `🟡 INFERRED` / `🔴 ASSUMED`) are **both counted identically** by `coverage-check.py` and `specback-health.py`. Use whichever fits (comment in prose, emoji in table cells).
 6. Append a "detail questions raised in this chapter" list at the end of the chapter.
    - Each question follows this format:
      - Q: {question body}

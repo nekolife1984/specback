@@ -1008,15 +1008,22 @@ def count_confidence_labels(chapters: dict[str, str]) -> tuple[int, int, int]:
 
     Word-boundary regexes avoid false positives from negated words such as
     UNVERIFIED / UNASSUMED / DISINFERRED (same pattern as specback-health.py).
+    Also counts the HTML-comment form ``<!-- CONFIDENCE: HIGH | MED | LOW -->``
+    taught by the phase docs (HIGH→verified, MED→inferred, LOW→assumed). Both the
+    emoji+word form (used by outline tables) and the comment form are supported so
+    the two marker styles do not diverge across the runtimes (see #360).
     """
     word_verified = re.compile(r"\bVERIFIED\b")
     word_inferred = re.compile(r"\bINFERRED\b")
     word_assumed = re.compile(r"\bASSUMED\b")
+    comment_verified = re.compile(r"<!--\s*CONFIDENCE:\s*(?:HIGH|verified)\b", re.IGNORECASE)
+    comment_inferred = re.compile(r"<!--\s*CONFIDENCE:\s*(?:MED|inferred)\b", re.IGNORECASE)
+    comment_assumed = re.compile(r"<!--\s*CONFIDENCE:\s*(?:LOW|assumed)\b", re.IGNORECASE)
     verified = inferred = assumed = 0
     for _, content in chapters.items():
-        verified += content.count("🟢") + len(word_verified.findall(content))
-        inferred += content.count("🟡") + len(word_inferred.findall(content))
-        assumed += content.count("🔴") + len(word_assumed.findall(content))
+        verified += content.count("🟢") + len(word_verified.findall(content)) + len(comment_verified.findall(content))
+        inferred += content.count("🟡") + len(word_inferred.findall(content)) + len(comment_inferred.findall(content))
+        assumed += content.count("🔴") + len(word_assumed.findall(content)) + len(comment_assumed.findall(content))
     return verified, inferred, assumed
 
 
