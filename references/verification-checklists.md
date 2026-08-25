@@ -134,7 +134,7 @@ At the end of Phase 4, report to the user in the following format.
 
 [Cross-cutting quality]
 - Traceability citations: 43 chapters; average 8.2 / chapter ✓
-- [BLOCKED] markers: 3 (corresponding Question IDs: Q-014, Q-027, Q-038)
+- <!-- BLOCKED: see Q-XXX --> markers: 3 (corresponding Question IDs: Q-014, Q-027, Q-038)
 - <!-- CONFIDENCE: LOW --> markers: 12
 - Cross-chapter consistency: 2 contradictions detected
   - "Retry count" is described as 3 in Chapter 3 and 5 in Chapter 5 → filed as Q-098
