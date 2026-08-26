@@ -42,6 +42,14 @@ if (-not (Test-Path $SkillSrc)) {
   exit 1
 }
 
+# Dev-only names never shipped to the target. Kept in sync with
+# scripts/specback_install.py and install.sh.
+$DevExcludedDirs = @('tests','__pycache__','.pytest_cache','.mypy_cache','.ruff_cache','.specback','graphify-out')
+$DevExcludedFiles = @('dev-requirements.txt')
+
+# Shared assets copied alongside the core skill. Kept in sync with install.sh.
+$SharedDirs = @('scripts','references','schemas','agents','templates','variants')
+
 # ── Agent list ─────────────────────────────────────────────────────────
 $AgentNames = @()
 $AgentKeys  = @()
@@ -86,6 +94,21 @@ function Get-ProjPath($key) {
   }
 }
 
+# ── Helper: copy dir excluding dev-only artifacts ─────────────────────
+function Copy-TreeExcludingDev($src, $dst) {
+  New-Item -ItemType Directory -Force -Path $dst | Out-Null
+  Get-ChildItem -Path $src -Force |
+    Where-Object { $_.Name -notin $DevExcludedDirs -and -not $_.Name.StartsWith('.') -and $_.Name -notin $DevExcludedFiles } |
+    ForEach-Object {
+      $target = Join-Path $dst $_.Name
+      if ($_.PSIsContainer) {
+        Copy-TreeExcludingDev $_.FullName $target
+      } else {
+        Copy-Item -Force $_.FullName $target
+      }
+    }
+}
+
 # ── Helper: install ───────────────────────────────────────────────────
 function Install-Skill($dest, $label) {
   if (-not $dest) { return }
@@ -95,15 +118,21 @@ function Install-Skill($dest, $label) {
     return
   }
 
-  New-Item -ItemType Directory -Force -Path $dest | Out-Null
-  Copy-Item -Recurse -Force "$SkillSrc\*" $dest
+  Copy-TreeExcludingDev $SkillSrc $dest
   Write-Host "  ✅ $dest ($label)"
+
+  # Copy shared assets (scripts/, references/, schemas/, agents/, templates/, variants/)
+  foreach ($dir in $SharedDirs) {
+    $sharedSrc = Join-Path $ScriptDir $dir
+    if (Test-Path $sharedSrc) {
+      Copy-TreeExcludingDev $sharedSrc (Join-Path $dest $dir)
+    }
+  }
 
   # Install companion: specback-search
   $searchDest = $dest -replace 'specback$', 'specback-search'
   if (Test-Path $SearchSkillSrc) {
-    New-Item -ItemType Directory -Force -Path $searchDest | Out-Null
-    Copy-Item -Recurse -Force "$SearchSkillSrc\*" $searchDest
+    Copy-TreeExcludingDev $SearchSkillSrc $searchDest
     Write-Host "  ✅ $searchDest ($label, specback-search)"
   }
 }

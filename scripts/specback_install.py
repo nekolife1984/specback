@@ -46,6 +46,21 @@ STAMP_DIRS: list[str] = []
 # Dirs to copy as shared assets under the core skill path
 SHARED_DIRS = ["scripts", "references", "schemas", "agents", "templates", "variants"]
 
+# Dev-only artifacts that must NOT ship to the target project on stamp.
+# Kept in sync with install.sh / install.ps1 legacy installers.
+# - Directory names pruned from any scanned/copied source tree.
+# - Hidden entries (leading ".") and these file names are also excluded.
+DEV_EXCLUDED_DIRS = {
+    "tests",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".specback",
+    "graphify-out",
+}
+DEV_EXCLUDED_FILES = {"dev-requirements.txt"}
+
 SKILL_SRC = "skills/specback"
 SEARCH_SKILL_SRC = "skills/specback-search"
 
@@ -85,19 +100,38 @@ def _sha256_dir_sorted(root: Path) -> dict[str, str]:
     """Recursively compute SHA-256 hashes for all files under *root*.
 
     Returns ``{relative_path: sha256_hex}`` sorted by relative path.
+    Dev-only artifacts (tests/, __pycache__/, hidden entries, dev files)
+    are excluded — identical to the set not copied by :func:`_stamp_dir`.
     """
     hashes: dict[str, str] = {}
     if not root.is_dir():
         return hashes
     for fpath in sorted(root.rglob("*")):
-        if not fpath.is_file() or fpath.name.startswith("."):
-            continue
-        # Exclude __pycache__ directories
-        if "__pycache__" in fpath.parts:
+        if not fpath.is_file():
             continue
         rel = fpath.relative_to(root)
+        if _is_dev_excluded(rel.parts):
+            continue
         hashes[str(rel)] = sha256_file(fpath)
     return hashes
+
+
+def _is_dev_excluded(parts: tuple[str, ...]) -> bool:
+    """Return True if a relative path (as path parts) is a dev-only artifact.
+
+    A path is dev-only if any of its directory components is in
+    ``DEV_EXCLUDED_DIRS``, if any component is hidden (leading "."), or if
+    the final component is a dev-only file name. Kept symmetric with the
+    copy logic in :func:`_stamp_dir` and the legacy installers.
+    """
+    if not parts:
+        return False
+    for part in parts:
+        if part in DEV_EXCLUDED_DIRS:
+            return True
+        if part.startswith("."):
+            return True
+    return parts[-1] in DEV_EXCLUDED_FILES
 
 
 def _current_target_hashes(target: Path, stamp_dirs: list[str]) -> dict[str, str]:
@@ -323,16 +357,32 @@ def _stamp_dir(
 
     dst.mkdir(parents=True, exist_ok=True)
     for item in src.iterdir():
-        s = str(item)
-        d = str(dst / item.name)
+        d = dst / item.name
+        # Skip dev-only artifacts (tests/, __pycache__/, hidden, dev files)
+        if _is_dev_excluded((item.name,)):
+            continue
         if item.is_dir():
-            if dst.exists():
-                shutil.copytree(s, d, dirs_exist_ok=True)
-            else:
-                shutil.copytree(s, d)
+            _copy_tree_skip_dev(item, d)
         else:
-            shutil.copy2(s, d)
+            shutil.copy2(str(item), str(d))
     print(f"  ✅ {dst}/")
+
+
+def _copy_tree_skip_dev(src: Path, dst: Path) -> None:
+    """Recursively copy *src* to *dst*, dropping dev-only artifacts.
+
+    Mirrors the dev-exclusion used by :func:`_is_dev_excluded` and
+    :func:`_sha256_dir_sorted` so hashes and on-disk contents stay in sync.
+    """
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in src.iterdir():
+        d = dst / item.name
+        if _is_dev_excluded((item.name,)):
+            continue
+        if item.is_dir():
+            _copy_tree_skip_dev(item, d)
+        else:
+            shutil.copy2(str(item), str(d))
 
 
 def _stamp_core_skill(

@@ -106,6 +106,29 @@ against the current on-disk hashes.
 Files under `.specback_data/` are **never overwritten** on re-stamp — they are
 your project-specific customizations.
 
+## What is Excluded from the Stamp
+
+Dev-only artifacts are **not** stamped into your project. These verification
+and cache files belong to the specback repository's own test/CI environment,
+not to the runtime skill, so they are skipped during install. The exclusion
+set is shared and kept in sync across `scripts/specback_install.py`,
+`install.sh`, and `install.ps1`:
+
+| Category | Default exclusions |
+|----------|--------------------|
+| Test suites | `tests/` (any directory named `tests`) |
+| Bytecode / caches | `__pycache__/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/` |
+| Internal state | `.specback/`, `graphify-out/` |
+| Hidden entries | any file/dir whose name starts with `.` |
+| Dev-only files | `dev-requirements.txt` |
+
+Everything needed to **run** the skill is retained: every `.py` CLI in
+`scripts/`, the `source_map_v2/` extractor module, `requirements.txt`
+(runtime optional tree-sitter grammars), the `specback-search` MCP server,
+and all `references/`, `templates/`, `schemas/`, `agents/`, `variants/`.
+The `--check` / lockfile hashing uses the same exclusion, so "intact / drift"
+counts stay consistent with what was actually stamped.
+
 ## Migration from Legacy Install
 
 The `install.sh` wrapper detects stamp mode automatically:

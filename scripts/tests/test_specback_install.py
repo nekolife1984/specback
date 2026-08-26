@@ -170,6 +170,73 @@ class TestInstall:
         assert not target_config.exists()
 
 
+class TestDevExclusion:
+    """Dev-only artifacts must not ship into the target (pytest, caches,
+    dev requirements) — mirrored across the stamp installer, install.sh
+    and install.ps1."""
+
+    def test_is_dev_excluded_dirs(self) -> None:
+        """Known dev-only dir names are excluded by _is_dev_excluded."""
+        assert mod._is_dev_excluded(("scripts", "tests"))
+        assert mod._is_dev_excluded(("scripts", "source_map_v2", "tests"))
+        assert mod._is_dev_excluded(("scripts", "__pycache__"))
+        assert mod._is_dev_excluded(("scripts", ".pytest_cache"))
+        assert mod._is_dev_excluded(("scripts", ".specback"))
+        assert mod._is_dev_excluded(("scripts", "graphify-out"))
+
+    def test_is_dev_excluded_hidden_and_files(self) -> None:
+        """Hidden entries and dev requirements files are excluded."""
+        assert mod._is_dev_excluded(("scripts", "dev-requirements.txt"))
+        assert mod._is_dev_excluded(("scripts", ".hidden-dir", "x.py"))
+        assert mod._is_dev_excluded((".env"))
+
+    def test_is_dev_excluded_not_runtime(self) -> None:
+        """Runtime scripts must NOT be excluded."""
+        assert not mod._is_dev_excluded(("scripts", "common.py"))
+        assert not mod._is_dev_excluded(("scripts", "requirements.txt"))
+        assert not mod._is_dev_excluded(("scripts", "source_map_v2", "model.py"))
+        assert not mod._is_dev_excluded(("SKILL.md",))
+        # Empty / single non-dev path is fine
+        assert not mod._is_dev_excluded(())
+
+    def test_stamp_skips_tests(self, tmp_path: Path) -> None:
+        """A real stamp must not copy tests/, __pycache__/, caches, or
+        dev-requirements.txt into the target; runtime assets survive."""
+        _run(str(tmp_path))
+        scripts_dest = tmp_path / ".claude" / "skills" / "specback" / "scripts"
+        assert (scripts_dest / "common.py").exists()
+        assert (scripts_dest / "requirements.txt").exists()
+        assert (scripts_dest / "source_map_v2" / "model.py").exists()
+        # Dev artifacts absent across shared scripts + search skill
+        assert not (scripts_dest / "tests").exists()
+        assert not (scripts_dest / "source_map_v2" / "tests").exists()
+        assert not (scripts_dest / "dev-requirements.txt").exists()
+        search_scripts = tmp_path / ".claude" / "skills" / "specback-search" / "scripts"
+        assert not (search_scripts / "tests").exists()
+        assert not (search_scripts / "__pycache__").exists()
+
+    def test_lockfile_excludes_dev(self, tmp_path: Path) -> None:
+        """Lockfile hashes must not reference dev-only artifacts.
+
+        Keys are target-root-relative (e.g. ``.claude/.../scripts/tests/..``)
+        so we check only for the dev artifact names, not a generic dot prefix
+        (``.claude`` and ``.specback_data`` are legitimate).
+        """
+        _run(str(tmp_path))
+        lock = json.loads(
+            (tmp_path / ".specback_data" / "llockfile").read_text(encoding="utf-8")
+        )
+        dev_names = (
+            "tests", "__pycache__", ".pytest_cache", ".mypy_cache",
+            ".ruff_cache", ".specback", "graphify-out", "dev-requirements.txt",
+        )
+        bad = [
+            k for k in lock["hashes"]
+            if any(part in dev_names for part in Path(k).parts)
+        ]
+        assert bad == [], f"Dev artifacts leaked into lockfile: {bad}"
+
+
 class TestCheck:
     """--check (drift detection) tests."""
 
