@@ -190,6 +190,37 @@ PROJ_PATHS() {
   esac
 }
 
+# Dev-only names never shipped to the target. Kept in sync with
+# scripts/specback_install.py and install.ps1.
+DEV_EXCLUDED_DIRS="tests __pycache__ .pytest_cache .mypy_cache .ruff_cache .specback graphify-out"
+DEV_EXCLUDED_FILES="dev-requirements.txt"
+
+# ── Helper: copy dir excluding dev-only artifacts ────────────────────
+copy_tree_excluding_dev() {
+  local src="$1"
+  local dst="$2"
+  mkdir -p "$dst"
+  for item in "$src"/*; do
+    [[ -e "$item" ]] || continue
+    local base
+    base="$(basename "$item")"
+    # Skip dev-only dirs
+    case " $DEV_EXCLUDED_DIRS " in
+      *" $base "*) continue ;;
+    esac
+    # Skip hidden entries (leading ".") and dev-only files
+    if [[ "$base" == .* ]] \
+       || [[ " $DEV_EXCLUDED_FILES " == *" $base "* ]]; then
+      continue
+    fi
+    if [[ -d "$item" ]]; then
+      copy_tree_excluding_dev "$item" "$dst/$base"
+    else
+      cp -f "$item" "$dst/$base"
+    fi
+  done
+}
+
 # ── Install function ──────────────────────────────────────────────────
 install_skill() {
   local dest="$1"
@@ -205,11 +236,11 @@ install_skill() {
   fi
 
   mkdir -p "$dest"
-  cp -r "$SKILL_SRC"/* "$dest/"
+  copy_tree_excluding_dev "$SKILL_SRC" "$dest"
   # Copy shared assets (scripts/, references/, schemas/, agents/, templates/, variants/)
   for dir in $SHARED_DIRS; do
     if [[ -d "$SCRIPT_DIR/$dir" ]]; then
-      cp -r "$SCRIPT_DIR/$dir" "$dest/"
+      copy_tree_excluding_dev "$SCRIPT_DIR/$dir" "$dest/$dir"
     fi
   done
   echo "  ✅ $dest/ ($label)"
@@ -217,8 +248,7 @@ install_skill() {
   # Install companion: specback-search
   local search_dest="${dest%specback}specback-search"
   if [[ -d "$SEARCH_SKILL_SRC" ]]; then
-    mkdir -p "$search_dest"
-    cp -r "$SEARCH_SKILL_SRC"/* "$search_dest/"
+    copy_tree_excluding_dev "$SEARCH_SKILL_SRC" "$search_dest"
     echo "  ✅ $search_dest/ ($label, specback-search)"
   fi
 }

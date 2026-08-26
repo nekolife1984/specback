@@ -106,6 +106,29 @@ python3 scripts/specback_install.py --help
 `.specback_data/` 以下のファイルは再スタンプ時に**決して上書きされません**。
 これらはプロジェクト固有のカスタマイズ領域です。
 
+## スタンプから除外されるもの
+
+開発専用の成果物は、キミのプロジェクトに**スタンプされません**。これらは
+specbackリポジトリ自身のテスト/CI環境に属するものであり、ランタイムスキルには
+不要なため、インストール時にスキップされます。除外セットは
+`scripts/specback_install.py`・`install.sh`・`install.ps1` の3箇所で共有・同期
+されています：
+
+| カテゴリ | 除外対象（デフォルト） |
+|---------|----------------------|
+| テスト一式 | `tests/`（`tests` という名前の任意ディレクトリ） |
+| バイトコード / キャッシュ | `__pycache__/`・`.pytest_cache/`・`.mypy_cache/`・`.ruff_cache/` |
+| 内部状態 | `.specback/`・`graphify-out/` |
+| 隠しエントリ | 先頭が `.` のファイル・ディレクトリ |
+| 開発専用ファイル | `dev-requirements.txt` |
+
+スキルの**実行に必要なものはすべて残ります**：`scripts/` 内の全 `.py` CLI、
+`source_map_v2/` 抽出モジュール、`requirements.txt`（ランタイム任意の
+tree-sitter文法）、`specback-search` MCPサーバー、および `references/`・
+`templates/`・`schemas/`・`agents/`・`variants/` のすべて。`--check`／
+lockfileハッシュも同じ除外セットを使うため、実際にスタンプされた内容と
+「intact / drift」件数が一貫します。
+
 ## レガシーインストールからの移行
 
 `install.sh` ラッパーはスタンプモードを自動検出します：
