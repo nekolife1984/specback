@@ -12,12 +12,15 @@ Usage:
     specback install --check /path            # Drift detection only
     specback install --force /path            # Overwrite stamped files
     specback install --dry-run /path          # Show what would be done
+    specback install --search /path           # Also stamp specback-search
     specback install --help                   # This message
 
 Options:
     --check       Drift detection (no changes made)
     --force       Overwrite stamped files (recommend git commit first)
     --dry-run     Show what would be stamped without writing
+    --search      Also stamp the specback-search companion (CLI + MCP server).
+                  By default specback-search is SKIPPED (lightweight install).
     --help        Show this message and exit
 """
 
@@ -134,12 +137,15 @@ def _is_dev_excluded(parts: tuple[str, ...]) -> bool:
     return parts[-1] in DEV_EXCLUDED_FILES
 
 
-def _current_target_hashes(target: Path, stamp_dirs: list[str]) -> dict[str, str]:
+def _current_target_hashes(
+    target: Path, stamp_dirs: list[str], search_included: bool = True,
+) -> dict[str, str]:
     """Compute current SHA-256 hashes of stamped files *in the target*.
 
     Returns ``{relative_path: sha256_hex}`` for all files that were
-    originally stamped into the target (.claude/skills/specback/,
-    .claude/skills/specback-search/).
+    originally stamped into the target (.claude/skills/specback/ and, when
+    installed, .claude/skills/specback-search/). When ``search_included``
+    is False the search skill dir is not scanned (mirrors what was stamped).
     """
     all_hashes: dict[str, str] = {}
 
@@ -158,12 +164,13 @@ def _current_target_hashes(target: Path, stamp_dirs: list[str]) -> dict[str, str
         for rel, h in hashes.items():
             all_hashes[f".claude/skills/specback/{rel}"] = h
 
-    # 3. Search skill dir
-    search_dir = target / ".claude" / "skills" / "specback-search"
-    if search_dir.is_dir():
-        hashes = _sha256_dir_sorted(search_dir)
-        for rel, h in hashes.items():
-            all_hashes[f".claude/skills/specback-search/{rel}"] = h
+    # 3. Search skill dir (only when it was installed)
+    if search_included:
+        search_dir = target / ".claude" / "skills" / "specback-search"
+        if search_dir.is_dir():
+            hashes = _sha256_dir_sorted(search_dir)
+            for rel, h in hashes.items():
+                all_hashes[f".claude/skills/specback-search/{rel}"] = h
 
     # 4. Shared dirs under skill
     for d in SHARED_DIRS:
@@ -190,7 +197,10 @@ def _load_lockfile(target: Path) -> dict[str, Any] | None:
         return None
 
 
-def _write_lockfile(target: Path, hashes: dict[str, str], version: str) -> dict[str, Any]:
+def _write_lockfile(
+    target: Path, hashes: dict[str, str], version: str,
+    search_included: bool = True,
+) -> dict[str, Any]:
     """Write lockfile to target/.specback_data/llockfile."""
     lockfile_dir = target / SPECBACK_DATA_DIR
     lockfile_dir.mkdir(parents=True, exist_ok=True)
@@ -198,6 +208,7 @@ def _write_lockfile(target: Path, hashes: dict[str, str], version: str) -> dict[
     lock_data: dict[str, Any] = {
         "installed_at": utcnow_iso(),
         "specback_version": version,
+        "search_included": search_included,
         "hashes": hashes,
         "user_modified": [],
     }
@@ -218,7 +229,11 @@ def _detect_drift(
     Returns:
         ``{"modified": [...], "added": [...], "removed": [...], "ok": [...]}``
     """
-    current = _current_target_hashes(target, stamp_dirs)
+    # Mirror the search decision recorded at install time. Existing
+    # lockfiles without the field predate the optional-search change and
+    # always shipped the search skill, so default to True.
+    search_included = existing_lock.get("search_included", True)
+    current = _current_target_hashes(target, stamp_dirs, search_included)
     locked = existing_lock.get("hashes", {})
 
     modified: list[str] = []
@@ -247,12 +262,15 @@ def _detect_drift(
     }
 
 
-def _source_stamp_hashes(project_root: Path) -> dict[str, str]:
+def _source_stamp_hashes(
+    project_root: Path, search_included: bool = True,
+) -> dict[str, str]:
     """Compute SHA-256 hashes of all files *in the specback repo* that would
     be stamped.
 
     Returns ``{relative_path: sha256_hex}`` keyed from what would be the
-    target root.
+    target root. When ``search_included`` is False the specback-search skill
+    is omitted (mirrors the stamp decision).
     """
     all_hashes: dict[str, str] = {}
 
@@ -271,12 +289,13 @@ def _source_stamp_hashes(project_root: Path) -> dict[str, str]:
         for rel, h in hashes.items():
             all_hashes[f".claude/skills/specback/{rel}"] = h
 
-    # 3. Skill search
-    search_src = project_root / SEARCH_SKILL_SRC
-    if search_src.is_dir():
-        hashes = _sha256_dir_sorted(search_src)
-        for rel, h in hashes.items():
-            all_hashes[f".claude/skills/specback-search/{rel}"] = h
+    # 3. Skill search (only when it will be installed)
+    if search_included:
+        search_src = project_root / SEARCH_SKILL_SRC
+        if search_src.is_dir():
+            hashes = _sha256_dir_sorted(search_src)
+            for rel, h in hashes.items():
+                all_hashes[f".claude/skills/specback-search/{rel}"] = h
 
     # 4. Shared dirs under skill path
     for d in SHARED_DIRS:
@@ -387,6 +406,7 @@ def _copy_tree_skip_dev(src: Path, dst: Path) -> None:
 
 def _stamp_core_skill(
     project_root: Path, target: Path, force: bool, dry_run: bool,
+    search_included: bool = True,
 ) -> None:
     """Stamp core skill and shared assets under .claude/skills/specback/."""
     skill_base = target / ".claude" / "skills" / "specback"
@@ -404,11 +424,12 @@ def _stamp_core_skill(
             dst = skill_base / d
             _stamp_dir(src, dst, force, dry_run, label=f"shared/{d}")
 
-    # Stamp specback-search skill
-    search_src = project_root / SEARCH_SKILL_SRC
-    if search_src.is_dir():
-        dst = target / ".claude" / "skills" / "specback-search"
-        _stamp_dir(search_src, dst, force, dry_run, label="search skill")
+    # Stamp specback-search skill (optional; skipped without --search)
+    if search_included:
+        search_src = project_root / SEARCH_SKILL_SRC
+        if search_src.is_dir():
+            dst = target / ".claude" / "skills" / "specback-search"
+            _stamp_dir(search_src, dst, force, dry_run, label="search skill")
 
 
 def _perform_stamp(
@@ -416,6 +437,7 @@ def _perform_stamp(
     target: Path,
     force: bool,
     dry_run: bool,
+    search_included: bool = True,
 ) -> dict[str, str]:
     """Execute the full stamp operation. Returns the set of file hashes stamped."""
     print(f"\n  🏗️   Stamping specback into: {target}\n")
@@ -424,10 +446,10 @@ def _perform_stamp(
     _ensure_specback_data(target, project_root, dry_run)
 
     # 2. Stamp core skill + shared assets
-    _stamp_core_skill(project_root, target, force, dry_run)
+    _stamp_core_skill(project_root, target, force, dry_run, search_included)
 
     # 4. Compute hashes for lockfile
-    hashes = _source_stamp_hashes(project_root) if not dry_run else {}
+    hashes = _source_stamp_hashes(project_root, search_included) if not dry_run else {}
 
     print()
     return hashes
@@ -436,7 +458,10 @@ def _perform_stamp(
 # ── CLI modes ──────────────────────────────────────────────────────────────
 
 
-def cmd_install(target: Path, force: bool, dry_run: bool, version: str) -> int:
+def cmd_install(
+    target: Path, force: bool, dry_run: bool, version: str,
+    search_included: bool = False,
+) -> int:
     """Execute ``specback install``."""
     _check_target(target)
     project_root = _find_project_root()
@@ -451,14 +476,18 @@ def cmd_install(target: Path, force: bool, dry_run: bool, version: str) -> int:
         print("     Use --check to detect drift")
         return 1
 
-    hashes = _perform_stamp(project_root, target, force, dry_run)
+    hashes = _perform_stamp(project_root, target, force, dry_run, search_included)
 
     if not dry_run:
-        _write_lockfile(target, hashes, version)
+        _write_lockfile(target, hashes, version, search_included)
         print(f"  🔒  Lockfile written: {lockfile_path}")
         print(f"\n  ✅  specback v{version} stamped into {target}")
         print(f"     📁 {target / SPECBACK_DATA_DIR}/  → customize here")
         print(f"     📁 {target / '.claude' / 'skills' / 'specback'}/  → core skill")
+        if search_included:
+            print(f"     📁 {target / '.claude' / 'skills' / 'specback-search'}/  → search skill")
+        else:
+            print("     (specback-search omitted — re-run with --search to add it)")
     else:
         print("  🏁  Dry-run complete. No changes were made.\n")
 
@@ -477,7 +506,10 @@ def cmd_check(target: Path) -> int:
 
     print(f"\n  🔍  Drift check for: {target}\n")
     print(f"     Installed: {existing_lock.get('installed_at', '?')}")
-    print(f"     Version:   {existing_lock.get('specback_version', '?')}\n")
+    print(f"     Version:   {existing_lock.get('specback_version', '?')}")
+    search_included = existing_lock.get("search_included", True)
+    search_label = "yes" if search_included else "no (skipped)"
+    print(f"     specback-search: {search_label}\n")
 
     drift = _detect_drift(
         target, STAMP_DIRS, existing_lock,
@@ -553,6 +585,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="dry_run",
         help="Show what would be stamped without writing",
     )
+    parser.add_argument(
+        "--search",
+        action="store_true",
+        dest="search_included",
+        help="Also stamp the specback-search companion (CLI + MCP server). "
+        "By default specback-search is SKIPPED (lightweight install).",
+    )
     return parser.parse_args(argv)
 
 
@@ -565,7 +604,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.check_mode:
         return cmd_check(target)
     else:
-        return cmd_install(target, force=args.force, dry_run=args.dry_run, version=specback_version)
+        return cmd_install(
+            target,
+            force=args.force,
+            dry_run=args.dry_run,
+            version=specback_version,
+            search_included=args.search_included,
+        )
 
 
 if __name__ == "__main__":

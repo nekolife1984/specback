@@ -79,6 +79,11 @@ Options:
 - `--check` — Drift detection (no changes made)
 - `--force` — Overwrite stamped files (git commit first recommended)
 - `--dry-run` — Show what would be stamped
+- `--search` — Also stamp the `specback-search` companion (CLI + MCP server).
+
+> **Note:** the `specback-search` companion is **skipped by default** for a
+> lightweight install. Add `--search` (or `SPECBACK_SEARCH=1`) to install it.
+> When skipped, re-run with `--search` to add it later.
 
 See [docs/en/06-install-stamp.md](docs/en/06-install-stamp.md) or [docs/ja/06-install-stamp.md](docs/ja/06-install-stamp.md) for details.
 
@@ -404,6 +409,11 @@ data (`source-map.json`, `trace.json`, `inventory.json`, `questions.json`,
   — a stdlib-only MCP stdio server exposing `specback_search` /
   `specback_uncovered` / `specback_drift` / `specback_questions` to
   Claude Code / Cursor / Hermes. See `docs/en/10-specback-search-mcp.md`.
+
+> This companion is **optional and skipped by default** at install time.
+> To include it, pass `--search` to the stamp/legacy installers
+> (`install.ps1`: `-Search`), or set `SPECBACK_SEARCH=1`. It can be added
+> later by re-running the installer with that flag.
 
 ---
 

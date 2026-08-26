@@ -15,21 +15,28 @@
 .PARAMETER DryRun
   Print what would be done without making any changes.
 
+.PARAMETER Search
+  Also install the specback-search companion (CLI + MCP server).
+  By default specback-search is SKIPPED (lightweight install).
+
 .EXAMPLE
   .\install.ps1                          interactive mode
   .\install.ps1 -DryRun                  dry-run (interactive)
   .\install.ps1 -Agent claude,opencode -Level user   non-interactive
   .\install.ps1 -Agent all -Level both   all agents, both levels
+  .\install.ps1 -Search -Agent claude -Level user    include specback-search
 
 .NOTES
-  Environment variables (fallback): $env:SPECBACK_AGENT, $env:SPECBACK_LEVEL
+  Environment variables (fallback): $env:SPECBACK_AGENT, $env:SPECBACK_LEVEL,
+  $env:SPECBACK_SEARCH (1/true/yes/on to include specback-search)
 #>
 
 param(
   [string]$Agent = "",
   [string]$Level = "",
   [switch]$DryRun,
-  [switch]$InstallDeps
+  [switch]$InstallDeps,
+  [switch]$Search
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -115,6 +122,9 @@ function Install-Skill($dest, $label) {
 
   if ($DryRun) {
     Write-Host "  ⏺  $dest ($label)"
+    if ($InstallSearch -and (Test-Path $SearchSkillSrc)) {
+      Write-Host "  ⏺  $($dest -replace 'specback$', 'specback-search') ($label, specback-search)"
+    }
     return
   }
 
@@ -129,11 +139,13 @@ function Install-Skill($dest, $label) {
     }
   }
 
-  # Install companion: specback-search
-  $searchDest = $dest -replace 'specback$', 'specback-search'
-  if (Test-Path $SearchSkillSrc) {
-    Copy-TreeExcludingDev $SearchSkillSrc $searchDest
-    Write-Host "  ✅ $searchDest ($label, specback-search)"
+  # Install companion: specback-search (optional, off by default)
+  if ($InstallSearch) {
+    $searchDest = $dest -replace 'specback$', 'specback-search'
+    if (Test-Path $SearchSkillSrc) {
+      Copy-TreeExcludingDev $SearchSkillSrc $searchDest
+      Write-Host "  ✅ $searchDest ($label, specback-search)"
+    }
   }
 }
 
@@ -157,6 +169,13 @@ function Install-Deps {
 # ── Resolve input source: CLI > env > interactive ────────────────────
 $ResolvedAgent = if ($Agent) { $Agent } else { $env:SPECBACK_AGENT }
 $ResolvedLevel = if ($Level) { $Level } else { $env:SPECBACK_LEVEL }
+
+# Search companion: -Search switch OR SPECBACK_SEARCH env (1/true/yes/on)
+$InstallSearch = $Search
+if ($env:SPECBACK_SEARCH -match '^(1|true|yes|on)$') { $InstallSearch = $true }
+if (-not $Search -and $env:SPECBACK_SEARCH -and $env:SPECBACK_SEARCH -notmatch '^(1|true|yes|on)$') {
+  $InstallSearch = $false
+}
 
 # ── Main ──────────────────────────────────────────────────────────────
 Write-Host ""
@@ -225,13 +244,29 @@ if ($ResolvedAgent) {
     Write-Host "Dry-run complete. No changes were made."
   } else {
     if ($InstallDeps) { Install-Deps }
-    Write-Host "Done. specback is now installed."
+    if ($InstallSearch) {
+      Write-Host "Done. specback and specback-search are now installed."
+    } else {
+      Write-Host "Done. specback is now installed (specback-search skipped)."
+      Write-Host "Re-run with -Search to add the search companion."
+    }
   }
   Write-Host ""
   exit 0
 }
 
 # ── Interactive mode ──────────────────────────────────────────────────
+
+# ── Select search companion ───────────────────────────────────────────
+if (-not $env:SPECBACK_SEARCH) {
+  Write-Host "Install the specback-search companion (CLI + MCP server)?"
+  Write-Host "  [y/N] (default: No — lightweight install)"
+  $searchChoice = Read-Host "> "
+  Write-Host ""
+  $InstallSearch = $searchChoice -match '^(y|Y|yes|YES)$'
+} else {
+  $InstallSearch = $env:SPECBACK_SEARCH -match '^(1|true|yes|on)$'
+}
 
 # ── Select level ──────────────────────────────────────────────────────
 if ($ResolvedLevel) {
@@ -321,6 +356,11 @@ if ($DryRun) {
   Write-Host "Dry-run complete. No changes were made."
 } else {
   if ($InstallDeps) { Install-Deps }
-  Write-Host "Done. specback and specback-search are now installed."
+  if ($InstallSearch) {
+    Write-Host "Done. specback and specback-search are now installed."
+  } else {
+    Write-Host "Done. specback is now installed (specback-search skipped)."
+    Write-Host "Re-run with -Search to add the search companion."
+  }
 }
 Write-Host ""

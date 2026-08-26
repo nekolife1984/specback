@@ -74,6 +74,22 @@ Shows what would be stamped without writing any files.
 python3 scripts/specback_install.py --help
 ```
 
+### Installing specback-search (optional)
+
+The `specback-search` skill (CLI + MCP server) is **skipped by default** for a
+lightweight install. To include it, pass `--search`:
+
+```bash
+python3 scripts/specback_install.py --search /path/to/target-repo
+
+# Same via the install.sh wrapper (stamp mode):
+./install.sh --search /path/to/target-repo
+```
+
+If you skipped it, you can add it later by re-running with `--search`.
+Whether the search skill is present shows up in `--check` output as
+`specback-search: yes / no (skipped)`.
+
 ## Lockfile
 
 The lockfile lives at `.specback_data/llockfile` and is a JSON file:
@@ -82,6 +98,7 @@ The lockfile lives at `.specback_data/llockfile` and is a JSON file:
 {
   "installed_at": "2026-08-05T12:00:00Z",
   "specback_version": "1.2.0",
+  "search_included": false,
   "hashes": {
     ".claude/skills/specback/SKILL.md": "sha256:ghi789..."
   },
@@ -89,6 +106,10 @@ The lockfile lives at `.specback_data/llockfile` and is a JSON file:
 }
 ```
 
+`search_included` records whether the search skill was included at install
+time (used by `--check` so drift detection inspects the same file set that was
+stamped). Existing lockfiles without this field are treated as included for
+backward compatibility.
 The `hashes` section contains SHA-256 digests of all stamped files, keyed by
 their relative path from the target root. The `--check` command compares these
 against the current on-disk hashes.
@@ -98,10 +119,12 @@ against the current on-disk hashes.
 | Layer | Source (specback repo) | Target | Re-stampable? |
 |-------|----------------------|--------|:------------:|
 | Core skill | `skills/specback/` | `target/.claude/skills/specback/` | Yes |
-| Search skill | `skills/specback-search/` | `target/.claude/skills/specback-search/` | Yes |
+| Search skill (optional) | `skills/specback-search/` | `target/.claude/skills/specback-search/` | Yes |
 | Shared assets | `scripts/`, `references/`, `schemas/`, `agents/`, `templates/`, `variants/` | `target/.claude/skills/specback/...` | Yes |
 | Custom templates | (empty) | `target/.specback_data/templates/` | No (user data) |
 | Custom prompts | (empty) | `target/.specback_data/prompt_engineering/` | No (user data) |
+
+The search skill is only stamped when `--search` is passed (omitted by default).
 
 Files under `.specback_data/` are **never overwritten** on re-stamp — they are
 your project-specific customizations.

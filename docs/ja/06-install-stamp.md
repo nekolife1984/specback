@@ -74,6 +74,22 @@ python3 scripts/specback_install.py --dry-run /path/to/target-repo
 python3 scripts/specback_install.py --help
 ```
 
+### specback-search の導入（任意）
+
+`specback-search` スキル（CLI + MCPサーバー）は**デフォルトではスキップ**されます
+（軽量インストールが標準）。導入するには `--search` を渡します：
+
+```bash
+python3 scripts/specback_install.py --search /path/to/target-repo
+
+# install.sh ラッパー経由（スタンプモード）でも同じ：
+./install.sh --search /path/to/target-repo
+```
+
+スキップした場合、後から `--search` を付けて再実行すると追加できます。
+検索スキル（specback-search）の有無は `--check` の出力にも
+`specback-search: yes / no (skipped)` として表示されます。
+
 ## ロックファイル
 
 ロックファイルは `.specback_data/llockfile` に配置されるJSONファイルです：
@@ -82,6 +98,7 @@ python3 scripts/specback_install.py --help
 {
   "installed_at": "2026-08-05T12:00:00Z",
   "specback_version": "1.2.0",
+  "search_included": false,
   "hashes": {
     ".claude/skills/specback/SKILL.md": "sha256:ghi789..."
   },
@@ -89,6 +106,9 @@ python3 scripts/specback_install.py --help
 }
 ```
 
+`search_included` は導入時に検索スキルを含めたかを記録します（`--check` の
+ドリフト判定で、スタンプ時と同じファイル集合を検査するために使います。既存の
+ロックファイルでこのフィールドが無い場合は、旧仕様どおり導入済みとみなします）。
 `hashes` セクションには、全スタンプファイルのSHA-256ダイジェストが
 ターゲットルートからの相対パスをキーとして格納されます。`--check` コマンドは
 これらを現在のファイルハッシュと比較します。
@@ -98,10 +118,12 @@ python3 scripts/specback_install.py --help
 | レイヤー | ソース（specbackリポジトリ） | ターゲット | 再スタンプ可能？ |
 |---------|---------------------------|----------|:------------:|
 | コアスキル | `skills/specback/` | `target/.claude/skills/specback/` | はい |
-| 検索スキル | `skills/specback-search/` | `target/.claude/skills/specback-search/` | はい |
+| 検索スキル（任意） | `skills/specback-search/` | `target/.claude/skills/specback-search/` | はい |
 | 共有アセット | `scripts/`, `references/`, `schemas/`, `agents/`, `templates/`, `variants/` | `target/.claude/skills/specback/...` | はい |
 | カスタムテンプレート | （空） | `target/.specback_data/templates/` | いいえ（ユーザーデータ） |
 | カスタムプロンプト | （空） | `target/.specback_data/prompt_engineering/` | いいえ（ユーザーデータ） |
+
+検索スキルは `--search` を付けたときのみスタンプされます（デフォルトは省略）。
 
 `.specback_data/` 以下のファイルは再スタンプ時に**決して上書きされません**。
 これらはプロジェクト固有のカスタマイズ領域です。
