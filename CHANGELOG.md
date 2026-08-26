@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 機能仕様BDDセクションの堅牢化 ([#298] follow-up, PR #302 事後レビュー対応): `validate-template-catalog.py` に per-feature 4セクションの順序検証を追加（`**Priority**` → `**Edge cases**` → `**Acceptance scenarios**` → `**Independent test**` が 2.2/2.3 ブロックに必須。将来のテンプレート追加・編集で BDD セクション欠落を CI で検出。テスト7件追加）。Priority の REF ポリシーを「optional」に統一し P2 を定義、Acceptance scenarios に 2–5件の件数指針を追記、event-driven の Related business rules 参照先を実在章（Event catalogue / schema evolution）に修正、Priority 導出基準（call volume / criticality / blast radius）と Edge/Error の住み分け定義を phase-3a / variants-B / agents の3箇所に揃えた。markdownlint MD036（bold 疑似見出し）を意図的スタイルとして無効化
   - **agency レビュー（code-reviewer + appsec）事後対応**: `build-search-index.py` の `load_json` を sys.exit(2) → `SpecbackDataError` raise 方式に変更（CLI は main で catch し exit 2 維持）。破損JSON・FIFO/特殊ファイル・50 MiB 超アーティファクトを isError 化、stdin の不正UTF-8/深ネスト/1 MiB 超行をプロトコルエラー化（サーバー不死の契約を実装+回帰テストで担保）、notification への無応答・`-32600` Invalid Request・`specback_dir` 型ガード・`query` 任意化（CLI と同様フィルタのみ可）・結果200件/クエリ500文字の上限・エラー詳細のクライアント漏洩防止・章ファイル読込キャッシュと symlink 脱出拒否・CONFIDENCE_RE の SRC-ID 一致判定。回帰テスト14件追加
 
+### Changed
+
+- **specback-search の導入をオプション化** ([#369]): インストール時に `specback-search` スキルを**デフォルトでスキップ**する軽量インストールを標準に変更。3つのインストーラー（`scripts/specback_install.py` / `install.sh` / `install.ps1`）に `--search`（`install.ps1` は `-Search`、env は `SPECBACK_SEARCH=1`）を追加し、明示的に渡したときのみ検索スキル（CLI + MCP サーバー）を導入。スキップした場合はインストーラー実行後の案内にある通り後から `--search` で追加可能。stamp インストーラーの lockfile に `search_included` を記録し、`--check` のドリフト判定はスタンプ時のファイル集合（検索スキル有無）を尊重。既存 lockfile でフィールドなしの場合は旧仕様（導入済み）として扱う後方互換。テスト追加（デフォルトスキップ / `--search` 導入 / lockfile 記録）
+
 ### Fixed
 
 - **`source_map_v2` source-map 生成の symlink 追跡による任意ファイル読み取りを修正** ([#317]): `scripts/source_map_v2/pipeline.py` の `_iter_files` が `p.is_file()` で symlink を解決しており、target ツリー内の symlink が外部（`.env`・`/etc/passwd` 等）を指しているとその内容が `source-map.json` に漏洩していた。`os.lstat` + `stat.S_ISLNK` による単一 stat で symlink をスキップし、さらに解決後パスが target 内に含まれるかを `resolve().relative_to()` で検証。回帰テスト `test_iter_files_does_not_follow_symlink_outside_target` を追加

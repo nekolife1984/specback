@@ -119,8 +119,35 @@ class TestInstall:
         assert (skill_dir / "references").is_dir()
         assert (skill_dir / "templates").is_dir()
 
-        # Check search skill
-        assert (tmp_path / ".claude" / "skills" / "specback-search").is_dir()
+        # Check search skill — skipped by default (lightweight install)
+        assert not (tmp_path / ".claude" / "skills" / "specback-search").exists()
+
+    def test_install_with_search(self, tmp_path: Path) -> None:
+        """``--search`` installs the specback-search companion."""
+        result = _run("--search", str(tmp_path))
+        assert result.returncode == 0, f"Install failed:\n{result.stderr}"
+        assert "specback v1.2.0 stamped" in result.stdout
+
+        # Core skill + search skill both present
+        skill_dir = tmp_path / ".claude" / "skills" / "specback"
+        search_dir = tmp_path / ".claude" / "skills" / "specback-search"
+        assert skill_dir.is_dir()
+        assert search_dir.is_dir()
+        assert (skill_dir / "SKILL.md").exists()
+
+        # Lockfile records search inclusion
+        lock = json.loads((tmp_path / ".specback_data" / "llockfile").read_text(encoding="utf-8"))
+        assert lock["search_included"] is True
+
+    def test_search_skipped_by_default_lockfile(self, tmp_path: Path) -> None:
+        """Default install records ``search_included: false`` and omits search
+        hashes from the lockfile."""
+        result = _run(str(tmp_path))
+        assert result.returncode == 0
+        lock = json.loads((tmp_path / ".specback_data" / "llockfile").read_text(encoding="utf-8"))
+        assert lock["search_included"] is False
+        search_keys = [k for k in lock["hashes"] if "/specback-search/" in k]
+        assert search_keys == [], f"Search keys leaked into no-search lockfile: {search_keys}"
 
     def test_second_install_fails(self, tmp_path: Path) -> None:
         """Second install without --force should fail."""
@@ -201,8 +228,9 @@ class TestDevExclusion:
 
     def test_stamp_skips_tests(self, tmp_path: Path) -> None:
         """A real stamp must not copy tests/, __pycache__/, caches, or
-        dev-requirements.txt into the target; runtime assets survive."""
-        _run(str(tmp_path))
+        dev-requirements.txt into the target; runtime assets survive.
+        Uses ``--search`` so the specback-search dev-exclusion is also checked."""
+        _run("--search", str(tmp_path))
         scripts_dest = tmp_path / ".claude" / "skills" / "specback" / "scripts"
         assert (scripts_dest / "common.py").exists()
         assert (scripts_dest / "requirements.txt").exists()
@@ -318,6 +346,14 @@ def test_parse_args_returns_namespace() -> None:
     assert ns.check_mode is True
     assert ns.dry_run is False
     assert ns.target == "/tmp/nonexistent-target"
+    # Optional-search flag defaults to off (lightweight install)
+    assert ns.search_included is False
+
+
+def test_parse_args_search_flag() -> None:
+    """``--search`` sets search_included in the parsed Namespace."""
+    ns = mod.parse_args(["--search", "/tmp/target"])
+    assert ns.search_included is True
 
 
 def test_main_accepts_argv(tmp_path: Path) -> None:

@@ -11,7 +11,11 @@ metadata:
 
 Query specback-generated structured data (`source-map.json`, `trace.json`, `inventory.json`, `questions.json`, `drift-report.json`) without manually reading raw JSON files.
 
-This skill is a **companion to specback**. Install it alongside the main specback skill.
+This skill is a **companion to specback**. Install it alongside the main
+specback skill by passing `--search` to the installer
+(`install.sh` / `scripts/specback_install.py`, `-Search` for `install.ps1`).
+It is **optional and skipped by default** for a lightweight install; you can
+add it later by re-running the installer with that flag.
 
 ## Usage
 

@@ -19,6 +19,10 @@ set -euo pipefail
 #
 # Environment variables (lower priority than CLI flags):
 #   SPECBACK_AGENT=claude,opencode   SPECBACK_LEVEL=user
+#   SPECBACK_SEARCH=1                install the specback-search companion
+#
+# By default the specback-search companion skill is SKIPPED. Pass --search
+# (or SPECBACK_SEARCH=1) to also stamp the search skill (CLI + MCP server).
 #
 # Supports: Claude Code, Codex CLI, OpenCode, GitHub Copilot, Cursor, Other
 # ---------------------------------------------------------------------------
@@ -77,6 +81,7 @@ DRY_RUN=false
 CLI_AGENT=""
 CLI_LEVEL=""
 INSTALL_DEPS=false
+INSTALL_SEARCH=false
 
 # ── Parse flags ────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -92,6 +97,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --install-deps)
       INSTALL_DEPS=true
+      shift
+      ;;
+    --search)
+      INSTALL_SEARCH=true
       shift
       ;;
     --level)
@@ -112,6 +121,7 @@ while [[ $# -gt 0 ]]; do
       echo "Legacy mode options:"
       echo "  --dry-run           Print what would be done, no changes"
       echo "  --install-deps      Install optional Python dependencies (tree-sitter grammars)"
+      echo "  --search            Also install the specback-search companion (CLI + MCP server)"
       echo "  --agent AGENTS      Comma-separated agent keys: claude,codex,opencode,copilot,cursor,other,all"
       echo "  --level LEVEL       Install level: user, project, both"
       echo "  --help, -h          Show this message"
@@ -119,6 +129,10 @@ while [[ $# -gt 0 ]]; do
       echo "Environment:"
       echo "  SPECBACK_AGENT=claude    (fallback when --agent not given)"
       echo "  SPECBACK_LEVEL=user      (fallback when --level not given)"
+      echo "  SPECBACK_SEARCH=1        (fallback when --search not given)"
+      echo ""
+      echo "Note: the specback-search companion is skipped by default."
+      echo "      Pass --search (or SPECBACK_SEARCH=1) to install it."
       echo ""
       echo "Examples:"
       echo "  $0"
@@ -153,6 +167,11 @@ populate_agents
 # ── Resolve input source: CLI > env > interactive ────────────────────
 RESOLVED_AGENT="${CLI_AGENT:-${SPECBACK_AGENT:-}}"
 RESOLVED_LEVEL="${CLI_LEVEL:-${SPECBACK_LEVEL:-}}"
+
+# SPECBACK_SEARCH env fallback for --search (both enable the search skill)
+case "${SPECBACK_SEARCH:-}" in
+  1|true|yes|on) INSTALL_SEARCH=true ;;
+esac
 
 # ── Helper: validate agent key ───────────────────────────────────────
 is_valid_agent_key() {
@@ -232,6 +251,9 @@ install_skill() {
 
   if $DRY_RUN; then
     echo "  ⏺  $dest/ ($label)"
+    if $INSTALL_SEARCH && [[ -d "$SEARCH_SKILL_SRC" ]]; then
+      echo "  ⏺  ${dest%specback}specback-search/ ($label, specback-search)"
+    fi
     return
   fi
 
@@ -245,11 +267,13 @@ install_skill() {
   done
   echo "  ✅ $dest/ ($label)"
 
-  # Install companion: specback-search
-  local search_dest="${dest%specback}specback-search"
-  if [[ -d "$SEARCH_SKILL_SRC" ]]; then
-    copy_tree_excluding_dev "$SEARCH_SKILL_SRC" "$search_dest"
-    echo "  ✅ $search_dest/ ($label, specback-search)"
+  # Install companion: specback-search (optional, off by default)
+  if $INSTALL_SEARCH; then
+    local search_dest="${dest%specback}specback-search"
+    if [[ -d "$SEARCH_SKILL_SRC" ]]; then
+      copy_tree_excluding_dev "$SEARCH_SKILL_SRC" "$search_dest"
+      echo "  ✅ $search_dest/ ($label, specback-search)"
+    fi
   fi
 }
 
@@ -339,13 +363,35 @@ if [[ -n "$RESOLVED_AGENT" ]]; then
     echo "Dry-run complete. No changes were made."
   else
     $INSTALL_DEPS && install_deps
-    echo "Done. specback and specback-search are now installed."
+    if $INSTALL_SEARCH; then
+      echo "Done. specback and specback-search are now installed."
+    else
+      echo "Done. specback is now installed (specback-search skipped)."
+      echo "Re-run with --search to add the search companion."
+    fi
   fi
   echo ""
   exit 0
 fi
 
 # ── Interactive mode (no CLI agent flags) ──────────────────────────────
+
+# ── Select search companion ───────────────────────────────────────────
+if [[ -z "${SPECBACK_SEARCH:-}" ]]; then
+  echo "Install the specback-search companion (CLI + MCP server)?"
+  echo "  [y/N] (default: No — lightweight install)"
+  read -rp "> " SEARCH_CHOICE
+  echo ""
+  case "$SEARCH_CHOICE" in
+    y|Y|yes|YES) INSTALL_SEARCH=true ;;
+    *)            INSTALL_SEARCH=false ;;
+  esac
+else
+  case "$SPECBACK_SEARCH" in
+    1|true|yes|on) INSTALL_SEARCH=true ;;
+    *)             INSTALL_SEARCH=false ;;
+  esac
+fi
 
 # ── Select level ──────────────────────────────────────────────────────
 INTERACTIVE_LEVEL="${RESOLVED_LEVEL:-}"
@@ -445,6 +491,11 @@ if $DRY_RUN; then
   echo "Dry-run complete. No changes were made."
 else
   $INSTALL_DEPS && install_deps
-  echo "Done. specback is now installed."
+  if $INSTALL_SEARCH; then
+    echo "Done. specback and specback-search are now installed."
+  else
+    echo "Done. specback is now installed (specback-search skipped)."
+    echo "Re-run with --search to add the search companion."
+  fi
 fi
 echo ""
