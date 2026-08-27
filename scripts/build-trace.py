@@ -12,7 +12,14 @@ This produces in one pass:
 - covered / excluded / uncovered aggregation for MECE verification
 
 Usage:
-    python build-trace.py --specback-dir .specback [--output-dir .specback] [--target-dir-for-required final]
+    python build-trace.py --specback-dir .specback [--output-dir .specback] [--target-dir-for-required final] [--fail-on-uncovered]
+
+This script is the trace GENERATOR. It writes trace.json and exits 0 whether
+or not units remain uncovered — the MECE pass/fail decision belongs to
+coverage-check.py's --min-mece-coverage threshold (default 70%). Pass
+--fail-on-uncovered to opt into complete-coverage mode (exit 1 if any unit is
+uncovered). `mece_passed` below records strict completeness (all units
+covered) for informational / traceability purposes.
 
 Output schema (<output-dir>/trace.json):
     {
@@ -225,6 +232,18 @@ def main(argv: list[str] | None = None) -> int:
             "is printed."
         ),
     )
+    parser.add_argument(
+        "--fail-on-uncovered",
+        action="store_true",
+        default=False,
+        help=(
+            "Exit 1 if any source unit is uncovered (complete-coverage mode). "
+            "By default build-trace.py is a trace GENERATOR: it writes "
+            "trace.json and exits 0 whether or not units are uncovered — the "
+            "MECE pass/fail decision belongs to coverage-check.py's "
+            "--min-mece-coverage threshold (Issue #376 / SB-05)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     sb_dir = Path(args.specback_dir)
@@ -303,6 +322,10 @@ def main(argv: list[str] | None = None) -> int:
 
     total = len(units)
     uncovered_count = len(uncovered)
+    # `mece_passed` records STRICT completeness (every unit covered). This is a
+    # factual field in trace.json; whether it is required to proceed is decided
+    # by coverage-check.py's --min-mece-coverage threshold and by
+    # --fail-on-uncovered, NOT by the generation exit code (Issue #376 / SB-05).
     mece_passed = uncovered_count == 0
 
     trace = {
@@ -326,7 +349,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     if uncovered:
         print(f"  uncovered SRC sample: {uncovered[:5]}", file=sys.stderr)
-    return 0 if mece_passed else 1
+    # Generation always exits 0. Only --fail-on-uncovered turns completeness
+    # into a hard gate (Issue #376 / SB-05).
+    if args.fail_on_uncovered and uncovered:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

@@ -149,3 +149,76 @@ def test_e2e_missing_source_map_returns_2(tmp_path):
     )
     assert result.returncode == 2
     assert "source-map.json not found" in result.stderr
+
+
+def test_help_includes_fail_on_uncovered():
+    """--fail-on-uncovered is exposed for complete-coverage mode (Issue #376)."""
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+    assert "--fail-on-uncovered" in result.stdout
+
+
+def _write_source_map_with_uncovered(specback_dir: Path) -> None:
+    """A source-map with a unit that no draft REFs (leaves it uncovered)."""
+    sm = {
+        "schema_version": "0.1.0",
+        "target_root": ".",
+        "generated_at": "2026-08-16T00:00:00Z",
+        "stats": {"files_scanned": 1, "files_excluded": 0,
+                  "units_total": 1, "by_kind": {"python_def": 1}},
+        "units": [
+            {
+                "id": "SRC-0001",
+                "path": "src/app.py",
+                "line_range": [1, 10],
+                "kind": "python_def",
+                "name": "run",
+                "signature": "def run():",
+                "fingerprint": "sha1:fake",
+            },
+        ],
+    }
+    specback_dir.mkdir(parents=True, exist_ok=True)
+    (specback_dir / "source-map.json").write_text(
+        json.dumps(sm), encoding="utf-8"
+    )
+    # NOTE: no draft with a REF to SRC-0001 -> unit stays uncovered.
+
+
+def test_e2e_generation_exits_zero_when_uncovered(tmp_path):
+    """SB-05: build-trace is a GENERATOR — it writes trace.json and exits 0
+    even when units remain uncovered (the MECE decision now lives in
+    coverage-check.py's --min-mece-coverage threshold)."""
+    sb = tmp_path / ".specback"
+    _write_source_map_with_uncovered(sb)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(sb),
+         "--target-dir-for-required", "drafts"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    trace = json.loads((sb / "trace.json").read_text(encoding="utf-8"))
+    assert trace["source_units_uncovered"] == 1
+    assert trace["mece_passed"] is False   # strict completeness fact, still recorded
+
+
+def test_e2e_fail_on_uncovered_exits_1(tmp_path):
+    """SB-05: --fail-on-uncovered opts into complete-coverage mode -> exit 1
+    when any unit is uncovered (trace.json is still written)."""
+    sb = tmp_path / ".specback"
+    _write_source_map_with_uncovered(sb)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(sb),
+         "--target-dir-for-required", "drafts",
+         "--fail-on-uncovered"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1, result.stderr
+    assert (sb / "trace.json").exists()   # still generated

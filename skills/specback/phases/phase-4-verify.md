@@ -198,7 +198,14 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
 - **Do not proceed to Phase 5 until coverage-check.py PASSes** (up to 3 loop iterations). Setting `phase_4.all_quality_gates_passed: true` is only allowed when the most recent `coverage-check.py` invocation returned exit code 0.
 - The loopback is not "padding the prose" — its purpose is to **read more real code, add more citations, and thicken the explanation**.
 - Missing cross-chapter inconsistencies makes Phase 5 dialogue explode. Squash them in Phase 4.
-- **`coverage_rate` < 100% with `all_quality_gates_passed: true` is a contradiction** and is never permitted. If full coverage is impossible within 3 iterations, leave `all_quality_gates_passed: false`, record the unfinished chapters, and surface to the user instead of advancing.
+- **The MECE completeness bar is `--min-mece-coverage` (default 70%)**, set at
+  Phase 0 / gate invocation. Reaching the threshold is what makes
+  `coverage-check.py` exit 0 and `all_quality_gates_passed: true` consistent.
+  If the project requires **complete coverage**, set `--min-mece-coverage 1.0`
+  (coverage-check) — `build-trace.py --fail-on-uncovered` provides the same
+  completeness gate at trace-generation time. If the threshold is unreachable
+  within 3 iterations, leave `all_quality_gates_passed: false`, record the
+  unfinished chapters, and surface to the user instead of advancing.
 - **Feature specifications chapter (Ch2) note**: This chapter often has a higher 🔴 ASSUMED ratio than other chapters because code is organised by layer, not by feature. The Phase 3 investigation compensates by using multiple grouping strategies (see `references/outline-tables.md`). The 🔴 ratio warning in `coverage-check.py` is **informational only** for Ch2; it does not block the Phase 4 gate. The body-length and REF-count requirements still apply in `comprehensive` mode.
 - **Design decisions chapter note**: This chapter uses import analysis and pattern detection. The ADR section may have many 🔴 entries (design rationale is rarely in code). The 🔴 ratio warning in `coverage-check.py` is **informational only** for this chapter. Body-length and REF-count requirements still apply in `comprehensive` mode.
 - **Doubt-pass does not replace coverage-check**: The doubt-pass subphase is an additional quality gate, not a substitute. `coverage-check.py` must still pass (exit code 0) before doubt-pass runs. A chapter that fails doubt (claims needing correction) is looped back to Phase 3, consuming one of the 3-attempt limit — a doubt-related loopback counts toward the iteration cap for that chapter.
