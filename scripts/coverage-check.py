@@ -87,6 +87,12 @@ USER_CUSTOM_NAMING_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*\.md$")
 NAMING_EXEMPT = {"traceability.md", "README.md"}
 REQUIRED_FILES = ("00-metadata.md", "99-unresolved.md", "traceability.md")
 
+# Specback-generated reports written into the output directory (detect-drift.py ->
+# drift-report.md, specback-health.py -> health-report.md). These are NOT spec
+# chapters and must never be quality-gated or counted toward coverage (Issue #377 /
+# SB-06). Keep this in sync with the writers' output filenames.
+GENERATED_REPORT_FILES = {"drift-report.md", "health-report.md"}
+
 # Regexes used in chapter bodies (REF markers live in scripts/refutils.py)
 CODE_FENCE_RE = re.compile(r"^```([a-zA-Z0-9_-]+)?")
 MERMAID_FENCE_RE = re.compile(r"^```mermaid\b")
@@ -392,7 +398,9 @@ def evaluate_chapter_gates(
     every two lines inside a code fence count as one body line toward the
     ``min_lines`` threshold.
     """
-    skipped_files = {"00-metadata.md", "99-unresolved.md", "traceability.md", "README.md"}
+    skipped_files = {
+        "00-metadata.md", "99-unresolved.md", "traceability.md", "README.md"
+    } | GENERATED_REPORT_FILES
     for m in metrics:
         if m.file in skipped_files:
             continue
@@ -487,7 +495,7 @@ def check_naming_convention(drafts_dir: Path, user_custom: list[str] | None = No
     """
     if not drafts_dir.exists() or not drafts_dir.is_dir():
         return []
-    allowed_exempt = set(NAMING_EXEMPT) | set(user_custom or [])
+    allowed_exempt = set(NAMING_EXEMPT) | set(user_custom or []) | GENERATED_REPORT_FILES
     warnings: list[str] = []
     for f in sorted(drafts_dir.glob("*.md")):
         if f.name in allowed_exempt:
@@ -1061,6 +1069,13 @@ def build_report(
     inventory = load_inventory(inventory_path)
     questions = load_questions(questions_path)
     chapters = scan_chapter_files(target_dir)
+    # Specback-generated reports (drift/health) are not spec chapters — drop them
+    # from the chapter map so they are never quality-gated nor counted toward
+    # coverage / naming / integrity checks (Issue #377 / SB-06).
+    chapters = {
+        name: content for name, content in chapters.items()
+        if name not in GENERATED_REPORT_FILES
+    }
     inventory_ids = {item.id for item in inventory}
 
     depth_mode = detect_depth_mode(specback_dir)
