@@ -104,15 +104,30 @@ class TestCoverageMece:
         assert not r.passed
         assert len(r._checks) > 0
 
-    def test_mece_strict_flag_honored(self) -> None:
-        """mece_passed_strict=false must fail the MECE check even at rate>=0.7.
-
-        Regression for Issue #256: gates.py fell back to ``rate >= 0.7``
-        because coverage-check.py never emitted mece_passed_strict.
-        """
+    def test_mece_above_default_threshold_passes(self) -> None:
+        """MECE gate is threshold-based: rate >= 0.7 passes regardless of the
+        stricter mece_passed_strict signal (Issue #376 / SB-05)."""
         fake_stdout = json.dumps({
             "total_inventory": 1,
             "mece_coverage_rate": 0.9,
+            "mece_passed_strict": False,   # informational only — must NOT fail
+            "gate_failures": [],
+            "missing_required": [],
+            "chapter_metrics": [],
+        })
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc(fake_stdout, returncode=0)
+            r = gates.coverage_mece(specback_dir="/x", output_dir="/x")
+        assert r.passed, f"gate should pass at +90% coverage: {r._checks}"
+        mece_check = next(c for c in r._checks if c["item"] == "MECE coverage")
+        assert mece_check["ok"] is True
+
+    def test_mece_below_default_threshold_fails(self) -> None:
+        """rate below the 0.7 default fails the MECE check even if the stricter
+        strict flag happens to be True."""
+        fake_stdout = json.dumps({
+            "total_inventory": 1,
+            "mece_coverage_rate": 0.5,
             "mece_passed_strict": False,
             "gate_failures": [],
             "missing_required": [],
@@ -121,26 +136,32 @@ class TestCoverageMece:
         with patch("gates._run_script") as mock_run:
             mock_run.return_value = _proc(fake_stdout, returncode=0)
             r = gates.coverage_mece(specback_dir="/x", output_dir="/x")
-        assert not r.passed
-        assert any(c["item"] == "MECE coverage" and not c["ok"] for c in r._checks), (
-            f"MECE check should fail when mece_passed_strict=false: {r._checks}"
-        )
+        mece_check = next(c for c in r._checks if c["item"] == "MECE coverage")
+        assert mece_check["ok"] is False
 
-    def test_mece_strict_true_passes(self) -> None:
-        """mece_passed_strict=true passes the MECE check."""
+    def test_mece_honors_custom_threshold(self) -> None:
+        """A custom --min-mece-coverage passed through extra kwargs is applied."""
         fake_stdout = json.dumps({
             "total_inventory": 1,
-            "mece_coverage_rate": 0.9,
-            "mece_passed_strict": True,
+            "mece_coverage_rate": 0.85,
             "gate_failures": [],
             "missing_required": [],
             "chapter_metrics": [],
         })
         with patch("gates._run_script") as mock_run:
             mock_run.return_value = _proc(fake_stdout, returncode=0)
-            r = gates.coverage_mece(specback_dir="/x", output_dir="/x")
+            # 0.85 >= 0.9? No -> fail under the custom strict(ish) threshold.
+            r = gates.coverage_mece(specback_dir="/x", output_dir="/x",
+                                    min_mece_coverage="0.9")
         mece_check = next(c for c in r._checks if c["item"] == "MECE coverage")
-        assert mece_check["ok"] is True
+        assert mece_check["ok"] is False
+        # And it passes with a looser custom threshold.
+        with patch("gates._run_script") as mock_run:
+            mock_run.return_value = _proc(fake_stdout, returncode=0)
+            r2 = gates.coverage_mece(specback_dir="/x", output_dir="/x",
+                                     min_mece_coverage="0.8")
+        mece_check2 = next(c for c in r2._checks if c["item"] == "MECE coverage")
+        assert mece_check2["ok"] is True
 
 
 # ===========================================================================

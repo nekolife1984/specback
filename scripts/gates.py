@@ -222,8 +222,13 @@ def coverage_mece(
             report.check(f"{key}: {data[key]}", True, "")
     if "mece_coverage_rate" in data:
         rate = data["mece_coverage_rate"]
-        ok = bool(data.get("mece_passed_strict", rate >= 0.7))
-        report.check("MECE coverage", ok, f"{rate:.0%}")
+        # MECE gate is threshold-based (--min-mece-coverage), matching
+        # coverage-check.py itself. `mece_passed_strict` (complete coverage) is
+        # a stricter, optional signal — NOT the gate criterion (Issue #376 /
+        # SB-05) so trace / coverage / gate all agree on the same threshold.
+        threshold = float(extra.get("min_mece_coverage", "0.7"))
+        ok = rate >= threshold
+        report.check("MECE coverage", ok, f"{rate:.0%} >= {threshold:.0%}")
     ch_count = len(data.get("chapter_metrics", []))
     if ch_count:
         report.check(f"chapters checked: {ch_count}", True, "")
