@@ -88,6 +88,10 @@ For non-Git projects, generate a hash snapshot after Phase 6 completes:
 python "$(cat {output_dir}/.specback/.skill-path)/scripts/snapshot-hashes.py" --specback-dir {output_dir}/.specback
 ```
 
+If the project was moved after the snapshot was first generated, the portable
+`target_root` re-resolves against the specback dir's parent (or `--project-root`
+to point at a relocated repo) — Issue #380 / SB-09.
+
 ### Phase-specific cautions
 - Dry-run by default: review proposed changes before applying with `--apply`.
 - Backups are saved to `{output_dir}/.specback/backups/<file>.<timestamp>.bak` — verify they exist before applying. The timestamp suffix means repeated applies never destroy the first backup.

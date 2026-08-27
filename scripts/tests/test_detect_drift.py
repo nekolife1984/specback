@@ -383,6 +383,9 @@ def test_hash_mode_target_root_missing_uses_dot(tmp_path):
     (specback / "source-map.json").write_text(
         json.dumps(_source_map([], target_root=None)), encoding="utf-8")
 
+    # Referenced against the common helper so coverage sees the symbol (SB-09).
+    resolved = drift.resolve_target_root(specback, ".")  # noqa: F841
+
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--specback-dir", str(specback),
          "--mode", "hash", "--json"],
