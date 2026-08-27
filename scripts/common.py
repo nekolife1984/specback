@@ -271,3 +271,54 @@ def resolve_skill_path(specback_dir: str | Path, *,
         except OSError:
             pass
     return candidate
+
+
+def resolve_target_root(
+    specback_dir: str | Path,
+    target_root: str | Path = ".",
+    *,
+    project_root: str | Path | None = None,
+) -> Path:
+    """Return an absolute, existing project root for *target_root* (Issue #380 / SB-09).
+
+    ``source-map.py`` records ``target_root`` as the *portable* basename of the
+    target (``target_path.name``), and older snapshots default it to ``"."``.
+    Both are cwd-relative, so re-running the snapshot from a different cwd or a
+    moved repo makes every unit MISSING.  This helper re-resolves the portable
+    root against the **current project root** instead of the cwd.
+
+    Resolution order (first existing directory wins):
+      1. ``*project_root*`` (explicit ``--project-root`` override) joined with
+         the portable ``target_root``.
+      2. ``{specback_dir}/..`` (the specback dir's parent — the natural project
+         root where ``.specback/`` lives) joined with the portable root.
+      3. ``{specback_dir}/..`` directly (covers ``--target .`` where the recorded
+         basename equals the project dir name).
+
+    Falls back to the absolute ``target_root`` (no de-resolution needed) when it
+    is already absolute and exists.
+    """
+    sb = Path(specback_dir)
+    tr = Path(target_root)
+
+    bases: list[Path] = []
+    if project_root is not None:
+        bases.append(Path(project_root))
+    # specback-dir parent is the project root for the common layout
+    # {output_dir}/.specback.
+    bases.append(sb.parent)
+    default_base = bases[0] if bases else Path.cwd()
+
+    if tr.is_absolute():
+        if tr.is_dir():
+            return tr.resolve()
+        return tr.resolve()
+
+    for base in bases:
+        candidate = (base / tr).resolve()
+        if candidate.is_dir():
+            return candidate
+    # Defensive: target_root may be the project-dir name itself ("." → dir name).
+    if default_base.is_dir():
+        return default_base.resolve()
+    return (default_base / tr).resolve()

@@ -45,6 +45,7 @@ from common import (
     atomic_write_text,
     hash_line_range,
     load_json_text,
+    resolve_target_root,
     sanitize_control,
     utcnow_iso,
     utcnow_iso_z,
@@ -790,7 +791,15 @@ def main(argv: list[str] | None = None) -> int:
             specback_path / "source-hashes.json",
         )
         target_root = source_hashes.get("target_root") or source_map.get("target_root") or "."
-        changes = compute_hash_changes(source_hashes, source_map, target_root)
+        # Prefer the absolute root recorded by the snapshot; else re-resolve the
+        # portable root against the current project root (Issue #380 / SB-09).
+        resolved_root = source_hashes.get("resolved_target_root")
+        if not resolved_root:
+            resolved_root = str(resolve_target_root(
+                specback_path, target_root,
+                project_root=getattr(args, "project_root", None),
+            ))
+        changes = compute_hash_changes(source_hashes, source_map, resolved_root)
         base = f"hash-snapshot ({source_hashes.get('generated_at', '?')[:19]})"
     elif args.diff is not None:
         # Explicit diff text passed

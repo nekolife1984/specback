@@ -30,6 +30,7 @@ from common import (
     atomic_write_json,
     hash_line_range,
     load_json_text,
+    resolve_target_root,
     utcnow_iso,
 )
 from pathlib import Path
@@ -153,14 +154,21 @@ def detect_scan_patterns(target_root: str | Path) -> dict[str, list[str]]:
 def build_output(
     units_hashes: dict[str, dict[str, Any]],
     target_root: str,
+    resolved_target_root: str,
     source_map_ref: str,
     scan_info: dict[str, list[str]],
 ) -> dict[str, Any]:
-    """Assemble the final source-hashes.json document."""
+    """Assemble the final source-hashes.json document.
+
+    ``target_root`` keeps the *portable* recorded root and
+    ``resolved_target_root`` records the absolute root used for this run — so a
+    moved repo can be re-hashed without ambiguity (Issue #380 / SB-09).
+    """
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": utcnow_iso(),
         "target_root": target_root,
+        "resolved_target_root": resolved_target_root,
         "source_map_ref": source_map_ref,
         "units_total": len(units_hashes),
         "units": units_hashes,
@@ -184,6 +192,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Output path for source-hashes.json "
              "(default: <output-dir>/source-hashes.json)",
+    )
+    parser.add_argument(
+        "--project-root",
+        default=None,
+        help="Absolute path to the project root used to re-resolve the portable "
+             "target_root. When omitted, the specback dir's parent is used "
+             "(Issue #380 / SB-09: moved-repo re-resolution).",
     )
     return parser.parse_args(argv)
 
@@ -218,18 +233,25 @@ def main(argv: list[str] | None = None) -> int:
 
     target_root = sm.get("target_root", ".")
 
+    # Re-resolve the portable target_root against the current project root
+    # (specback dir parent, or --project-root) so a moved repo still hashes
+    # every unit instead of marking them all MISSING (Issue #380 / SB-09).
+    resolved_root = resolve_target_root(specback_path, target_root,
+                                        project_root=args.project_root)
+
     # Compute hashes
-    units_hashes = compute_hashes(units, target_root)
+    units_hashes = compute_hashes(units, resolved_root)
 
     # Detect scan patterns for future new-file detection
-    scan_info = detect_scan_patterns(target_root)
+    scan_info = detect_scan_patterns(resolved_root)
 
     # Build output
     source_map_ref = (
         f"source-map.json ({sm.get('schema_version', '?')})"
         f" — {len(units)} units"
     )
-    output = build_output(units_hashes, target_root, source_map_ref, scan_info)
+    output = build_output(units_hashes, str(target_root),
+                          str(resolved_root), source_map_ref, scan_info)
 
     output_dir = Path(args.output_dir) if args.output_dir else specback_path
     output_path = args.output or str(output_dir / "source-hashes.json")

@@ -21,6 +21,7 @@ from common import (  # noqa: E402
     hash_line_range,
     add_specback_dir_arg,
     resolve_skill_path,
+    resolve_target_root,
 )
 
 import json  # noqa: E402
@@ -429,3 +430,33 @@ class TestResolveSkillPath:
         (running / "scripts").mkdir(parents=True)
         resolve_skill_path(specback, running_root=running, rewrite=True)
         assert (specback / ".skill-path").read_text().strip() == str(running.resolve())
+
+
+class TestResolveTargetRoot:
+    """resolve_target_root re-resolves the portable target_root (SB-09)."""
+
+    def test_specback_parent_is_root_when_recorded_dot(self, tmp_path: Path) -> None:
+        """recorded target_root '.' resolves to the specback dir's parent."""
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        assert resolve_target_root(specback) == (tmp_path / "proj").resolve()
+
+    def test_subdir_recorded_resolves_under_specback_parent(self, tmp_path: Path) -> None:
+        """recorded 'src' resolves to {proj}/src."""
+        specback = tmp_path / "proj" / ".specback"
+        (tmp_path / "proj" / "src").mkdir(parents=True)
+        assert resolve_target_root(specback, "src") == (tmp_path / "proj" / "src").resolve()
+
+    def test_project_root_override_wins(self, tmp_path: Path) -> None:
+        """--project-root override is tried first."""
+        specback = tmp_path / "a" / ".specback"
+        (tmp_path / "a").mkdir(parents=True)
+        moved = tmp_path / "moved" / "src"
+        moved.mkdir(parents=True)
+        assert resolve_target_root(specback, "src", project_root=tmp_path / "moved") == moved.resolve()
+
+    def test_absolute_recorded_used_directly(self, tmp_path: Path) -> None:
+        """An absolute target_root that exists is used as-is."""
+        abs_root = tmp_path / "abs-src"
+        abs_root.mkdir()
+        assert resolve_target_root(tmp_path / "x" / ".specback", str(abs_root)) == abs_root.resolve()
