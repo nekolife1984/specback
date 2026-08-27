@@ -24,6 +24,7 @@ Design notes
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -124,3 +125,55 @@ def line_ranges_overlap(r_start: int, r_end: int, u_start: int, u_end: int) -> b
 def count_refs(line: str) -> int:
     """Count REF markers on one line (``path:line`` and ``SRC-ID`` forms)."""
     return len(REF_RE.findall(line)) + len(SRC_REF_RE.findall(line))
+
+
+def validate_ref_range(ref_start: int, ref_end: int,
+                       total_lines: int | None = None) -> list[str]:
+    """Validate a path REF line range ``[ref_start, ref_end]`` (Issue #381 / SB-10).
+
+    Returns a list of diagnostic strings; empty means the range is usable.
+
+    Checks (in order):
+      - ``start >= 1`` (line numbers are 1-indexed; 0 means unparsed/invalid).
+      - ``start <= end`` (a reversed range ``10-5`` is never valid).
+      - ``end <= EOF`` when *total_lines* is provided (an end beyond the file's
+        last line makes the clickable range bogus even though the REF format and
+        source-map overlap are fine).
+    """
+    diag: list[str] = []
+    if ref_start < 1:
+        diag.append(f"ref start {ref_start} is not a positive line number")
+    if ref_start > ref_end:
+        diag.append(f"ref range {ref_start}-{ref_end} is reversed (start > end)")
+    if total_lines is not None and ref_end > total_lines:
+        diag.append(
+            f"ref {ref_start}-{ref_end} exceeds EOF ({total_lines} lines)")
+    return diag
+
+
+def validate_path_ref(ref_path: str, ref_start: int, ref_end: int,
+                      project_root: str | Path | None = None) -> list[str]:
+    """Validate a path REF against the referenced file (Issue #381 / SB-10).
+
+    Extends :func:`validate_ref_range` with file existence: when *project_root*
+    is given, the ref path is expected to resolve under it, and the diagnostic
+    lists a missing file.  *total_lines* for EOF checking is read from the file
+    (when it exists).  SRC-ID refs are not passed here (they carry no path/range).
+    """
+    diag = validate_ref_range(ref_start, ref_end)
+    if not ref_path:
+        diag.append("ref path is empty")
+        return diag
+    if project_root is None:
+        return diag
+    abs_path = Path(project_root) / ref_path
+    if not abs_path.exists():
+        diag.append(f"ref path not found: {ref_path}")
+        return diag
+    try:
+        with open(abs_path, "rb") as fh:
+            total_lines = sum(1 for _ in fh)
+    except OSError:
+        return diag
+    diag.extend(validate_ref_range(ref_start, ref_end, total_lines))
+    return diag

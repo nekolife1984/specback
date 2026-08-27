@@ -55,7 +55,7 @@ import argparse
 import fnmatch
 import re
 import sys
-from common import add_specback_dir_arg, atomic_write_json, utcnow_iso
+from common import add_specback_dir_arg, atomic_write_json, resolve_target_root, utcnow_iso
 from pathlib import Path
 from typing import Any
 from refutils import (
@@ -65,6 +65,7 @@ from refutils import (
     index_units_by_path,
     line_ranges_overlap,
     units_for_path,
+    validate_path_ref,
 )
 import artifact_io
 
@@ -134,7 +135,8 @@ def parse_section_at(lines: list[str], line_no_0idx: int) -> str:
     return "(prelude)"
 
 
-def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None = None) -> list[dict]:
+def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None = None,
+                         project_root: str | Path | None = None) -> list[dict]:
     """Extract every <!-- REF: ... --> from drafts/*.md (or final/*.md).
 
     Supports two formats:
@@ -144,6 +146,10 @@ def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None =
     The per-marker parsing is shared with fix-refs.py via
     :func:`refutils.find_refs_in_text` (Issue #281); this function shapes the
     raw scan into the trace schema (draft_file / section columns).
+
+    When *project_root* is given, path REFs are validated against the referenced
+    file (existence + ``1 <= start <= end <= EOF``, Issue #381 / SB-10) and each
+    invalid range is reported to stderr.
     """
     out: list[dict] = []
     if not drafts_dir.is_dir():
@@ -177,6 +183,17 @@ def scan_drafts_for_refs(drafts_dir: Path, units_by_id: dict[str, dict] | None =
                         "ref_end": 0,
                     })
             else:
+                if project_root is not None:
+                    for d in validate_path_ref(
+                        ref["ref_path"], ref["ref_start"], ref["ref_end"],
+                        project_root=str(project_root),
+                    ):
+                        print(
+                            f"build-trace.py: WARNING: {md_file.name}:{section} "
+                            f"{ref['ref_path']}:{ref['ref_start']}-"
+                            f"{ref['ref_end']}: {d}",
+                            file=sys.stderr,
+                        )
                 out.append({
                     "draft_file": md_file.name,
                     "section": section,
@@ -244,6 +261,12 @@ def main(argv: list[str] | None = None) -> int:
             "--min-mece-coverage threshold (Issue #376 / SB-05)."
         ),
     )
+    parser.add_argument(
+        "--project-root",
+        default=None,
+        help="Project root used to validate path REF ranges against file EOF "
+             "(Issue #381 / SB-10). Defaults to the specback dir's parent.",
+    )
     args = parser.parse_args(argv)
 
     sb_dir = Path(args.specback_dir)
@@ -280,7 +303,13 @@ def main(argv: list[str] | None = None) -> int:
 
     exclusions = load_exclusions(exclusions_path)
 
-    refs = scan_drafts_for_refs(drafts_dir, units_by_id)
+    refs = scan_drafts_for_refs(
+        drafts_dir, units_by_id,
+        project_root=str(resolve_target_root(
+            sb_dir, sm.get("target_root", "."),
+            project_root=args.project_root,
+        )),
+    )
     coverage = resolve_refs_to_units(refs, units)
 
     by_source: dict[str, dict[str, Any]] = {}

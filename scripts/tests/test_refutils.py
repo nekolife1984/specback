@@ -221,3 +221,64 @@ class TestCountRefs:
 
     def test_no_refs(self):
         assert refutils.count_refs("no refs here") == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# validate_ref_range / validate_path_ref (Issue #381 / SB-10)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestValidateRefRange:
+    def test_valid_range(self):
+        assert refutils.validate_ref_range(1, 10) == []
+
+    def test_valid_range_in_bounds(self):
+        assert refutils.validate_ref_range(1, 10, total_lines=50) == []
+
+    def test_single_line_ref(self):
+        assert refutils.validate_ref_range(5, 5, total_lines=50) == []
+
+    def test_start_zero_rejected(self):
+        diag = refutils.validate_ref_range(0, 0)
+        assert any("not a positive line number" in d for d in diag)
+
+    def test_reversed_range_rejected(self):
+        diag = refutils.validate_ref_range(10, 5)
+        assert any("reversed" in d for d in diag)
+
+    def test_end_exceeds_eof(self):
+        diag = refutils.validate_ref_range(1, 100, total_lines=50)
+        assert any("exceeds EOF (50 lines)" in d for d in diag)
+
+    def test_missing_path_rejected(self):
+        # validate_ref_range alone has no path context (no diagnostics).
+        assert refutils.validate_ref_range(1, 10) == []
+
+
+class TestValidatePathRef:
+    def test_missing_file_reported(self, tmp_path):
+        diag = refutils.validate_path_ref(
+            "does-not-exist.py", 1, 10, project_root=str(tmp_path),
+        )
+        assert any("path not found" in d for d in diag)
+
+    def test_eof_exceeded_reported(self, tmp_path):
+        src = tmp_path / "app.py"
+        src.write_text("a\nb\nc\n", encoding="utf-8")
+        diag = refutils.validate_path_ref("app.py", 1, 99, project_root=str(tmp_path))
+        assert any("exceeds EOF (3 lines)" in d for d in diag)
+
+    def test_existing_file_valid_range_ok(self, tmp_path):
+        src = tmp_path / "app.py"
+        src.write_text("a\nb\nc\n", encoding="utf-8")
+        assert refutils.validate_path_ref("app.py", 1, 3, project_root=str(tmp_path)) == []
+
+    def test_empty_ref_path(self):
+        diag = refutils.validate_path_ref("", 1, 10)
+        assert any("empty" in d for d in diag)
+
+    def test_exact_eof_boundary_ok(self, tmp_path):
+        src = tmp_path / "app.py"
+        src.write_text("a\nb\nc\n", encoding="utf-8")
+        # end == EOF is the boundary — allowed.
+        assert refutils.validate_path_ref("app.py", 1, 3, project_root=str(tmp_path)) == []
