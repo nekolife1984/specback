@@ -85,6 +85,27 @@ class TestScriptPath:
             # Fallback should point to the parent of scripts/
             assert sp.name == "specback" or (sp / "scripts").exists()
 
+    def test_skill_path_stale_record_falls_back(self, tmp_path) -> None:
+        """A stale .skill-path (non-existent dir) resolves to the running root."""
+        sp_dir = tmp_path / ".specback"
+        sp_dir.mkdir(parents=True)
+        (sp_dir / ".skill-path").write_text(str(tmp_path / "gone" / "skill"))
+        sp = gates._resolve_skill_path(str(sp_dir))
+        # Not the stale path; some resolvable skill root.
+        assert sp != (tmp_path / "gone" / "skill")
+        assert (sp / "scripts").exists()
+
+    def test_skill_path_no_scripts_falls_back(self, tmp_path) -> None:
+        """A .skill-path pointing at a dir without scripts/ is stale."""
+        sp_dir = tmp_path / ".specback"
+        sp_dir.mkdir(parents=True)
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        (sp_dir / ".skill-path").write_text(str(plain))
+        sp = gates._resolve_skill_path(str(sp_dir))
+        assert sp != plain
+        assert (sp / "scripts").exists()
+
 
 # ===========================================================================
 # coverage_mece gate

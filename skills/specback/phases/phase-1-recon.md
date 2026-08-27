@@ -8,7 +8,7 @@ Get a rough mental model of the codebase via a shallow reconnaissance, then pick
 When `goal.multi_scope == true`, the following steps apply:
 1. **Determine the current scope**: Read `goal.current_scope` (index into `goal.scopes[]`). Let `scope = goal.scopes[current_scope]`.
 2. **Set scope-specific paths**: `SPECBACK_DIR = "{output_dir}/{scope.name}/.specback"`, `TARGET_ROOT = scope.root`.
-3. **Ensure `.skill-path`**: `mkdir -p {SPECBACK_DIR} && ln -sf $(cat {output_dir}/.specback/.skill-path) {SPECBACK_DIR}/.skill-path`
+3. **Ensure `.skill-path`** (validate → re-resolve): `SP="$(cat {output_dir}/.specback/.skill-path 2>/dev/null)"; [ -z "$SP" ] || [ ! -d "$SP/scripts" ] && echo "$PWD" > {output_dir}/.specback/.skill-path; mkdir -p {SPECBACK_DIR} && ln -sf $(cat {output_dir}/.specback/.skill-path) {SPECBACK_DIR}/.skill-path`
 4. **Run the procedure below** using `{SPECBACK_DIR}` and `{TARGET_ROOT}`.
 5. **On completion**: Increment `goal.current_scope`. If `current_scope >= scopes.length`, reset to `0`.
 6. **Resume support**: Save `state.json` with `current_scope` after each scope.

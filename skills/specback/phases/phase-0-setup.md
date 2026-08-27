@@ -8,7 +8,7 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
 When `goal.multi_scope == true`, the following steps apply:
 1. **Determine the current scope**: Read `goal.current_scope` (index into `goal.scopes[]`). Let `scope = goal.scopes[current_scope]`.
 2. **Set scope-specific paths**: `SPECBACK_DIR = "{output_dir}/{scope.name}/.specback"`, `TARGET_ROOT = scope.root`.
-3. **Ensure `.skill-path`**: `mkdir -p {SPECBACK_DIR} && ln -sf $(cat {output_dir}/.specback/.skill-path) {SPECBACK_DIR}/.skill-path`
+3. **Ensure `.skill-path`** (validate → re-resolve): `SP="$(cat {output_dir}/.specback/.skill-path 2>/dev/null)"; [ -z "$SP" ] || [ ! -d "$SP/scripts" ] && echo "$PWD" > {output_dir}/.specback/.skill-path; mkdir -p {SPECBACK_DIR} && ln -sf $(cat {output_dir}/.specback/.skill-path) {SPECBACK_DIR}/.skill-path`
 4. **Run the procedure below** using `{SPECBACK_DIR}` and `{TARGET_ROOT}`.
 5. **On completion**: Increment `goal.current_scope`. If `current_scope >= scopes.length`, reset to `0`.
 6. **Resume support**: Save `state.json` with `current_scope` after each scope.
@@ -41,7 +41,16 @@ When `goal.multi_scope == false` (default), run once with `{output_dir}/.specbac
      echo "/absolute/path/to/specback/skill/root" > "{output_dir}/.specback/.skill-path"
      ```
      **Replace `/absolute/path/to/repo/root`** with the real path. The skill reference files and shared utilities are at `references/`, `scripts/`, `schemas/`, etc. in the repo root.
-   - If an existing `{SPECBACK_DIR}/state.json` is found, branch to resume mode (see "State management and resume" below). Resume mode re-reads `.skill-path` before continuing, in case the skill was reinstalled or upgraded.
+   - **If an existing `{SPECBACK_DIR}/state.json` is found, branch to resume mode** (see "State management and resume" below). Resume mode **re-reads and validates** `.skill-path` before continuing (Issue #372 / SB-01):
+     ```bash
+     SP="$(cat "{output_dir}/.specback/.skill-path" 2>/dev/null)"
+     if [ -z "$SP" ] || [ ! -d "$SP/scripts" ]; then
+       # Recorded path is stale/absent — re-resolve to the currently running skill root
+       # (the directory containing the SKILL.md you are reading right now).
+       echo "$PWD" > "{output_dir}/.specback/.skill-path"
+     fi
+     ```
+     This lets a moved repo / DevContainer / re-installed skill resume without manual edits. (The same resolve-then-fallback logic is shared in `scripts/common.py::resolve_skill_path` — used by `gates.py`.)
 
 3. **Output language selection**
 

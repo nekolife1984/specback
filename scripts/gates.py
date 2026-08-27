@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import common
 from common import reject_nonfinite
 
 # ---------------------------------------------------------------------------
@@ -103,12 +104,13 @@ class GateReport:
 
 
 def _resolve_skill_path(specback_dir: str) -> Path:
-    """Return the skill root from ``{specback_dir}/.skill-path``."""
-    sp = Path(specback_dir) / ".skill-path"
-    if sp.exists():
-        return Path(sp.read_text(encoding="utf-8").strip()).resolve()
-    # fallback: sibling of `scripts/`
-    return Path(__file__).resolve().parent.parent
+    """Return the skill root from ``{specback_dir}/.skill-path``.
+
+    Delegates to ``common.resolve_skill_path``: validates the recorded path
+    (existing directory containing ``scripts/``) and falls back to the running
+    skill root if the recorded one is stale (Issue #372 / SB-01).
+    """
+    return common.resolve_skill_path(specback_dir)
 
 
 def _script_path(name: str) -> Path:
