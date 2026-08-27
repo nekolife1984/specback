@@ -984,3 +984,136 @@ def test_apply_trace_failure_when_no_prior_trace(tmp_path, monkeypatch):
     assert out["json"]["rollback"]["trace_restored"] is True
     assert (fx["output"] / "05-data-model.md").read_text() == orig_chapter
     assert not (fx["specback"] / "trace.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# SB-04 / Issue #375 — baseline refresh on apply, multi-chapter sequential apply
+# ---------------------------------------------------------------------------
+
+def _make_two_chapter_fixture(root: Path) -> dict:
+    """Build a fixture with TWO affected chapters (05-data-model + 03-api)."""
+    fx = _make_fixture(root)
+    specback, output = fx["specback"], fx["output"]
+
+    # Second source unit + chapter.
+    sm = json.loads((specback / "source-map.json").read_text())
+    sm["units"].append({
+        "id": "SRC-0030", "path": "src/api/server.rb",
+        "line_range": [1, 50], "kind": "class", "name": "Server",
+    })
+    (specback / "source-map.json").write_text(json.dumps(sm), encoding="utf-8")
+
+    tr = json.loads((specback / "trace.json").read_text())
+    tr["by_source"]["SRC-0030"] = {
+        "path": "src/api/server.rb",
+        "covered_by_sections": [{"file": "03-api.md", "section": "3.1 Server"}],
+    }
+    (specback / "trace.json").write_text(json.dumps(tr), encoding="utf-8")
+
+    dr = json.loads((specback / "drift-report.json").read_text())
+    dr["changes"].append({
+        "file": "src/api/server.rb", "status": "M", "src_ids": ["SRC-0030"],
+        "impacted_sections": [{
+            "file": "03-api.md", "section": "3.1 Server", "impact": "moderate",
+        }],
+    })
+    (specback / "drift-report.json").write_text(json.dumps(dr), encoding="utf-8")
+
+    wbs = json.loads((specback / "wbs.json").read_text())
+    wbs["chapters"].append({"filename": "03-api.md", "title": "API", "kind": "standard"})
+    (specback / "wbs.json").write_text(json.dumps(wbs), encoding="utf-8")
+
+    (output / "03-api.md").write_text(
+        "# API\n\n## 3.1 Server\n\nServer ref. <!-- REF: SRC-0030 -->\n",
+        encoding="utf-8",
+    )
+    return fx
+
+
+def _apply_ok_in_process(fx: dict, chapter: str, new_text: str) -> bool:
+    """Run cmd_apply in-process with trace refresh skipped (SB-04 focus)."""
+    import argparse
+    import io
+    updated_dir = fx["specback"] / "incremental" / "updated"
+    updated_dir.mkdir(parents=True, exist_ok=True)
+    updated = updated_dir / chapter
+    updated.write_text(new_text, encoding="utf-8")
+    args = argparse.Namespace(
+        specback_dir=str(fx["specback"]),
+        output_dir=str(fx["output"]),
+        updated=str(updated),
+        json=True,
+        skip_trace_refresh=True,
+    )
+    stdout = io.StringIO()
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = stdout, io.StringIO()
+    try:
+        rc = incr.cmd_apply(args)
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+    return rc == 0
+
+
+def test_apply_refreshes_baseline_hash(tmp_path):
+    """SB-04: after a successful apply, state.json chapter_hashes[target] updates."""
+    fx = _make_two_chapter_fixture(tmp_path)
+    _plan_first(fx)
+    state_path = fx["specback"] / "incremental" / "state.json"
+    state = json.loads(state_path.read_text())
+    orig_hash = state["chapter_hashes"]["05-data-model.md"]
+
+    new_text = "# Data model\n\n## 5.2 Issue\n\nUpdated. <!-- REF: SRC-0010 -->\n"
+    assert _apply_ok_in_process(fx, "05-data-model.md", new_text) is True
+
+    state2 = json.loads(state_path.read_text())
+    new_hash = state2["chapter_hashes"]["05-data-model.md"]
+    assert new_hash != orig_hash
+    assert new_hash == incr.sha256_file(fx["output"] / "05-data-model.md")
+
+
+def test_multi_chapter_sequential_apply_not_collateral(tmp_path):
+    """SB-04: applying chapter 1 then chapter 2 does not flag chapter 1 as collateral."""
+    fx = _make_two_chapter_fixture(tmp_path)
+    _plan_first(fx)
+
+    # Apply chapter 1 (05-data-model.md) first.
+    ch1_new = "# Data model\n\n## 5.2 Issue\n\nUpdated. <!-- REF: SRC-0010 -->\n"
+    assert _apply_ok_in_process(fx, "05-data-model.md", ch1_new) is True
+
+    # Verify chapter 2 (03-api.md) — chapter 1's legitimate change must NOT be
+    # flagged as a collateral edit (baseline was refreshed on apply).
+    updated_dir = fx["specback"] / "incremental" / "updated"
+    updated_dir.mkdir(parents=True, exist_ok=True)
+    updated = updated_dir / "03-api.md"
+    updated.write_text(
+        "# API\n\n## 3.1 Server\n\nFully updated. <!-- REF: SRC-0030 -->\n",
+        encoding="utf-8",
+    )
+    result, _ = incr._run_verify_checks(
+        Path(fx["specback"]), Path(fx["output"]), updated.read_bytes(), "03-api.md",
+    )
+    assert result["passed"] is True, result
+    assert result["collateral_check"]["changed_unexpected"] == []
+
+    # And chapter 2 can be applied too.
+    assert _apply_ok_in_process(fx, "03-api.md",
+                                "# API\n\n## 3.1 Server\n\nFully updated. <!-- REF: SRC-0030 -->\n") is True
+
+
+def test_multi_chapter_apply_smoke(tmp_path):
+    """End-to-end: plan + apply all N chapters sequentially without replan."""
+    fx = _make_two_chapter_fixture(tmp_path)
+    _plan_first(fx)
+    _apply_ok_in_process(fx, "05-data-model.md",
+                         "# Data model\n\n## 5.2 Issue\n\nUpdated1. <!-- REF: SRC-0010 -->\n")
+    _apply_ok_in_process(fx, "03-api.md",
+                         "# API\n\n## 3.1 Server\n\nUpdated2. <!-- REF: SRC-0030 -->\n")
+    # Both chapters reflect their applied content (baseline stayed consistent).
+    assert "Updated1" in (fx["output"] / "05-data-model.md").read_text()
+    assert "Updated2" in (fx["output"] / "03-api.md").read_text()
+    state = json.loads((fx["specback"] / "incremental" / "state.json").read_text())
+    assert state["chapter_hashes"]["05-data-model.md"] == \
+        incr.sha256_file(fx["output"] / "05-data-model.md")
+    assert state["chapter_hashes"]["03-api.md"] == \
+        incr.sha256_file(fx["output"] / "03-api.md")

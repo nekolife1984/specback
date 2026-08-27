@@ -64,6 +64,11 @@ whole document.
    on failure so automation can tell whether the restore fully succeeded. A non-zero
    exit means nothing was left half-applied.
 
+   On success, the applied chapter's baseline hash in `state.json` is refreshed, so
+   the same `plan` can be applied to the remaining affected chapters **sequentially
+   without re-running plan** — an earlier chapter's legitimate change is not mistaken
+   for a collateral edit by a later chapter's `verify` (Issue #375 / SB-04).
+
 5. **Confirm full verification** — after all affected chapters are applied, run
    `coverage-check.py` and `gates.py` on the output dir. Both must pass (success
    metric: traceability integrity preserved after the update).

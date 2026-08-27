@@ -685,11 +685,47 @@ def cmd_apply(args: argparse.Namespace) -> int:
         if not args.json:
             print(f"trace refreshed: {specback_dir / 'trace.json'}")
 
+    # 4) Re-snapshot the applied chapter's baseline hash so a subsequent
+    #    chapter's verify() does not flag this legitimate change as a collateral
+    #    edit (Issue #375 / SB-04). plan() snapshotted every chapter once; each
+    #    successful apply must refresh its own baseline before the next applies.
+    _update_chapter_baseline(specback_dir, target, sha256_bytes(updated_bytes))
+
     if args.json:
         backup_reported = str(backup_path) if backup_path.exists() else None
         print(json.dumps({"applied": True, "target": target,
                           "backup": backup_reported}, ensure_ascii=False, indent=1))
     return 0
+
+
+# ---------------------------------------------------------------------------
+# shared state helpers
+# ---------------------------------------------------------------------------
+
+def _update_chapter_baseline(specback_dir: Path, target: str, new_hash: str) -> None:
+    """Record the just-applied chapter hash in state.json (Issue #375 / SB-04).
+
+    Re-reads state.json so concurrent/successive applies each persist their own
+    update, then atomically rewrites it (temp file + os.replace).
+    """
+    state_path = specback_dir / INCREMENTAL_DIR_NAME / STATE_FILE_NAME
+    if not state_path.exists():
+        _fail(f"state.json not found: {state_path} — run 'plan' first", code=3)
+    state = _load_json_object(state_path, "state.json")
+    if state.get("schema_version") != SCHEMA_VERSION:
+        _fail(
+            f"state.json schema mismatch: expected {SCHEMA_VERSION}, got "
+            f"{state.get('schema_version')!r} — re-run 'plan'",
+            code=3,
+        )
+    hashes = state.get("chapter_hashes", {})
+    if not isinstance(hashes, dict):
+        _fail("state.json chapter_hashes must be an object", code=3)
+    hashes[target] = new_hash
+    tmp = state_path.with_name(f"{STATE_FILE_NAME}.tmp")
+    _write_new_file(tmp, (json.dumps(state, ensure_ascii=False, indent=1) + "\n")
+                    .encode("utf-8"))
+    os.replace(tmp, state_path)
 
 
 def _rollback_apply(backup_path: Path, target_path: Path,
