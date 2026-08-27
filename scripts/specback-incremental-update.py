@@ -29,7 +29,11 @@ Common flags
     --specback-dir PATH   Directory holding wbs.json / source-map.json / trace.json
                           (default: .specback)
     --output-dir PATH     Where final spec chapters live (default: .)
-    --drift-report PATH   Drift report input (default: {specback-dir}/drift-report.json)
+    --drift-report PATH   Drift report JSON input. Default resolves to
+                          {output-dir}/drift-report.json (the canonical location
+                          that Phase 7 detect-drift.py --json writes), falling
+                          back to {specback-dir}/drift-report.json for
+                          backward compatibility (Issue #373 / SB-02).
     --json                Machine-readable stdout for plan/verify/apply
 
 apply-only flag
@@ -671,7 +675,11 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--output-dir", default=".",
                    help="Where final spec chapters live (default: .)")
     p.add_argument("--drift-report", default=None,
-                   help="Drift report input (default: {specback-dir}/drift-report.json)")
+                   help="Drift report JSON input. Default resolves to "
+                        "{output-dir}/drift-report.json (canonical, written by "
+                        "Phase 7 detect-drift.py --json), falling back to "
+                        "{specback-dir}/drift-report.json (backward "
+                        "compat) — Issue #373 / SB-02")
     p.add_argument("--json", action="store_true",
                    help="Machine-readable stdout for plan/verify/apply")
 
@@ -703,8 +711,24 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.drift_report is None:
-        args.drift_report = str(Path(args.specback_dir) / "drift-report.json")
+        args.drift_report = str(_resolve_drift_report(
+            Path(args.specback_dir), Path(args.output_dir)))
     return args.func(args)
+
+
+def _resolve_drift_report(specback_dir: Path, output_dir: Path) -> Path:
+    """Resolve the drift-report.json input path (Issue #373 / SB-02).
+
+    Canonical location is ``{output_dir}/drift-report.json`` — where Phase 7
+    ``detect-drift.py --json --output-dir`` writes it. For backward
+    compatibility, if the canonical path does not exist but
+    ``{specback_dir}/drift-report.json`` does, fall back to that (older Phase 7
+    runs / workspaces wrote it into .specback/).
+    """
+    canonical = output_dir / "drift-report.json"
+    if canonical.exists() or not (specback_dir / "drift-report.json").exists():
+        return canonical
+    return specback_dir / "drift-report.json"
 
 
 if __name__ == "__main__":

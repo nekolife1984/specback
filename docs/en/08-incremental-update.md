@@ -60,7 +60,7 @@ python scripts/specback-incremental-update.py <plan|verify|apply> \
 |------|---------|---------|
 | `--specback-dir` | `.specback` | Directory holding `wbs.json`, `source-map.json`, `trace.json` |
 | `--output-dir` | `.` | Where final spec chapters live (e.g. `specs/`) |
-| `--drift-report` | `{specback-dir}/drift-report.json` | Drift report input |
+| `--drift-report` | `{output-dir}/drift-report.json` (fallback: `{specback-dir}/drift-report.json`) | Drift report JSON input — canonical location written by `detect-drift.py --json --output-dir` in Phase 7 |
 | `--json` | off | Machine-readable stdout for plan/verify |
 | `--skip-trace-refresh` | off | `apply` — skip the `build-trace.py` subprocess |
 

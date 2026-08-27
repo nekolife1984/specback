@@ -165,6 +165,65 @@ def test_plan_writes_prompt_and_state(tmp_path):
     assert isinstance(state["chapter_hashes"]["00-metadata.md"], str)
 
 
+def test_drift_report_resolution_output_dir_preferred(tmp_path):
+    """Canonical {output-dir}/drift-report.json wins over {specback-dir} (SB-02)."""
+    root = tmp_path / "proj"
+    specback = root / ".specback"
+    output = root / "specs"
+    specback.mkdir(parents=True)
+    output.mkdir(parents=True)
+    # Distinct reports: output-dir holds the canonical report.
+    _write_json(specback / "drift-report.json", {
+        "changes": [{"file": "05-data-model.md", "status": "M", "impacted_sections": []}],
+        "deleted_with_refs": [], "no_impact": [], "new_uncovered": [],
+    })
+    _write_json(output / "drift-report.json", {
+        "changes": [{"file": "00-metadata.md", "status": "M", "impacted_sections": []}],
+        "deleted_with_refs": [], "no_impact": [], "new_uncovered": [],
+    })
+    _write_json(specback / "wbs.json", {"chapters": [
+        {"filename": "00-metadata.md", "title": "Metadata", "kind": "reserved"},
+        {"filename": "05-data-model.md", "title": "Data model", "kind": "standard"},
+    ]})
+    _write_json(specback / "source-map.json", {"units": []})
+    _write_json(specback / "trace.json", {"by_source": {}})
+    result = _run("plan", "--specback-dir", str(specback),
+                  "--output-dir", str(output), "--json")
+    assert result.returncode == 2, result.stderr  # no affected @ 00-metadata (reserved)
+    state = json.loads((specback / "incremental" / "state.json").read_text())
+    assert state["affected_chapters"] == []
+
+
+def test_drift_report_resolution_specback_fallback(tmp_path):
+    """No canonical report → fall back to {specback-dir}/drift-report.json (SB-02)."""
+    root = tmp_path / "proj"
+    specback = root / ".specback"
+    output = root / "specs"
+    specback.mkdir(parents=True)
+    output.mkdir(parents=True)
+    # Only specback has the report (legacy layout); it lists a real affected chapter.
+    _write_json(specback / "drift-report.json", {
+        "changes": [{"file": "src/models/issue.rb", "status": "M",
+                     "impacted_sections": [{"file": "05-data-model.md",
+                                            "section": "5.2 Issue"}]}],
+        "deleted_with_refs": [], "no_impact": [], "new_uncovered": [],
+    })
+    _write_json(specback / "wbs.json", {"chapters": [
+        {"filename": "05-data-model.md", "title": "Data model", "kind": "standard"},
+    ]})
+    _write_json(specback / "source-map.json", {
+        "units": [{"id": "SRC-0010", "path": "src/models/issue.rb",
+                   "line_range": [1, 40], "kind": "class", "name": "Issue"}],
+    })
+    _write_json(specback / "trace.json", {"by_source": {}})
+    result = _run("plan", "--specback-dir", str(specback),
+                  "--output-dir", str(output), "--json")
+    # If the fallback had failed, plan would exit 1 (missing drift report).
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert [c["file"] for c in data["affected_chapters"]] == ["05-data-model.md"]
+
+
 def test_plan_missing_drift_report_exit_1(tmp_path):
     specback = tmp_path / ".specback"
     specback.mkdir(parents=True)

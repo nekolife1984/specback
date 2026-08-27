@@ -51,7 +51,7 @@ python scripts/specback-incremental-update.py <plan|verify|apply> \
 |--------|-----------|------|
 | `--specback-dir` | `.specback` | `wbs.json` / `source-map.json` / `trace.json` があるディレクトリ |
 | `--output-dir` | `.` | 最終仕様書の章が置かれているディレクトリ（例: `specs/`） |
-| `--drift-report` | `{specback-dir}/drift-report.json` | ドリフトレポート入力 |
+| `--drift-report` | `{output-dir}/drift-report.json`（フォールバック: `{specback-dir}/drift-report.json`） | ドリフトレポートJSON入力 — Phase 7 で `detect-drift.py --json --output-dir` が書き出す正規配置 |
 | `--json` | off | plan/verify の機械可読 stdout |
 | `--skip-trace-refresh` | off | `apply` — `build-trace.py` サブプロセスをスキップ |
 

@@ -37,11 +37,12 @@ When `goal.multi_scope == false` (default), run the phase procedure once with `{
    - Git repo + `state.json.generated_at_commit` present → **git mode**
    - `{output_dir}/.specback/source-hashes.json` exists → **hash mode**
 
-2. **Run detect-drift.py**
+2. **Run detect-drift.py** (with `--json` so Phase 7e can consume the machine-readable report)
    ```bash
    python "$(cat {output_dir}/.specback/.skill-path)/scripts/detect-drift.py" \
      --specback-dir {output_dir}/.specback \
-     --output-dir {output_dir}
+     --output-dir {output_dir} \
+     --json
    ```
 
 3. **Review output**
