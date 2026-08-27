@@ -81,11 +81,11 @@ python scripts/specback-incremental-update.py <plan|verify|apply> \
 
 `verify` と同じチェックを実行してから:
 
-1. 現在の章を `{output_dir}/{target}.pre-incremental` にバックアップ。
+1. 現在の章と `trace.json` をバックアップ（`{output_dir}/{target}.pre-incremental` と `{specback-dir}/trace.json.pre-incremental`）。
 2. アトミックに置換（一時ファイル + `os.replace`）。
-3. `build-trace.py` で `trace.json` を更新（`--skip-trace-refresh` でスキップ可）。
+3. `build-trace.py` で `trace.json` を更新（`--skip-trace-refresh` でスキップ可）。**失敗時は章と trace が自動的に apply 前へ復元される**（同一トランザクション）。`--json` の結果は失敗時に `rollback: {chapter_restored, trace_restored}` を含みます。
 
-終了コード: `0` 成功 · `1` チェック失敗 or build-trace 失敗 · `3` state.json 欠落。
+終了コード: `0` 成功 · `1` チェック失敗 or build-trace 失敗（rollback 済み）· `3` state.json 欠落。
 
 ## 再調査プロンプト
 
@@ -98,6 +98,7 @@ python scripts/specback-incremental-update.py <plan|verify|apply> \
 | SRC-ID 再採番トラップ | `verify` が `source-map.json` に存在しない `<!-- REF: SRC-NNNN -->` を含む章を拒否 |
 | 巻き込み変更ゼロ | `plan` が全章ハッシュをスナップショット、`verify` が対象外の変更で失敗 |
 | アトミック適用 | バックアップ + 一時ファイル + `os.replace`。唯一のコピーをその場で切り詰めない |
+| トランザクション復元 | 章と trace をまとめてバックアップ。trace 更新失敗時は両方を apply 前の状態へ復元（`--json` 結果の `rollback` で判定） |
 | 冪等な状態 | `state.json` は `plan` が再生成。状態欠落時は `verify`/`apply` を拒否 |
 | 入力安全性 | JSON 入力は 50 MiB 上限、非 dict JSON は exit 1 で拒否 |
 

@@ -47,7 +47,10 @@ whole document.
    All `<!-- REF: SRC-NNNN -->` must exist in `source-map.json`; no other chapter
    file may differ from the baseline. Exit 0 = safe to apply.
 
-4. **Apply** — backup + atomic replace + refresh trace:
+4. **Apply** — backup + atomic replace + refresh trace. Chapter and trace are
+   treated as one **transaction**: both are backed up, and if the trace refresh
+   (`build-trace.py`) fails, both are automatically rolled back to their
+   pre-apply state (chapter + trace hashes match what they were before apply):
 
    ```bash
    python "$(cat {output_dir}/.specback/.skill-path)/scripts/specback-incremental-update.py" \
@@ -56,6 +59,10 @@ whole document.
      --output-dir {output_dir} \
      --updated {specback-dir}/incremental/updated/<chapter>.md
    ```
+
+   With `--json`, the result includes `rollback: {chapter_restored, trace_restored}`
+   on failure so automation can tell whether the restore fully succeeded. A non-zero
+   exit means nothing was left half-applied.
 
 5. **Confirm full verification** — after all affected chapters are applied, run
    `coverage-check.py` and `gates.py` on the output dir. Both must pass (success

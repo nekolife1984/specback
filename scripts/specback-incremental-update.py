@@ -627,6 +627,22 @@ def cmd_apply(args: argparse.Namespace) -> int:
             os.chmod(backup_path, 0o600)
             print(f"backup: {backup_path}", file=sys.stderr)
 
+    # 1b) Backup trace.json too, so chapter + trace are one transaction and can
+    #     be rolled back together on a build-trace failure (Issue #374 / SB-03).
+    trace_path = specback_dir / "trace.json"
+    trace_backup = trace_path.with_name("trace.json.pre-incremental")
+    trace_had_original = not args.skip_trace_refresh and trace_path.exists()
+    if trace_had_original:
+        if trace_backup.exists():
+            if trace_backup.is_symlink():
+                _fail(f"refusing backup: {trace_backup} is a symlink")
+            print(f"warning: trace backup already exists, keeping it: {trace_backup}",
+                  file=sys.stderr)
+        else:
+            shutil.copy2(trace_path, trace_backup)
+            os.chmod(trace_backup, 0o600)
+            print(f"backup: {trace_backup}", file=sys.stderr)
+
     # 2) Atomic replace (same bytes that were verified — TOCTOU-safe).
     tmp_path = target_path.with_name(f".{target}.tmp")
     _write_new_file(tmp_path, updated_bytes)
@@ -634,13 +650,19 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if not args.json:
         print(f"replaced: {target_path}")
 
-    # 3) Refresh trace (unless skipped). NOTE: the chapter is replaced BEFORE
-    #    trace refresh; on build-trace failure the .pre-incremental backup is
-    #    the recovery path (apply exits 1 and reports the failure).
+    # 3) Refresh trace (unless skipped). The chapter is replaced BEFORE trace
+    #    refresh; on build-trace failure both the chapter and trace are
+    #    atomically rolled back from their .pre-incremental backups so the
+    #    apply either fully commits or fully restores (Issue #374 / SB-03).
     if not args.skip_trace_refresh:
         bt = _script_dir() / "build-trace.py"
         if not bt.exists():
-            _fail(f"build-trace.py not found: {bt} (use --skip-trace-refresh to bypass)")
+            rollback = _rollback_apply(backup_path, target_path,
+                                       trace_backup, trace_path, trace_had_original)
+            print(f"ERROR: build-trace.py not found: {bt}", file=sys.stderr)
+            _report_apply_failure(args, result, rollback,
+                                  "build-trace.py not found")
+            return 1
         proc = subprocess.run(
             [
                 sys.executable, str(bt),
@@ -654,8 +676,12 @@ def cmd_apply(args: argparse.Namespace) -> int:
         )
         if proc.returncode != 0:
             print(proc.stderr.strip(), file=sys.stderr)
-            _fail(f"build-trace.py failed (exit {proc.returncode}); "
-                  f"recover from backup: {backup_path}")
+            rollback = _rollback_apply(backup_path, target_path,
+                                       trace_backup, trace_path, trace_had_original)
+            _report_apply_failure(
+                args, result, rollback,
+                f"build-trace.py failed (exit {proc.returncode})")
+            return 1
         if not args.json:
             print(f"trace refreshed: {specback_dir / 'trace.json'}")
 
@@ -664,6 +690,70 @@ def cmd_apply(args: argparse.Namespace) -> int:
         print(json.dumps({"applied": True, "target": target,
                           "backup": backup_reported}, ensure_ascii=False, indent=1))
     return 0
+
+
+def _rollback_apply(backup_path: Path, target_path: Path,
+                    trace_backup: Path, trace_path: Path,
+                    trace_had_original: bool) -> dict:
+    """Atomically restore chapter + trace from their backups (Issue #374 / SB-03).
+
+    Returns a status dict describing restore success/failure per artifact so the
+    caller can include it in the JSON result.
+    """
+    status: dict[str, bool | str | None] = {
+        "chapter_restored": False, "trace_restored": False,
+        "chapter_error": None, "trace_error": None,
+    }
+    # Chapter: os.replace the backup back into place (existing entry replaced).
+    if backup_path.exists() and not backup_path.is_symlink():
+        try:
+            os.replace(backup_path, target_path)
+            status["chapter_restored"] = True
+        except OSError as exc:
+            status["chapter_error"] = str(exc)
+    else:
+        status["chapter_error"] = f"chapter backup missing or symlinked: {backup_path}"
+
+    # Trace: if it existed before, restore from backup; otherwise remove whatever
+    # build-trace may have created so pre-apply state is restored.
+    try:
+        if trace_had_original:
+            if trace_backup.exists() and not trace_backup.is_symlink():
+                os.replace(trace_backup, trace_path)
+                status["trace_restored"] = True
+            else:
+                status["trace_error"] = f"trace backup missing or symlinked: {trace_backup}"
+        else:
+            if trace_path.exists() and not trace_path.is_symlink():
+                trace_path.unlink()
+                status["trace_restored"] = True
+            else:
+                status["trace_restored"] = True  # nothing to remove
+    except OSError as exc:
+        status["trace_error"] = str(exc)
+    return status
+
+
+def _report_apply_failure(args: argparse.Namespace, verify_result: dict,
+                          rollback: dict, reason: str) -> None:
+    """Print a non-zero apply failure, including rollback status (Issue #374)."""
+    if args.json:
+        print(json.dumps({"applied": False, "verify": verify_result,
+                          "rollback": rollback, "reason": reason},
+                         ensure_ascii=False, indent=1))
+    else:
+        _print_verify_human(verify_result)
+        print(f"ERROR: apply aborted: {reason}")
+        restored = rollback.get("chapter_restored") and rollback.get("trace_restored")
+        print(f"rollback: "
+              f"chapter={rollback['chapter_restored']} "
+              f"trace={rollback['trace_restored']}")
+        if not restored:
+            for label, err in (("chapter", rollback["chapter_error"]),
+                               ("trace", rollback["trace_error"])):
+                if err:
+                    print(f"  rollback WARNING: {label} not restored: {err}",
+                          file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
