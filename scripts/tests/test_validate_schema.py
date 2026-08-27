@@ -89,6 +89,83 @@ class TestStateSchema:
         assert pp["type"] == "object"
         assert "patternProperties" in pp
 
+    def test_state_schema_has_generated_at_commit_field(self):
+        """SB-08: state.schema must allow generated_at_commit (string-or-null, 40-hex)."""
+        schema = _schema("state.schema.json")
+        field = schema["properties"]["generated_at_commit"]
+        assert field["type"] == ["string", "null"]
+        assert field["pattern"] == "^[0-9a-fA-F]{40}$"
+
+    def _valid_state(self, **overrides) -> dict:
+        base = {
+            "current_phase": 3,
+            "phase_progress": {
+                "phase_0": {"total_subtasks": 5, "completed_subtasks": 5, "blocked_subtasks": []},
+            },
+            "started_at": "2026-07-30T00:00:00+09:00",
+            "last_updated": "2026-07-30T12:00:00+09:00",
+        }
+        base.update(overrides)
+        return base
+
+    @pytest.mark.parametrize("commit", [
+        "a" * 40,                      # lowercase hex, full length
+        "AB12CD34EF5678900000000000000000000000AB",  # 40 mixed-case hex
+    ])
+    def test_accepts_state_with_generated_at_commit(self, commit):
+        """A state with a valid 40-hex generated_at_commit passes the schema gate."""
+        good = self._valid_state(generated_at_commit=commit)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(good, f)
+            tmp = f.name
+        try:
+            result = _run_validate(str(SCHEMA_DIR / "state.schema.json"), tmp)
+            assert result.returncode == 0, f"valid state w/ commit rejected:\n{result.stderr}"
+        finally:
+            os.unlink(tmp)
+
+    def test_accepts_state_with_null_commit(self):
+        """Commit unknown (hash mode) is valid as null."""
+        good = self._valid_state(generated_at_commit=None)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(good, f)
+            tmp = f.name
+        try:
+            result = _run_validate(str(SCHEMA_DIR / "state.schema.json"), tmp)
+            assert result.returncode == 0, f"valid state w/ null commit rejected:\n{result.stderr}"
+        finally:
+            os.unlink(tmp)
+
+    def test_accepts_state_without_commit(self):
+        """Omission is valid — the field is not required (fallback to HEAD)."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(self._valid_state(), f)
+            tmp = f.name
+        try:
+            result = _run_validate(str(SCHEMA_DIR / "state.schema.json"), tmp)
+            assert result.returncode == 0, f"valid state w/o commit rejected:\n{result.stderr}"
+        finally:
+            os.unlink(tmp)
+
+    @pytest.mark.parametrize("bad_commit", [
+        "abc123",                    # too short (8 hex but not 40)
+        "g" * 40,                    # non-hex char
+        "ab" * 15,                   # 30 hex — wrong length
+        12345,                       # not a string
+    ])
+    def test_rejects_invalid_generated_at_commit(self, bad_commit):
+        """A malformed generated_at_commit must fail the schema gate."""
+        bad = self._valid_state(generated_at_commit=bad_commit)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(bad, f)
+            tmp = f.name
+        try:
+            result = _run_validate(str(SCHEMA_DIR / "state.schema.json"), tmp)
+            assert result.returncode == 1, f"invalid commit accepted:\n{result.stderr}"
+            assert "generated_at_commit" in result.stderr
+        finally:
+            os.unlink(tmp)
+
 
 class TestQuestionsSchema:
     def test_questions_schema_is_valid_json(self):
