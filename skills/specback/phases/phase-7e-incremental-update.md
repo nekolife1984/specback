@@ -22,6 +22,7 @@ whole document.
      plan \
      --specback-dir {output_dir}/.specback \
      --output-dir {output_dir} \
+     --drift-report {output_dir}/drift-report.json \
      --json
    ```
 
