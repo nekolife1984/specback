@@ -180,3 +180,94 @@ def test_target_dir_fallback_skipped_when_normal_path_exists(tmp_path):
     assert report["gate_failures"] == []
     filenames = [m["file"] for m in report["chapter_metrics"]]
     assert "01-overview.md" in filenames
+
+
+def test_generated_reports_not_quality_gated(tmp_path):
+    """
+    SB-06: drift-report.md / health-report.md must NOT be treated as spec
+    chapters — no chapter metric, no naming violation, no quality-gate failure.
+    """
+    specback_dir = tmp_path / ".specback"
+    specback_dir.mkdir()
+    target_dir = specback_dir / "final"
+    target_dir.mkdir()
+
+    inventory = {"units": []}
+    (specback_dir / "inventory.json").write_text(json.dumps(inventory), encoding="utf-8")
+    # Minimal trace.json to avoid the missing-trace gate failure
+    trace = {"source_units_total": 0, "source_units_covered": 0,
+             "source_units_excluded": 0, "source_units_uncovered": 0}
+    (specback_dir / "trace.json").write_text(json.dumps(trace), encoding="utf-8")
+
+    # A valid standard chapter that MEETS the strict quality thresholds below:
+    # ≥200 effective lines, ≥10 REFs, ≥3 code blocks, ≥1 Mermaid.
+    lines = ["# Overview", ""]
+    for i in range(60):
+        lines.append(f"Section {i} describes behaviour {i}.")
+        lines.append("<!-- REF: src/app.py:10-20 -->")
+        lines.append("Some detailed prose that explains the behaviour in context.")
+        lines.append("Another sentence of documentation prose to add body length.")
+        lines.append("")
+    lines.append("```python")
+    lines.append("def sample():")
+    lines.append("    return True")
+    lines.append("```")
+    lines.append("")
+    lines.append("```bash")
+    lines.append("$ echo hello")
+    lines.append("```")
+    lines.append("")
+    lines.append("```text")
+    lines.append("plain text block")
+    lines.append("```")
+    lines.append("")
+    lines.append("```mermaid")
+    lines.append("graph TD")
+    lines.append("    A-->B")
+    lines.append("```")
+    lines.append("")
+    (target_dir / "01-overview.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (target_dir / "00-metadata.md").write_text("# Metadata\n", encoding="utf-8")
+    (target_dir / "99-unresolved.md").write_text("# Unresolved\n", encoding="utf-8")
+    (target_dir / "traceability.md").write_text("# Traceability\n", encoding="utf-8")
+
+    # Specback-generated reports that do NOT satisfy chapter quality gates.
+    (target_dir / "drift-report.md").write_text(
+        "| file | SRC-ID | impact |\n|---|---|---|\n| a.py | SRC-1 | high |\n",
+        encoding="utf-8")
+    (target_dir / "health-report.md").write_text(
+        "# Health\n\nSome report body without REFs or Mermaid.\n",
+        encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(specback_dir),
+         "--output-dir", str(tmp_path / "output"),
+         "--target-dir-for-required", str(target_dir),
+         "--output-format", "json",
+         "--min-inventory", "0",
+         "--min-questions", "0",
+         "--min-covered-by-fill", "0",
+         "--min-mece-coverage", "0",
+         "--min-refs-per-chapter", "10",
+         "--min-lines-per-chapter", "200",
+         "--min-code-blocks-per-chapter", "3",
+         "--min-mermaid-per-chapter", "1",
+         "--require-min-body-lines-for-reserved", "0",
+         "--no-forbid-mermaid-styling"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
+    report = json.loads(result.stdout)
+
+    # Reports are excluded from chapter metrics entirely.
+    filenames = [m["file"] for m in report["chapter_metrics"]]
+    assert "01-overview.md" in filenames
+    assert "drift-report.md" not in filenames
+    assert "health-report.md" not in filenames
+
+    # No naming violation for the reports, and no quality-gate failure refers to them.
+    assert all("drift-report" not in w and "health-report" not in w
+               for w in report["naming_warnings"])
+    assert all("drift-report" not in f and "health-report" not in f
+               for f in report["gate_failures"])
