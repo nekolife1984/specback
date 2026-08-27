@@ -103,7 +103,7 @@ def test_e2e_generates_trace_json(tmp_path):
 
 
 def test_e2e_output_dir_writes_trace_json(tmp_path):
-    """--output-dir writes trace.json under the given dir."""
+    """--output-dir writes trace.json under the given dir (legacy compat)."""
     sb = tmp_path / ".specback"
     out = tmp_path / "out"
     _write_minimal_source_map(sb)
@@ -118,6 +118,26 @@ def test_e2e_output_dir_writes_trace_json(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert (out / "trace.json").exists(), result.stderr
+    assert "WARNING: --output-dir is deprecated" in result.stderr
+
+
+def test_e2e_default_writes_canonical_trace(tmp_path):
+    """Without --output-dir, trace.json is written to the canonical
+    {specback-dir}/trace.json location (Issue #378 / SB-07)."""
+    sb = tmp_path / ".specback"
+    _write_minimal_source_map(sb)
+    _write_draft_with_ref(sb)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(sb),
+         "--target-dir-for-required", "drafts"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (sb / "trace.json").exists(), result.stderr
+    assert "WARNING" not in result.stderr
+    assert "deprecated" not in result.stderr
 
 
 def test_e2e_missing_source_map_returns_2(tmp_path):
