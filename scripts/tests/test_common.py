@@ -20,6 +20,7 @@ from common import (  # noqa: E402
     sha256_bytes,
     hash_line_range,
     add_specback_dir_arg,
+    resolve_skill_path,
 )
 
 import json  # noqa: E402
@@ -374,3 +375,57 @@ class TestAtomicWriteText:
         p = tmp_path / "no" / "such" / "dir" / "out.md"
         with pytest.raises(FileNotFoundError):
             atomic_write_text(p, "x")
+
+
+class TestResolveSkillPath:
+    """resolve_skill_path validates the recorded .skill-path and re-resolves (SB-01)."""
+
+    def _make_skill_root(self, root: Path) -> Path:
+        """A directory that looks like a skill root (contains scripts/)."""
+        skill = root / "skill"
+        (skill / "scripts").mkdir(parents=True, exist_ok=True)
+        return skill
+
+    def test_uses_recorded_valid_path(self, tmp_path: Path) -> None:
+        skill = self._make_skill_root(tmp_path)
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        (specback / ".skill-path").write_text(str(skill))
+        assert resolve_skill_path(specback, running_root=tmp_path / "other") == skill.resolve()
+
+    def test_falls_back_when_path_missing(self, tmp_path: Path) -> None:
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        running = tmp_path / "running-skill"
+        (running / "scripts").mkdir(parents=True)
+        assert resolve_skill_path(specback, running_root=running) == running.resolve()
+
+    def test_falls_back_when_recorded_path_stale(self, tmp_path: Path) -> None:
+        """A recorded dir that no longer exists falls back to the running root."""
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        (specback / ".skill-path").write_text(str(tmp_path / "gone" / "skill"))
+        running = tmp_path / "running"
+        (running / "scripts").mkdir(parents=True)
+        assert resolve_skill_path(specback, running_root=running) == running.resolve()
+
+    def test_falls_back_when_recorded_has_no_scripts(self, tmp_path: Path) -> None:
+        """A recorded dir without scripts/ is not a valid skill root."""
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        (specback / ".skill-path").write_text(str(plain))
+        running = tmp_path / "running"
+        (running / "scripts").mkdir(parents=True)
+        assert resolve_skill_path(specback, running_root=running) == running.resolve()
+
+    def test_rewrite_persists_fallback(self, tmp_path: Path) -> None:
+        """rewrite=True writes the resolved fallback back to .skill-path."""
+        specback = tmp_path / "proj" / ".specback"
+        specback.mkdir(parents=True)
+        (specback / ".skill-path").write_text(str(tmp_path / "stale"))
+        running = tmp_path / "running"
+        (running / "scripts").mkdir(parents=True)
+        resolve_skill_path(specback, running_root=running, rewrite=True)
+        assert (specback / ".skill-path").read_text().strip() == str(running.resolve())

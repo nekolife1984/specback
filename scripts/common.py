@@ -223,3 +223,51 @@ def add_specback_dir_arg(parser: argparse.ArgumentParser, *,
         help="Path to the specback data directory (crafts/drafts/final, "
              "trace.json, questions.json, etc.).",
     )
+
+
+def resolve_skill_path(specback_dir: str | Path, *,
+                       rewrite: bool = False,
+                       running_root: str | Path | None = None) -> Path:
+    """Return a valid skill root for *specback_dir* (Issue #372 / SB-01).
+
+    Phase 0 records the skill root's absolute path in ``{specback_dir}/.skill-path``.
+    If the repo / skill / container moves, that stored path can become stale, and
+    resume would try to invoke helper scripts from a missing location.  This helper
+    validates the recorded path and, when invalid, falls back to the **currently
+    running** skill root so a moved workspace resolves again without manual edits.
+
+    Validation rules for a recorded path to be considered valid:
+      - it is a non-empty string, and
+      - it resolves to an existing directory, and
+      - that directory contains a ``scripts/`` subdirectory (the marker every
+        helper invocation relies on).
+
+    When *rewrite* is True and the recorded path is invalid (or absent), the
+    resolved fallback is written back to ``{specback_dir}/.skill-path`` so the
+    fix is persisted, not just computed.
+    """
+    specialback = Path(specback_dir)
+    if running_root is None:
+        running_root = Path(__file__).resolve().parent.parent
+    running = Path(running_root).resolve()
+
+    marker = specialback / ".skill-path"
+    recorded = ""
+    if marker.exists():
+        try:
+            recorded = marker.read_text(encoding="utf-8").strip()
+        except OSError:
+            recorded = ""
+
+    candidate = (Path(recorded).resolve() if recorded
+                 and Path(recorded).exists()
+                 and (Path(recorded) / "scripts").is_dir() else running)
+
+    if rewrite:
+        new_value = str(candidate)
+        try:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            atomic_write_text(marker, new_value + "\n")
+        except OSError:
+            pass
+    return candidate
