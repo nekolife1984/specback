@@ -44,7 +44,7 @@ When `goal.multi_scope == false` (default), run the procedure once with `{output
    python "$(cat {output_dir}/.specback/.skill-path)/scripts/build-trace.py" \
      --specback-dir {output_dir}/.specback
    ```
-   This rebuilds the REF-to-SRC-ID cross-reference, eliminating orphaned entries from deleted files.
+   This rebuilds the REF-to-SRC-ID cross-reference, eliminating orphaned entries from deleted files. The canonical `trace.json` is written to `{output_dir}/.specback/trace.json`; the scan dir defaults to `final`.
 
 4. **Update state.json**:
    - Set `generated_at_commit` to the current HEAD:

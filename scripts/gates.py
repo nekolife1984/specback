@@ -287,12 +287,14 @@ def schema_valid(data_file: str, schema_path: str) -> GateReport:
 def traceability_full(
     specback_dir: str = ".specback",
     output_dir: str = ".",
+    target_dir: str = ".specback/drafts",
 ) -> GateReport:
     """Verify traceability data — trace.json exists and is structurally
     sound.
 
-    Runs ``build-trace.py`` to (re)generate ``trace.json``, then validates
-    the output artifact.
+    Runs ``build-trace.py`` to (re)generate ``trace.json`` (canonical
+    location ``{specback-dir}/trace.json``), then validates the output
+    artifact.
 
     Parameters
     ----------
@@ -300,13 +302,23 @@ def traceability_full(
         Path to ``.specback/``.
     output_dir:
         Output directory (default: same as specback parent).
+    target_dir:
+        Directory to scan for REF markers (drafts/final relative to
+        specback_dir, or an absolute chapter dir). Passed through to
+        build-trace.py as ``--target-dir-for-required`` (Issue #378 / SB-07).
 
     Returns
     -------
     GateReport
     """
     report = GateReport(name="traceability_full")
-    args = ["--specback-dir", specback_dir, "--output-dir", output_dir]
+    args = ["--specback-dir", specback_dir]
+    if target_dir:
+        # target_dir is passed through as build-trace.py's
+        # --target-dir-for-required: a bare drafts/final token resolves
+        # relative to specback_dir, an absolute path is scanned as-is
+        # (Issue #378 / SB-07). No re-resolution needed here.
+        args += ["--target-dir-for-required", target_dir]
 
     try:
         proc = _run_script("build-trace.py", args, timeout=120)
@@ -355,6 +367,7 @@ def traceability_full(
 def drift_detected(
     specback_dir: str = ".specback",
     output_dir: str = ".",
+    target_dir: str = ".specback/drafts",
 ) -> GateReport:
     """Run drift detection and verify the report artefacts were generated.
 
@@ -451,7 +464,8 @@ def run_gates(
             sp = kwargs.get("schema", "")
             reports.append(fn(data_file=dp, schema_path=sp))
         elif name in ("traceability_full", "drift_detected"):
-            reports.append(fn(specback_dir=specback_dir, output_dir=output_dir))
+            reports.append(fn(specback_dir=specback_dir, output_dir=output_dir,
+                              target_dir=kwargs.get("target_dir", ".specback/drafts")))
         else:
             reports.append(fn(specback_dir=specback_dir, output_dir=output_dir))
     return reports
@@ -494,6 +508,10 @@ def main(argv: list[str] | None = None) -> int:
                      target_dir_for_required=args.target_dir)
     elif args.gate == "schema_valid":
         report = fn(data_file=args.data_file, schema_path=args.schema)
+    elif args.gate == "traceability_full":
+        report = fn(specback_dir=args.specback_dir,
+                    output_dir=args.output_dir,
+                    target_dir=args.target_dir)
     else:
         report = fn(specback_dir=args.specback_dir,
                     output_dir=args.output_dir)

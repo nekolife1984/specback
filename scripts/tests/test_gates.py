@@ -211,6 +211,32 @@ class TestTraceabilityFull:
         checks = {c["item"]: c["ok"] for c in r.to_dict()["checks"]}
         assert checks.get("trace.json parses") is False
 
+    def test_does_not_pass_output_dir(self, tmp_path: Path) -> None:
+        """traceability_full must NOT pass --output-dir to build-trace.py so the
+        canonical {specback-dir}/trace.json is written (Issue #378 / SB-07)."""
+        sb = tmp_path / ".specback"
+        sb.mkdir()
+        with patch("gates._run_script", return_value=_proc("", returncode=0)) as mk:
+            gates.traceability_full(specback_dir=str(sb), output_dir=str(tmp_path))
+        call_args = mk.call_args.args[1]
+        assert "--output-dir" not in call_args, (
+            f"--output-dir leaked into build-trace.py args: {call_args}"
+        )
+
+    def test_passes_target_dir_for_required(self, tmp_path: Path) -> None:
+        """traceability_full forwards --target-dir-for-required to build-trace.py
+        so the actual chapter dir is scanned (Issue #378 / SB-07)."""
+        sb = tmp_path / ".specback"
+        sb.mkdir()
+        with patch("gates._run_script", return_value=_proc("", returncode=0)) as mk:
+            gates.traceability_full(
+                specback_dir=str(sb), output_dir=str(tmp_path),
+                target_dir="final",
+            )
+        call_args = mk.call_args.args[1]
+        assert "--target-dir-for-required" in call_args
+        assert call_args[call_args.index("--target-dir-for-required") + 1] == "final"
+
 
 # ===========================================================================
 # drift_detected gate

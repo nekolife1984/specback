@@ -217,13 +217,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--output-dir",
-        default=".specback",
-        help="Path to output trace.json (defaults to --specback-dir value if you only want one dir)",
+        default=None,
+        help=(
+            "DEPRECATED (Issue #378 / SB-07). trace.json canonical location is "
+            "{specback-dir}/trace.json. Only set this to write trace.json to a "
+            "non-canonical location for legacy callers; a deprecation warning "
+            "is printed."
+        ),
     )
     args = parser.parse_args(argv)
 
     sb_dir = Path(args.specback_dir)
-    output_dir = Path(args.output_dir)
+    if args.output_dir is not None:
+        print(
+            f"build-trace.py: WARNING: --output-dir is deprecated (Issue #378); "
+            f"trace.json now defaults to {sb_dir}/trace.json. Writing to the "
+            f"requested legacy location instead.",
+            file=sys.stderr,
+        )
+        output_dir = Path(args.output_dir)
+    else:
+        output_dir = sb_dir
     source_map_path = sb_dir / "source-map.json"
     target_arg = Path(args.target_dir_for_required)
     drafts_dir = target_arg if target_arg.is_absolute() else sb_dir / target_arg
