@@ -222,3 +222,54 @@ def test_e2e_fail_on_uncovered_exits_1(tmp_path):
     )
     assert result.returncode == 1, result.stderr
     assert (sb / "trace.json").exists()   # still generated
+
+
+def test_e2e_path_ref_eof_warning(tmp_path):
+    """SB-10: a path REF whose end exceeds EOF is reported to stderr.
+
+    build-trace still writes trace.json and exits 0 (it is a generator), but the
+    invalid clickable range is surfaced as a warning.
+    """
+    sb = tmp_path / ".specback"
+    _write_minimal_source_map(sb)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "app.py").write_text("def run():\n    pass\n\n", encoding="utf-8")
+
+    drafts = sb / "drafts"
+    drafts.mkdir(parents=True, exist_ok=True)
+    (drafts / "01-overview.md").write_text(
+        "# Overview\n\n<!-- REF: src/app.py:1-99999 -->\n", encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(sb),
+         "--target-dir-for-required", "drafts"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "exceeds EOF" in result.stderr
+    assert (sb / "trace.json").exists()
+
+
+def test_e2e_path_ref_valid_no_warning(tmp_path):
+    """SB-10: a path REF within EOF range produces no warning."""
+    sb = tmp_path / ".specback"
+    _write_minimal_source_map(sb)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "app.py").write_text("def run():\n    pass\n\n", encoding="utf-8")
+    drafts = sb / "drafts"
+    drafts.mkdir(parents=True, exist_ok=True)
+    (drafts / "01-overview.md").write_text(
+        "# Overview\n\n<!-- REF: src/app.py:1-3 -->\n", encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "--specback-dir", str(sb),
+         "--target-dir-for-required", "drafts"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "WARNING" not in result.stderr
