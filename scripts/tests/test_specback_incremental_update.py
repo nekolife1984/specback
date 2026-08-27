@@ -882,3 +882,105 @@ def test_plan_specback_dir_parses_as_path(tmp_path):
     assert args.specback_dir == Path("custom-sb")
     args_default = parser.parse_args([])
     assert args_default.specback_dir == Path(".specback")
+
+
+# ---------------------------------------------------------------------------
+# SB-03 / Issue #374 — rollback on apply trace-refresh failure
+# ---------------------------------------------------------------------------
+
+def _apply_in_process(fx: dict, new_text: str,
+                      monkeypatch, trace_failure: bool = True) -> dict:
+    """Run cmd_apply in-process with trace refresh simulated (or skipped)."""
+    import argparse
+    updated_dir = fx["specback"] / "incremental" / "updated"
+    updated_dir.mkdir(parents=True, exist_ok=True)
+    updated = updated_dir / "05-data-model.md"
+    updated.write_text(new_text, encoding="utf-8")
+
+    args = argparse.Namespace(
+        specback_dir=str(fx["specback"]),
+        output_dir=str(fx["output"]),
+        updated=str(updated),
+        json=True,
+        skip_trace_refresh=False,
+    )
+    if trace_failure:
+        fake = subprocess.CompletedProcess(
+            args=["build-trace.py"], returncode=1,
+            stdout="", stderr="boom: trace build failed",
+        )
+        monkeypatch.setattr(incr, "subprocess", _FakeSubprocess(fake))
+
+    import io
+    stdout = io.StringIO()
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = stdout, io.StringIO()
+    try:
+        rc = incr.cmd_apply(args)
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+    return {"rc": rc, "json": json.loads(stdout.getvalue())}
+
+
+class _FakeSubprocess:
+    """Monkeypatched subprocess stub that returns a fixed CompletedProcess."""
+    def __init__(self, result: subprocess.CompletedProcess) -> None:
+        self._result = result
+
+    def run(self, *args, **kwargs):
+        return self._result
+
+
+def test_apply_trace_failure_rolls_back_chapter_and_trace(tmp_path, monkeypatch):
+    """SB-03: build-trace failure rolls back chapter + trace to pre-apply state."""
+    fx = _make_fixture(tmp_path)
+    _plan_first(fx)
+    original_chapter = (fx["output"] / "05-data-model.md").read_text()
+    original_trace = (fx["specback"] / "trace.json").read_text()
+
+    new_text = "# Data model\n\n## 5.2 Issue\n\nUpdated. <!-- REF: SRC-0010 -->\n"
+    out = _apply_in_process(fx, new_text, monkeypatch, trace_failure=True)
+
+    assert out["rc"] == 1
+    data = out["json"]
+    assert data["applied"] is False
+    assert "build-trace.py failed" in data["reason"]
+    assert data["rollback"]["chapter_restored"] is True
+    assert data["rollback"]["trace_restored"] is True
+    # Chapter content restored to original.
+    assert (fx["output"] / "05-data-model.md").read_text() == original_chapter
+    # Trace restored to original.
+    assert (fx["specback"] / "trace.json").read_text() == original_trace
+
+
+def test_apply_trace_failure_rollback_json_hashes_match(tmp_path, monkeypatch):
+    """Acceptance: apply non-zero exit → chapter & trace hashes match pre-apply."""
+    fx = _make_fixture(tmp_path)
+    _plan_first(fx)
+    orig_ch_hash = incr.sha256_file(fx["output"] / "05-data-model.md")
+    orig_tr_hash = incr.sha256_file(fx["specback"] / "trace.json")
+
+    new_text = "# Data model\n\n## 5.2 Issue\n\nUpdated. <!-- REF: SRC-0010 -->\n"
+    out = _apply_in_process(fx, new_text, monkeypatch, trace_failure=True)
+    assert out["rc"] == 1
+    assert incr.sha256_file(fx["output"] / "05-data-model.md") == orig_ch_hash
+    assert incr.sha256_file(fx["specback"] / "trace.json") == orig_tr_hash
+
+
+def test_apply_trace_failure_when_no_prior_trace(tmp_path, monkeypatch):
+    """SB-03: if trace.json did not exist before apply, a failure removes it."""
+    fx = _make_fixture(tmp_path)
+    _plan_first(fx)
+    # Simulate a project with no trace.json yet (plan tolerates it via fallback,
+    # but here we delete it to exercise the "no original" rollback branch).
+    (fx["specback"] / "trace.json").unlink()
+    orig_chapter = (fx["output"] / "05-data-model.md").read_text()
+
+    new_text = "# Data model\n\n## 5.2 Issue\n\nUpdated. <!-- REF: SRC-0010 -->\n"
+    out = _apply_in_process(fx, new_text, monkeypatch, trace_failure=True)
+
+    assert out["rc"] == 1
+    assert out["json"]["rollback"]["chapter_restored"] is True
+    assert out["json"]["rollback"]["trace_restored"] is True
+    assert (fx["output"] / "05-data-model.md").read_text() == orig_chapter
+    assert not (fx["specback"] / "trace.json").exists()
